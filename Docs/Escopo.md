@@ -5,7 +5,7 @@
 | Campo | Descrição |
 |---|---|
 | Projeto | EduControll |
-| Arquitetura | MTV (Model–Template–View) |
+| Arquitetura | Monólito Modular / MTV (Model–Template–View) |
 | Repositório | Trabalho-Fabiano |
 | Licença | MIT |
 | Versão do documento | 1.0 |
@@ -74,12 +74,12 @@ Desenvolver um sistema web que permita a escolas e cursos acompanhar frequência
 
 | # | Etapa | Resultado |
 |:---:|---|---|
-| 1 | Planejamento | Escopo, requisitos e modelo de dados definidos |
-| 2 | Base do sistema | Projeto Django configurado, banco conectado, login por perfil |
-| 3 | Cadastros | Turmas, disciplinas, matrículas e vínculos funcionando |
-| 4 | Frequência e notas | Registro de presença, notas e boletim operacionais |
-| 5 | Atividades e avisos | Entregas, correções e mural funcionando |
-| 6 | Fechamento | Testes, ajustes e documentação final |
+| 1 | Planejamento | Escopo, requisitos, arquitetura de pastas e modelo de dados definidos |
+| 2 | Base e Autenticação | Projeto Django configurado em módulos, banco conectado, login e perfis em `usuarios` |
+| 3 | Estrutura Acadêmica | Módulo `academico` com turmas, disciplinas, matrículas e aulas funcionando |
+| 4 | Frequência e Notas | Módulos `frequencia` e `avaliacoes` operacionais (presença, notas e boletim) |
+| 5 | Atividades e Avisos | Módulos `atividades` e `comunicacao` operacionais (entregas, correções e mural) |
+| 6 | Fechamento | Audit logs, validações de segurança, testes e documentação final |
 
 ## 8. Critérios de aceitação
 
