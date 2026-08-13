@@ -1,6 +1,6 @@
 # Escopo do Projeto
 
-**EduControll — Sistema web de gestão acadêmica**
+**EduControll  Sistema web de gestão acadêmica**
 
 | Campo | Descrição |
 |---|---|
