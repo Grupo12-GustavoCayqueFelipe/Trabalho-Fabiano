@@ -1,6 +1,6 @@
-# Escopo do Projeto — EduControll
+# Escopo do Projeto EduControll
 
-**Projeto:** EduControll — sistema web de gestão acadêmica
+**Projeto:** EduControll  Sistema web de gestão acadêmica
 **Arquitetura:** MTV (Model–Template–View)
 **Versão:** 1.0
 
@@ -92,7 +92,3 @@ O projeto é considerado concluído quando:
 | Dificuldade na configuração do banco | Documentar a conexão e versionar o `.env.example` |
 | Regras de avaliação variarem entre instituições | Deixar média e frequência mínima parametrizáveis |
 | Conhecimento concentrado em um integrante | Revisão cruzada e rodízio de módulos |
-
----
-
-Documento complementar: [Anexo de Requisitos](./anexo-requisitos.md)
