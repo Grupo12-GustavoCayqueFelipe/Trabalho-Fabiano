@@ -39,7 +39,7 @@ Desenvolver um sistema web que permita a escolas e cursos acompanhar frequência
 ## 4. O que fica fora
 
 - Módulo financeiro (mensalidades e cobranças)
-- Aplicativo móvel nativo — o acesso é por navegador
+- Aplicativo móvel nativo (o acesso é por navegador)
 - Aulas ao vivo ou videoconferência
 - Documentos com valor legal (histórico escolar oficial)
 - Geração automática de horários
@@ -103,4 +103,4 @@ O projeto é considerado concluído quando:
 
 ---
 
-Documento complementar: [Anexo de Requisitos](./anexo-requisitos.md)
+
