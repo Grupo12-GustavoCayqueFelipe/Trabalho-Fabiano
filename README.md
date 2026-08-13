@@ -1,6 +1,10 @@
 # EduControll
  
 Sistema web para escolas e cursos acompanharem frequência, desempenho, atividades e comunicação com alunos e responsáveis.
+
+#Arquitetura
+
+MTV(Model–Template–View)
  
 ## Funcionalidades
  
