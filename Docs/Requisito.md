@@ -1,8 +1,8 @@
 # Anexo de Requisitos
 
-**EduControll — Sistema web de gestão acadêmica**
+**EduControll Sistema web de gestão acadêmica**
 
-Versão 1.0 — documento base: [Escopo do Projeto](./escopo-do-projeto.md)
+Versão 1.0 
 
 ---
 
