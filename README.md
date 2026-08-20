@@ -17,11 +17,13 @@ Sistema web para escolas e cursos acompanharem frequência, desempenho, atividad
  
 ## Tecnologias
  
-- Python 3.14.6
-- Django 6.0.x
+- Python 3.14+
+- Django 6.0+
 - PostgreSQL 18.4 / Supabase PostgreSQL 18
 - HTML5, CSS moderno e JavaScript ES2025+
- 
+- Supabase Storage
+- Docker e Docker Compose
+  
 ## Instalação
  
 ### Clone o repositório:
