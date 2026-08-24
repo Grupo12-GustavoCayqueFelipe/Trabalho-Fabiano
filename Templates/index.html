@@ -5,18 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My App</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    integrity="sha512-iecdLmaskl7CVkqkXNQ/ZmH+zGt+Y4KcCq4uQkZ5c5e0e4g8A4fF5d" crossorigin="anonymous">
 </head>
 <body>
     <div class="container">
         <div class="content first-content">
             <div class="first-column">
-                <h2 class="title tilte-primary">Welcome back!</h2>
-                <p class="description">To keep connected with us</p>
-                <p class="description">please login with your personal info</p>
+                <h2 class="gittitle tilte-primary">Welcome back!</h2>
+                <p class="description description-primary">To keep connected with us</p>
+                <p class="description description-primary">please login with your personal info</p>
                 <button class="btn btn-primary">sign in</button>
             </div>
             <div class="second-column">
-                <h2 class="title">Create Account</h2>
+                <h2 class="title title-second">Create Account</h2>
                 <div class="social-media">
                     <ul class="list-social-media">
                         <li><a href="#">GitHub</a></li>
@@ -24,12 +26,25 @@
                         <li><a href="#">LinkedIn</a></li>
                     </ul>
                 </div><!-- Social Media -->
-                <p class="description">or use your email for registration</p>
+                <p class="description description-second">or use your email for registration</p>
                 <form class="form">
-                    <input type="text" placeholder="Name">
-                    <input type="email" placeholder="Email">
-                    <input type="password" placeholder="Password">
-                    <button class="btn">sign up</button>
+                    <label class="label-input" for="">
+                        <i class="fas fa-user icon-modify"></i>
+                        <input type="text" placeholder="Name">
+                    </label>
+
+                    <label class="label-input" for="">
+                        <i class="fas fa-envelope icon-modify"></i>
+                        <input type="email" placeholder="Email">
+                    </label>
+
+                    <label class="label-input" for="">
+                        <i class="fas fa-lock icon-modify"></i>
+                        <input type="password" placeholder="Password">
+                    </label>
+
+
+                    <button class="btn btn-second">sign up</button>
                 </form>
             </div><!-- Second Column -->
         </div><!-- first-content -->
@@ -43,10 +58,16 @@
             <div class="first-column">
                 <h2 class="title">Sign in to developer</h2>
                 <div class="social-media">
-                    <ul>
-                        <li><a href="#">GitHub</a></li>
-                        <li><a href="#">Google+</a></li>
-                        <li><a href="#">LinkedIn</a></li>
+                    <ul class="list-social-media">
+                        <li class="item-social-media">
+                            <a href="#"><i class="fab fa-github"></i></a>
+                        </li>
+                        <li class="item-social-media">
+                            <a href="#"><i class="fab fa-google"></i></a>
+                        </li>
+                        <li class="item-social-media">
+                            <a href="#"><i class="fab fa-linkedin"></i></a>
+                        </li>
                     </ul>
                 </div><!-- Social Media -->
                 <p class="description">or use your email for account</p>
