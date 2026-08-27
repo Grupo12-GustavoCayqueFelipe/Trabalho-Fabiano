@@ -1,0 +1,265 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #210546;
+    color: #172033;
+    min-height: 100vh;
+}
+/* =========================
+   BARRA SUPERIOR
+========================= */
+.topbar {
+    height: 64px;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 45px;
+    border-bottom: 1px solid #e1e7ee;
+}
+/* LOGO */
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: #210546;
+    font-size: 21px;
+}
+.logo span {
+    font-size: 20px;
+}
+/* USUÁRIO */
+.usuario {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    font-size: 14px;
+}
+.usuario span {
+    color: #202938;
+}
+.usuario a {
+    color: #210546;
+    text-decoration: none;
+    transition: 0.2s;
+}
+.usuario a:hover {
+    color: #210546;
+}
+/* =========================
+   ÁREA PRINCIPAL
+========================= */
+.pagina {
+    min-height: calc(100vh - 64px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 45px;
+}
+/* =========================
+   CARD PRINCIPAL
+========================= */
+.cadastro {
+    width: 900px;
+    min-height: 570px;
+    background: #210546;
+    border-radius: 18px;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 38% 62%;
+    box-shadow: 0 15px 40px rgba(20, 45, 70, 0.12);
+}
+/* =========================
+   LADO ESQUERDO
+========================= */
+.apresentacao {
+    background: linear-gradient(
+        145deg,
+        #210546,
+        #f4f4f5
+    );
+    color: white;
+    padding: 55px 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.apresentacao h1 {
+    font-size: 40px;
+    line-height: 1.08;
+    margin-bottom: 20px;
+}
+.apresentacao p {
+    font-size: 15px;
+    line-height: 1.7;
+    color: #dceeff;
+    max-width: 260px;
+}
+.linha {
+    width: 45px;
+    height: 3px;
+    background: white;
+    margin: 30px 0 18px;
+    border-radius: 5px;
+}
+.descricao {
+    font-size: 13px;
+    line-height: 1.6;
+    color: white;
+}
+/* =========================
+   FORMULÁRIO
+========================= */
+.formulario {
+    padding: 48px 50px;
+}
+.titulo {
+    margin-bottom: 30px;
+    color: white;
+}
+.titulo h2 {
+    font-size: 27px;
+    color: white;
+    margin-bottom: 8px;
+}
+.titulo p {
+    color: white;
+    font-size: 14px;
+    line-height: 1.5;
+}
+/* =========================
+   CAMPOS
+========================= */
+.campo {
+    margin-bottom: 20px;
+}
+.campo label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 8px;
+}
+.campo input,
+.campo select {
+    width: 100%;
+    height: 44px;
+    padding: 0 14px;
+    border: 1px solid #d9e1e8;
+    border-radius: 9px;
+    background: #f8fafc;
+    color: #273445;
+    font-size: 14px;
+    outline: none;
+    transition: 0.2s;
+}
+.campo input::placeholder {
+    color: #a5afba;
+}
+.campo input:focus,
+.campo select:focus {
+    background: white;
+    border-color: #210546;
+}
+/* SELECT */
+.campo select {
+    cursor: pointer;
+}
+/* AVISO DA SENHA */
+.campo small {
+    display: block;
+    margin-top: 7px;
+    font-size: 11px;
+    color: white;
+}
+/* =========================
+   BOTÕES
+========================= */
+.acoes {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    margin-top: 30px;
+    padding-top: 22px;
+    border-top: 1px solid #e7ebef;
+}
+.cancelar {
+    height: 43px;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d9e1e8;
+    border-radius: 9px;
+    color: #edf0f3;
+    text-decoration: none;
+    font-size: 13px;
+    transition: 0.2s;
+}
+.cancelar:hover {
+    background: #000911;
+}
+button {
+    height: 43px;
+    padding: 0 22px;
+    border: 1px solid;
+    border-radius: 9px;
+    background: #210546;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+button:hover {
+    background: #000000;
+}
+/* =========================
+   RESPONSIVIDADE
+========================= */
+@media (max-width: 800px) {
+    .pagina {
+        padding: 25px;
+    }
+    .cadastro {
+        width: 100%;
+        grid-template-columns: 1fr;
+    }
+    .apresentacao {
+        padding: 35px;
+        min-height: 280px;
+    }
+    .apresentacao h1 {
+        font-size: 32px;
+    }
+    .formulario {
+        padding: 35px;
+    }
+
+}
+@media (max-width: 500px) {
+    .topbar {
+        padding: 0 20px;
+    }
+    .usuario span {
+        display: none;
+    }
+    .pagina {
+        padding: 15px;
+    }
+    .formulario {
+        padding: 30px 22px;
+    }
+    .acoes {
+        flex-direction: column-reverse;
+    }
+    .acoes a,
+    .acoes button {
+        width: 100%;
+    }
+}
