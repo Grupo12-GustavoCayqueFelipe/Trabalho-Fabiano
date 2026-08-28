@@ -10,11 +10,15 @@
     <!-- CABEÇALHO -->
     <header class="topbar">
     <div class="logo">
-        <form action="/Templates/html/index.html" method="GET">
         <h2>EduControll</h2>
         </div>
         <div class="usuario">
             <p>Admin</p>
+            <div class="dash">
+              <form action="/Templates/html/alunos/aluno.html" method="GET">
+                 <input type="submit" value="Dashboard">
+              </form>
+        </div>
                 </form>
                     <div class="out">
                         <form action="/Templates/html/index.html" method="GET">
@@ -23,11 +27,6 @@
                     </div>
                 </form>
               </form>
-              <div class="dash">
-              <form action="/Templates/html/tres.html" method="GET">
-                 <input type="submit" value="Dashboard">
-              </form>
-        </div>
     </header>
     <!-- CONTEÚDO -->
     <main class="pagina">
@@ -58,21 +57,21 @@
                         <label for="nome">
                             Nome completo
                         </label>
-                        <input type="text" name="nome" placeholder="Digite o nome completo">
+                        <input type="text" name="nome" placeholder="Digite o nome completo" required>
                     </div>
                     <!-- EMAIL -->
                     <div class="campo">
                         <label for="email">
                             E-mail
                         </label>
-                        <input type="email" name="email" placeholder="usuario@escola.com">
+                        <input type="email" name="email" placeholder="usuario@escola.com" required>
                     </div>
                     <!-- PERFIL -->
                     <div class="campo">
                         <label for="perfil">
                             Perfil de acesso
                         </label>
-                        <select name="perfil">
+                        <select name="perfil" required>
                             <option value="">
                                 Selecione um perfil
                             </option>
@@ -84,6 +83,9 @@
                             </option>
                             <option value="administrador">
                                 Administrador
+                            </option>
+                            <option value="responsavel">
+                                Responsável
                             </option>
                         </select>
                     </div>

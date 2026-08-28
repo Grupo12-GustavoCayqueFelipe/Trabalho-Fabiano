@@ -27,9 +27,6 @@ body {
     color: #210546;
     font-size: 21px;
 }
-.logo span {
-    font-size: 20px;
-}
 /* USUÁRIO */
 .usuario {
     display: flex;
@@ -37,16 +34,8 @@ body {
     gap: 22px;
     font-size: 14px;
 }
-.usuario span {
-    color: #202938;
-}
-.usuario a {
-    color: #210546;
-    text-decoration: none;
-    transition: 0.2s;
-}
-.usuario a:hover {
-    color: #210546;
+.usuario p {
+    font-family: Georgia, Times, 'Times New Roman', serif;
 }
 /* ÁREA PRINCIPAL */
 .pagina {
@@ -98,10 +87,11 @@ body {
     margin: 30px 0 18px;
     border-radius: 5px;
 }
-.descricao {
-    font-size: 13px;
+.description {
+    font-size: 14px;
     line-height: 1.6;
     color: white;
+    font-family: Georgia, 'Times New Roman', Times, serif
 }
 /* FORMULÁRIO */
 .formulario {
@@ -142,8 +132,6 @@ body {
     background: #f8fafc;
     color: #273445;
     font-size: 14px;
-    outline: none;
-    transition: 0.2s;
 }
 .campo input::placeholder {
     color: #a5afba;
@@ -170,7 +158,7 @@ body {
     justify-content: flex-end;
     align-items: center;
     gap: 12px;
-    margin-top: 30px;
+    margin-top: 40px;
     padding-top: 22px;
     border-top: 1px solid #e7ebef;
 }
@@ -185,7 +173,7 @@ body {
     color: #edf0f3;
     text-decoration: none;
     font-size: 13px;
-    transition: 0.2s;
+    transition: 0.3s;
 }
 .cancelar:hover {
     background: #000911;
@@ -200,7 +188,7 @@ button {
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    transition: 0.2s;
+    transition: 0.3s;
 }
 button:hover {
     background: #000000;
@@ -215,7 +203,6 @@ button:hover {
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    transition: 0.2s;
 }
 .out form input[type="submit"] {
     height: 43px;
@@ -227,5 +214,4 @@ button:hover {
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    transition: 0.2s;
 }

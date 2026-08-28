@@ -1,0 +1,361 @@
+/* CONFIGURAÇÕES GERAIS */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #210546;
+   background: linear-gradient(
+        250deg,
+        #210546,
+        #f4f4f5
+    );
+    min-height: 100vh;
+}
+/* MENU LATERAL */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 250px;
+    height: 100vh;
+  background: linear-gradient(
+        80deg,
+        #210546,
+        #f4f4f5
+    );
+    border-right: 1px solid #e3e8ee;
+    padding: 25px 18px;
+    display: flex;
+    flex-direction: column;
+}
+/* LOGO */
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 10px;
+    margin-bottom: 35px;
+    color: #210546;
+    font-size: 18px;
+}
+/* PERFIL */
+.perfil {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 15px 10px;
+    margin-bottom: 25px;
+    border-bottom: 1px solid white;
+}
+.avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background:#210546 ;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: bold;
+}
+.dados-aluno {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.dados-aluno h3 {
+    font-size: 14px;
+    color: white;
+}
+.dados-aluno p {
+    font-size: 12px;
+    color: white;
+}
+/* MENU */
+.menu {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px;
+    border-radius: 9px;
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+    transition: 0.2s;
+}
+.menu-item:hover {
+    background: #edf7fc;
+    color: #210546;
+}
+.menu-item.ativo {
+    background: #210546;
+    color: white;
+}
+.icone {
+    width: 20px;
+    text-align: center;
+    font-size: 17px;
+}
+.notificacao {
+    margin-left: auto;
+    width: 21px;
+    height: 21px;
+    border-radius: 50%;
+    background: #e63946;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+}
+/* SAIR */
+.menu-sair {
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid #edf0f3;
+}
+.sair:hover {
+    background: white;
+    color: black;
+}
+/* CONTEÚDO */
+.conteudo {
+    margin-left: 250px;
+    padding: 45px;
+}
+/* CABEÇALHO */
+.cabecalho {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 35px;
+}
+.saudacao {
+    font-size: 13px;
+    color: #210546;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+.cabecalho h1 {
+    font-size: 30px;
+    margin-bottom: 8px;
+}
+.subtitulo {
+    color: white;
+    font-size: 14px;
+}
+.periodo {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+    padding: 12px 18px;
+    background: #210546;
+    border: 1px solid #e3e8ee;
+    border-radius: 10px;
+        box-shadow:
+        0 3px 10px #210546;
+}
+.periodo span {
+    font-size: 11px;
+    color: white;
+}
+.periodo strong {
+    font-size: 13px;
+    color: white;
+}
+/* CARDS */
+.cards {
+    display: grid;
+    grid-template-columns:
+        repeat(4, 1fr);
+    gap: 18px;
+    margin-bottom: 25px;
+}
+.card {
+  background: linear-gradient(
+        220deg,
+        #210546,
+        #f4f4f5
+    );
+    border: 1px solid #e3e8ee;
+    border-radius: 13px;
+    padding: 22px;
+    box-shadow:
+        0 3px 10px #210546;
+}
+.card-topo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+.card-topo > span {
+    font-size: 13px;
+    color: #210546;
+}
+.card-icone {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+.verde {
+    background: #dff8eb;
+    color: #16a36a;
+}
+.azul {
+    background: #e1f2fc;
+    color: #0787c9;
+}
+.amarelo {
+    background: #fff3d7;
+    color: #d99400;
+}
+.roxo {
+    background: #eee6ff;
+    color: #7950c8;
+}
+.card h2 {
+    font-size: 28px;
+    margin-bottom: 5px;
+}
+.card p {
+    color: #210546;
+    font-size: 12px;
+}
+/* ÁREA INFERIOR */
+.area-inferior {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 20px;
+}
+.painel {
+  background: linear-gradient(
+        120deg,
+        #210546,
+        #f4f4f5
+    );;
+    border: 1px solid white;
+    border-radius: 10px;
+    padding: 25px;
+        box-shadow:
+        0 3px 10px #210546;
+}
+.painel-titulo {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+.painel-titulo h2 {
+    color: white;
+    font-size: 18px;
+    margin-bottom: 5px;
+}
+.painel-titulo p {
+    color: white;
+    font-size: 12px;
+}
+.painel-titulo a {
+    color: white;
+    font-size: 12px;
+    text-decoration: none;
+}
+/* ATIVIDADES */
+.atividade {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px 0;
+    border-top: 1px solid #edf0f3;
+}
+.data {
+    width: 45px;
+    height: 48px;
+    border-radius: 9px;
+    background: #eef7fc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.data strong {
+    font-size: 17px;
+    color: #210546;
+}
+.data span {
+    font-size: 9px;
+    color: #6f7b89;
+}
+.atividade-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+}
+.atividade-info strong {
+    font-size: 13px;
+    color: white;
+}
+.atividade-info span {
+    font-size: 11px;
+    color: white;
+}
+.status {
+    font-size: 10px;
+    padding: 6px 9px;
+    border-radius: 20px;
+}
+.pendente {
+    background: #fff2d8;
+    color: #c78700;
+}
+.concluido {
+    background: #e2f8ed;
+    color: #14935d;
+}
+/* DISCIPLINAS */
+.disciplina {
+    padding: 16px 0;
+    border-top: 1px solid #edf0f3;
+}
+.disciplina-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 9px;
+}
+.disciplina-info strong {
+    font-size: 13px;
+    color: white;
+}
+.disciplina-info span {
+    font-size: 11px;
+    color: #210546;
+    font-weight: bold;
+}
+.barra {
+    width: 100%;
+    height: 7px;
+    background: #edf1f5;
+    border-radius: 10px;
+}
+.progresso {
+    height: 100%;
+    background: #210546;
+    border-radius: 10px;
+}
