@@ -9,9 +9,7 @@ body {
     color: #172033;
     min-height: 100vh;
 }
-/* =========================
-   BARRA SUPERIOR
-========================= */
+/* BARRA SUPERIOR */
 .topbar {
     height: 64px;
     background: white;
@@ -50,9 +48,7 @@ body {
 .usuario a:hover {
     color: #210546;
 }
-/* =========================
-   ÁREA PRINCIPAL
-========================= */
+/* ÁREA PRINCIPAL */
 .pagina {
     min-height: calc(100vh - 64px);
     display: flex;
@@ -60,9 +56,7 @@ body {
     align-items: center;
     padding: 45px;
 }
-/* =========================
-   CARD PRINCIPAL
-========================= */
+/* CARD PRINCIPAL */
 .cadastro {
     width: 900px;
     min-height: 570px;
@@ -73,9 +67,7 @@ body {
     grid-template-columns: 38% 62%;
     box-shadow: 0 15px 40px rgba(20, 45, 70, 0.12);
 }
-/* =========================
-   LADO ESQUERDO
-========================= */
+/* LADO ESQUERDO */
 .apresentacao {
     background: linear-gradient(
         145deg,
@@ -90,8 +82,8 @@ body {
 }
 .apresentacao h1 {
     font-size: 40px;
-    line-height: 1.08;
-    margin-bottom: 20px;
+    line-height: 1.00;
+    margin-bottom: 10px;
 }
 .apresentacao p {
     font-size: 15px;
@@ -100,7 +92,7 @@ body {
     max-width: 260px;
 }
 .linha {
-    width: 45px;
+    width: 250px;
     height: 3px;
     background: white;
     margin: 30px 0 18px;
@@ -111,9 +103,7 @@ body {
     line-height: 1.6;
     color: white;
 }
-/* =========================
-   FORMULÁRIO
-========================= */
+/* FORMULÁRIO */
 .formulario {
     padding: 48px 50px;
 }
@@ -131,9 +121,7 @@ body {
     font-size: 14px;
     line-height: 1.5;
 }
-/* =========================
-   CAMPOS
-========================= */
+/* CAMPOS */
 .campo {
     margin-bottom: 20px;
 }
@@ -176,10 +164,8 @@ body {
     font-size: 11px;
     color: white;
 }
-/* =========================
-   BOTÕES
-========================= */
-.acoes {
+/* BOTÕES */
+.botton {
     display: flex;
     justify-content: flex-end;
     align-items: center;
@@ -219,47 +205,27 @@ button {
 button:hover {
     background: #000000;
 }
-/* =========================
-   RESPONSIVIDADE
-========================= */
-@media (max-width: 800px) {
-    .pagina {
-        padding: 25px;
-    }
-    .cadastro {
-        width: 100%;
-        grid-template-columns: 1fr;
-    }
-    .apresentacao {
-        padding: 35px;
-        min-height: 280px;
-    }
-    .apresentacao h1 {
-        font-size: 32px;
-    }
-    .formulario {
-        padding: 35px;
-    }
-
+.dash form input[type="submit"] {
+    height: 43px;
+    padding: 0 22px;
+    border: 1px solid;
+    border-radius: 9px;
+    background: #210546;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
 }
-@media (max-width: 500px) {
-    .topbar {
-        padding: 0 20px;
-    }
-    .usuario span {
-        display: none;
-    }
-    .pagina {
-        padding: 15px;
-    }
-    .formulario {
-        padding: 30px 22px;
-    }
-    .acoes {
-        flex-direction: column-reverse;
-    }
-    .acoes a,
-    .acoes button {
-        width: 100%;
-    }
+.out form input[type="submit"] {
+    height: 43px;
+    padding: 0 22px;
+    border: 1px solid;
+    border-radius: 9px;
+    background: #210546;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
 }
