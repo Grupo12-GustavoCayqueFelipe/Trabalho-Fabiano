@@ -9,9 +9,7 @@ body {
     color: #172033;
     min-height: 100vh;
 }
-/* =========================
-   BARRA SUPERIOR
-========================= */
+/* BARRA SUPERIOR */
 .topbar {
     height: 64px;
     background: white;
@@ -29,9 +27,6 @@ body {
     color: #210546;
     font-size: 21px;
 }
-.logo span {
-    font-size: 20px;
-}
 /* USUÁRIO */
 .usuario {
     display: flex;
@@ -39,20 +34,10 @@ body {
     gap: 22px;
     font-size: 14px;
 }
-.usuario span {
-    color: #202938;
+.usuario p {
+    font-family: Georgia, Times, 'Times New Roman', serif;
 }
-.usuario a {
-    color: #210546;
-    text-decoration: none;
-    transition: 0.2s;
-}
-.usuario a:hover {
-    color: #210546;
-}
-/* =========================
-   ÁREA PRINCIPAL
-========================= */
+/* ÁREA PRINCIPAL */
 .pagina {
     min-height: calc(100vh - 64px);
     display: flex;
@@ -60,9 +45,7 @@ body {
     align-items: center;
     padding: 45px;
 }
-/* =========================
-   CARD PRINCIPAL
-========================= */
+/* CARD PRINCIPAL */
 .cadastro {
     width: 900px;
     min-height: 570px;
@@ -73,9 +56,7 @@ body {
     grid-template-columns: 38% 62%;
     box-shadow: 0 15px 40px rgba(20, 45, 70, 0.12);
 }
-/* =========================
-   LADO ESQUERDO
-========================= */
+/* LADO ESQUERDO */
 .apresentacao {
     background: linear-gradient(
         145deg,
@@ -90,8 +71,8 @@ body {
 }
 .apresentacao h1 {
     font-size: 40px;
-    line-height: 1.08;
-    margin-bottom: 20px;
+    line-height: 1.00;
+    margin-bottom: 10px;
 }
 .apresentacao p {
     font-size: 15px;
@@ -100,20 +81,19 @@ body {
     max-width: 260px;
 }
 .linha {
-    width: 45px;
+    width: 250px;
     height: 3px;
     background: white;
     margin: 30px 0 18px;
     border-radius: 5px;
 }
-.descricao {
-    font-size: 13px;
+.description {
+    font-size: 14px;
     line-height: 1.6;
     color: white;
+    font-family: Georgia, 'Times New Roman', Times, serif
 }
-/* =========================
-   FORMULÁRIO
-========================= */
+/* FORMULÁRIO */
 .formulario {
     padding: 48px 50px;
 }
@@ -131,9 +111,7 @@ body {
     font-size: 14px;
     line-height: 1.5;
 }
-/* =========================
-   CAMPOS
-========================= */
+/* CAMPOS */
 .campo {
     margin-bottom: 20px;
 }
@@ -154,8 +132,6 @@ body {
     background: #f8fafc;
     color: #273445;
     font-size: 14px;
-    outline: none;
-    transition: 0.2s;
 }
 .campo input::placeholder {
     color: #a5afba;
@@ -176,15 +152,13 @@ body {
     font-size: 11px;
     color: white;
 }
-/* =========================
-   BOTÕES
-========================= */
-.acoes {
+/* BOTÕES */
+.botton {
     display: flex;
     justify-content: flex-end;
     align-items: center;
     gap: 12px;
-    margin-top: 30px;
+    margin-top: 40px;
     padding-top: 22px;
     border-top: 1px solid #e7ebef;
 }
@@ -199,7 +173,7 @@ body {
     color: #edf0f3;
     text-decoration: none;
     font-size: 13px;
-    transition: 0.2s;
+    transition: 0.3s;
 }
 .cancelar:hover {
     background: #000911;
@@ -214,52 +188,30 @@ button {
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    transition: 0.2s;
+    transition: 0.3s;
 }
 button:hover {
     background: #000000;
 }
-/* =========================
-   RESPONSIVIDADE
-========================= */
-@media (max-width: 800px) {
-    .pagina {
-        padding: 25px;
-    }
-    .cadastro {
-        width: 100%;
-        grid-template-columns: 1fr;
-    }
-    .apresentacao {
-        padding: 35px;
-        min-height: 280px;
-    }
-    .apresentacao h1 {
-        font-size: 32px;
-    }
-    .formulario {
-        padding: 35px;
-    }
-
+.dash form input[type="submit"] {
+    height: 43px;
+    padding: 0 22px;
+    border: 1px solid;
+    border-radius: 9px;
+    background: #210546;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
 }
-@media (max-width: 500px) {
-    .topbar {
-        padding: 0 20px;
-    }
-    .usuario span {
-        display: none;
-    }
-    .pagina {
-        padding: 15px;
-    }
-    .formulario {
-        padding: 30px 22px;
-    }
-    .acoes {
-        flex-direction: column-reverse;
-    }
-    .acoes a,
-    .acoes button {
-        width: 100%;
-    }
+.out form input[type="submit"] {
+    height: 43px;
+    padding: 0 22px;
+    border: 1px solid;
+    border-radius: 9px;
+    background: #210546;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
 }
