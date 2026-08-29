@@ -13,6 +13,7 @@ import os
 
 from dotenv import load_dotenv
 from pathlib import Path
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -42,7 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'Trabalho-Fabiano.usuarios',
+    'apps.usuarios',
 ]
 
 MIDDLEWARE = [
@@ -78,12 +79,15 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+# Le a variavel DATABASE_URL do .env
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=os.getenv('DATABASE_URL'),
+        conn_max_age=600,
+        ssl_require=True # exigido para conexao segura com o banco de dados.
+    )
 }
+
 
 
 # Password validation
@@ -105,7 +109,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 # Custom user model
-AUTH_USER_MODEL = 'Trabalho-Fabiano.usuarios.Usuario'
+AUTH_USER_MODEL = 'usuarios.Usuario'
 
 
 # Internationalization
@@ -124,3 +128,28 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+USE_SUPABASE_STORAGE = os.getenv('SUPABASE_S3_ACCESS_KEY') is not None
+    
+if USE_SUPABASE_STORAGE:
+    STORAGES = {
+        'default': {
+            'BACKEND': 'storages.backends.s3boto3.S3Boto3Storage',
+            'OPTIONS': {
+                'access_key': os.getenv('SUPABASE_S3_ACCESS_KEY'),
+                'secret_key': os.getenv('SUPABASE_S3_SECRET_KEY'),
+                'bucket_name': os.getenv('SUPABASE_S3_BUCKET_NAME'),
+                'endpoint_url': os.getenv('SUPABASE_S3_ENDPOINT_URL'),
+                'region_name': os.getenv('SUPABASE_S3_REGION_NAME'),
+                'querystring_auth': False,
+                'file_overwrite': False,
+            },
+        },
+        'staticfiles': {
+            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+        },
+    }
+else:
+    # Configuração para armazenamento local
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
