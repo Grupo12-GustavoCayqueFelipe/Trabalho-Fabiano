@@ -215,3 +215,14 @@ button:hover {
     font-weight: 600;
     cursor: pointer;
 }
+.ress form input[type="submit"] {
+    height: 43px;
+    padding: 0 20px;
+    border: 1px solid;
+    border-radius: 9px;
+    background: #210546;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}

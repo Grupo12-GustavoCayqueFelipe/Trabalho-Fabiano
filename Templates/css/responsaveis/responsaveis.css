@@ -1,0 +1,459 @@
+/* CONFIGURAÇÕES GERAIS */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+html {
+    scroll-behavior: smooth;
+}
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(
+        250deg,
+        #210546,
+        #f4f4f5
+    );
+    color: #172033;
+    min-height: 100vh;
+}
+/* SIDEBAR */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 250px;
+    height: 100vh;
+  background: linear-gradient(
+        80deg,
+        #210546,
+        #f4f4f5
+    );
+    border-right: 1px solid white;
+    padding: 25px 18px;
+    display: flex;
+    flex-direction: column;
+}
+/* LOGO */
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 15px;
+    margin-bottom: 35px;
+    color: #210546;
+    font-size: 32px;
+}
+.logo-icon {
+    font-size: 20px;
+}
+/* PERFIL */
+.perfil {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 15px 10px;
+    margin-bottom: 25px;
+    border-bottom: 1px solid #edf0f3;
+}
+.avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: #210546;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: bold;
+}
+.dados {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.dados strong {
+    font-size: 14px;
+}
+.dados span {
+    font-size: 12px;
+    color: white;
+}
+/* MENU */
+.menu {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px;
+    border-radius: 9px;
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+    transition: 0.2s;
+}
+.menu-item:hover {
+    background: #edf7fc;
+    color: #210546;
+}
+.menu-item.ativo {
+    background: #210546;
+    color: white;
+}
+.icone {
+    width: 18px;
+    text-align: center;
+    font-size: 16px;
+}
+/* NOTIFICAÇÃO */
+.notificacao {
+    margin-left: auto;
+    width: 21px;
+    height: 21px;
+    border-radius: 50%;
+    background: #e63946;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+}
+/* SAIR */
+.menu-footer {
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid white;
+}
+.sair:hover {
+    background: black;
+    color: white;
+}
+/* CONTEÚDO */
+.conteudo {
+    margin-left: 250px;
+    padding: 45px;
+    max-width: 1250px;
+}
+/* CABEÇALHO */
+.cabecalho {
+    margin-bottom: 35px;
+}
+.pequeno {
+    color: #210546;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 7px;
+}
+.cabecalho h1 {
+    font-size: 30px;
+    margin-bottom: 8px;
+    color: #210546
+    ;
+}
+.subtitulo {
+    color: white;
+    font-size: 14px;
+}
+/* SEÇÕES */
+.secao,
+.chat-section {
+    margin-bottom: 45px;
+}
+.titulo-secao {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 18px;
+}
+.titulo-secao h2 {
+    font-size: 20px;
+    margin-bottom: 5px;
+    color: #210546;
+}
+.titulo-secao p {
+    font-size: 12px;
+    color: white;
+}
+.contador {
+    background: white;
+    color: #210546;
+    padding: 7px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+}
+/* AVISOS */
+.aviso {
+  background: linear-gradient(
+        180deg,
+        #210546,
+        #f4f4f5
+    );
+    border: 1px solid #e2e7ed;
+    border-radius: 13px;
+    padding: 23px 25px;
+    margin-bottom: 15px;
+    box-shadow: 0 3px 12px rgba(30, 50, 70, 0.04);
+    transition: 0.2s;
+}
+.aviso:hover {
+    box-shadow: 0 8px 22px black;
+}
+/* TOPO AVISO */
+.aviso-topo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.categoria {
+    padding: 5px 9px;
+    border-radius: 20px;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 0.4px;
+}
+.azul {
+    background: #e2f3fc;
+    color: #0787c9;
+}
+.verde {
+    background: #e1f7ec;
+    color: #15945f;
+}
+.data {
+    color: black;
+    font-size: 10px;
+}
+/* TEXTO DO AVISO */
+.aviso h3 {
+    font-size: 16px;
+    margin-bottom: 8px;
+}
+.aviso p {
+    color: #210546;
+    font-size: 13px;
+    line-height: 1.6;
+    max-width: 850px;
+}
+/* RODAPÉ DO AVISO */
+.aviso-rodape {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 16px;
+    padding-top: 13px;
+    border-top: 1px solid #edf0f3;
+}
+.aviso-rodape span {
+    color: black;
+    font-size: 11px;
+}
+.aviso-rodape a {
+    color: #210546;
+    font-size: 11px;
+    font-weight: 600;
+    text-decoration: none;
+}
+/* CHAT */
+.chat-container {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    height: 500px;
+  background: linear-gradient(
+        80deg,
+        #210546,
+        #f4f4f5
+    );
+    border: 1px solid #e2e7ed;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 3px 12px rgba(30, 50, 70, 0.04);
+}
+/* LISTA DE PROFESSORES */
+.professores {
+    border-right: 1px solid #e4e8ed;
+  background: linear-gradient(
+        20deg,
+        #210546,
+        #f4f4f5
+    );
+}
+.professores-topo {
+    padding: 20px;
+    border-bottom: 1px solid #e4e8ed;
+    font-size: 14px;
+}
+.professor {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.professor:hover {
+    background: #edf7fc;
+}
+.professor.selecionado {
+    background: #e8f5fc;
+    border-left: 3px solid #210546;
+}
+/* AVATAR PROFESSOR */
+.avatar-professor {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #210546;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+.professor > div:nth-child(2) {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.professor strong {
+    font-size: 12px;
+}
+.professor span {
+    font-size: 10px;
+    color: black;
+}
+/* ONLINE */
+.online {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #20b26b;
+    border: 2px solid white;
+}
+.professor .online {
+    margin-left: auto;
+}
+/* CONVERSA */
+.conversa {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+/* CABEÇALHO DA CONVERSA */
+.conversa-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e4e8ed;
+}
+.conversa-header > div:nth-child(2) {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+}
+.conversa-header strong {
+    font-size: 13px;
+}
+.conversa-header span {
+    font-size: 10px;
+    color: black;
+}
+/* MENSAGENS */
+.mensagens {
+    flex: 1;
+    padding: 25px;
+  background: linear-gradient(
+        80deg,
+        #210546,
+        #f4f4f5
+    );
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow-y: auto;
+}
+/* BALÃO */
+.mensagem {
+    max-width: 65%;
+    padding: 11px 14px;
+    border-radius: 12px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+.mensagem p {
+    margin-bottom: 4px;
+}
+.mensagem span {
+    display: block;
+    font-size: 9px;
+    text-align: right;
+    color: black;
+}
+/* MENSAGEM DO PROFESSOR */
+.professor-msg {
+    align-self: flex-start;
+    background: white;
+    border: 1px solid #e1e6eb;
+}
+/* MENSAGEM DO RESPONSÁVEL */
+.responsavel-msg {
+    align-self: flex-end;
+  background: linear-gradient(
+        150deg,
+        #210546,
+        #f4f4f5
+    );
+    color: white;
+}
+.responsavel-msg span {
+    color: black;
+}
+/* CAMPO DE MENSAGEM */
+.campo-mensagem {
+    display: flex;
+    gap: 10px;
+    padding: 15px;
+  background: linear-gradient(
+        20deg,
+        #210546,
+        #f4f4f5
+    );
+}
+.campo-mensagem input {
+    flex: 2;
+    border: 1px solid #dce3e9;
+    border-radius: 9px;
+    padding: 8px 10px;
+    outline: none;
+    font-size: 13px;
+    color: #172033;
+}
+.campo-mensagem input:focus {
+    border-color: #210546;
+}
+.campo-mensagem button {
+    width: 42px;
+    border: none;
+    border-radius: 9px;
+    background: #210546;
+    color: white;
+    cursor: pointer;
+    font-size: 15px;
+    transition: 0.2s;
+}
+.campo-mensagem button:hover {
+    background: black;
+}

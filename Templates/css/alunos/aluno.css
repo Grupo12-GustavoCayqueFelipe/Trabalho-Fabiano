@@ -126,8 +126,8 @@ body {
     border-top: 1px solid #edf0f3;
 }
 .sair:hover {
-    background: white;
-    color: black;
+    background: black;
+    color: white;
 }
 /* CONTEÚDO */
 .conteudo {
