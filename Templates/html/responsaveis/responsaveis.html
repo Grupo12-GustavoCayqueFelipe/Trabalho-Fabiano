@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Responsável | EduControll</title>
+    <link rel="stylesheet" href="/Templates/css/responsaveis/responsaveis.css">
+</head>
+<body>
+<!-- MENU LATERAL -->
+    <aside class="sidebar">
+        <!-- LOGO -->
+        <div class="logo">
+            <strong>EduControll</strong>
+        </div>
+        <!-- PERFIL -->
+        <div class="perfil">
+            <div class="avatar">
+                M
+            </div>
+            <div class="dados">
+                <strong>Maria Oliveira</strong>
+                <span>Responsável</span>
+            </div>
+        </div>
+        <!-- MENU -->
+        <nav class="menu">
+            <a href="#" class="menu-item ativo">
+                <span class="icone">⌂</span>
+                <span>Início</span>
+            </a>
+            <a href="#mural" class="menu-item">
+                <span class="icone">📢</span>
+                <span>Mural de Avisos</span>
+            </a>
+            <a href="#chat" class="menu-item">
+                <span class="icone">💬</span>
+                <span>Chat</span>
+                <span class="notificacao">
+                    2
+                </span>
+            </a>
+        </nav>
+        <!-- SAIR -->
+        <div class="menu-footer">
+            <a href="/Templates/html/index.html" method="GET" class="menu-item sair">
+                <span class="icone">⇥</span>
+                <span>Sair do Sistema</span>
+            </a>
+        </div>
+    </aside>
+<!-- CONTEÚDO -->
+    <main class="conteudo">
+        <!-- CABEÇALHO -->
+        <header class="cabecalho">
+            <div>
+                <p class="pequeno">
+                    Área do responsável
+                </p>
+                <h1>
+                    Olá, Maria
+                </h1>
+                <p class="subtitulo">
+                    Acompanhe os avisos e entre em contato
+                    com os professores.
+                </p>
+            </div>
+        </header>
+            <!-- MURAL DE AVISOS -->
+        <section class="secao" id="mural">
+            <div class="titulo-secao">
+                <div>
+                    <h2>
+                        📢 Mural de Avisos
+                    </h2>
+                    <p>
+                        Comunicados importantes da instituição.
+                    </p>
+                </div>
+                <span class="contador">
+                    3 novos
+                </span>
+            </div>
+            <!-- AVISO 2 -->
+            <article class="aviso">
+                <div class="aviso-topo">
+                    <span class="categoria azul">
+                        COMUNICADO
+                    </span>
+                    <span class="data">
+                        27 AGO 2026
+                    </span>
+                </div>
+                <h3>
+                    Calendário Geral
+                </h3>
+                <p>
+                    O calendário da instituição foi
+                    atualizado com novas datas e
+                    informações importantes.
+                </p>
+                <div class="aviso-rodape">
+                    <span>
+                        📅 Calendário institucional
+                    </span>
+                    <a href="#">
+                        Ler aviso →
+                    </a>
+                </div>
+            </article>
+            <!-- AVISO 3 -->
+            <article class="aviso">
+                <div class="aviso-topo">
+                    <span class="categoria verde">
+                        INFORMAÇÃO
+                    </span>
+                    <span class="data">
+                        25 AGO 2026
+                    </span>
+                </div>
+                <h3>
+                    Comunicado aos responsáveis
+                </h3>
+                <p>
+                    Confira as informações disponibilizadas
+                    pela instituição para os próximos dias.
+                </p>
+                <div class="aviso-rodape">
+                    <span>
+                        🏫 Administração
+                    </span>
+                    <a href="#">
+                        Ler aviso →
+                    </a>
+                </div>
+            </article>
+        </section>
+        <!-- CHAT -->
+        <section class="chat-section" id="chat">
+            <div class="titulo-secao">
+                <div>
+                    <h2>
+                        💬 Fale com um professor
+                    </h2>
+                    <p>
+                        Entre em contato para tirar dúvidas
+                        ou enviar uma mensagem.
+                    </p>
+                </div>
+            </div>
+            <div class="chat-container">
+                <!-- LISTA DE PROFESSORES -->
+                <div class="professores">
+                    <div class="professores-topo">
+                        <strong>
+                            Professores
+                        </strong>
+                    </div>
+                    <div class="professor selecionado">
+                        <div class="avatar-professor">
+                            C
+                        </div>
+                        <div>
+                            <strong>
+                                Carlos Mendes
+                            </strong>
+                            <span>
+                                IA
+                            </span>
+                        </div>
+                        <div class="online"></div>
+                    </div>
+                    <div class="professor">
+                        <div class="avatar-professor">
+                            A
+                        </div>
+                        <div>
+                            <strong>
+                                Ana Souza
+                            </strong>
+                            <span>
+                                Banco de Dados
+                            </span>
+                        </div>
+                    </div>
+                    <div class="professor">
+                        <div class="avatar-professor">
+                            R
+                        </div>
+                        <div>
+                            <strong>
+                                Rafael Lima
+                            </strong>
+                            <span>
+                                Engenharia de Software
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <!-- CONVERSA -->
+                <div class="conversa">
+                    <!-- CABEÇALHO DO CHAT -->
+                    <div class="conversa-header">
+                        <div class="avatar-professor">
+                            C
+                        </div>
+                        <div>
+                            <strong>
+                                Carlos Mendes
+                            </strong>
+                            <span>
+                                Professor de IA
+                            </span>
+                        </div>
+                        <div class="online"></div>
+                    </div>
+                    <!-- MENSAGENS -->
+                    <div class="mensagens">
+                        <div class="mensagem professor-msg">
+                            <p>
+                                Olá! Como posso ajudar?
+                            </p>
+                            <span>
+                                14:20
+                            </span>
+                        </div>
+                        <div class="mensagem responsavel-msg">
+                            <p>
+                                Olá, professor! Gostaria de tirar uma dúvida sobre as atividades do meu filho.
+                            </p>
+                            <span>
+                                14:22
+                            </span>
+                        </div>
+                        <div class="mensagem professor-msg">
+                            <p>
+                                Claro! Pode me explicar qual é a dúvida.
+                            </p>
+                            <span>
+                                14:23
+                            </span>
+                        </div>
+                    </div>
+                    <!-- ENVIO DA MENSAGEM -->
+                    <div class="campo-mensagem">
+                        <input type="text" placeholder="Digite sua mensagem...">
+                        <button>
+                            ➤
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
