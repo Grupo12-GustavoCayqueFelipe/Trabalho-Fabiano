@@ -1,10 +1,11 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Início | EduControll</title>
-    <link rel="stylesheet" href="/Templates/css/alunos/aluno.css">
+    <link rel="stylesheet" href="{% static 'css/alunos/aluno.css' %}">
 </head>
 <body>
     <!-- MENU LATERAL -->
@@ -16,11 +17,11 @@
         <!-- PERFIL DO ALUNO -->
         <div class="perfil">
             <div class="avatar">
-                F
+                {{ user.nome|first|upper }}
             </div>
             <div class="dados-aluno">
-                <h3>Felipe Santos</h3>
-                <p>Eng. de Software - 2026</p>
+                <h3>{{ user.nome }}</h3>
+                <p>{{ user.get_perfil_display }}</p>
             </div>
         </div>
         <!-- MENU -->
@@ -45,10 +46,13 @@
         </nav>
         <!-- RODAPÉ DO MENU -->
         <div class="menu-sair">
-            <a href="/Templates/html/index.html" class="menu-item sair" method="GET">
-                <span class="icone">⇥</span>
-                <span>Sair do Sistema</span>
-            </a>
+            <form action="{% url 'logout' %}" method="POST">
+                {% csrf_token %}
+                <button type="submit" class="menu-item sair">
+                    <span class="icone">⇥</span>
+                    <span>Sair do Sistema</span>
+                </button>
+            </form>
         </div>
     </aside>
     <!-- CONTEÚDO PRINCIPAL -->
@@ -60,7 +64,7 @@
                     Bem-vindo de volta!
                 </p>
                 <h1>
-                    Olá, Felipe
+                    Olá, {{ user.nome }}
                 </h1>
                 <p class="subtitulo">
                     Confira o resumo da sua vida acadêmica.

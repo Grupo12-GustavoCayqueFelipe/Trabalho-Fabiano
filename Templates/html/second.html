@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cadastro / EduControll</title>
-    <link rel="stylesheet" href="/Templates/css/second.css">
+    <link rel="stylesheet" href="{% static 'css/second.css' %}">
 </head>
 <body>
     <!-- CABEÇALHO -->
@@ -20,10 +20,10 @@
                 </form>
             </div>
             <div class="dash">
-              <form action="/Templates/html/alunos/aluno.html" method="GET">
-                 <input type="submit" value="Dashboard">
-              </form>
-        </div>
+                <form action="/Templates/html/alunos/aluno.html" method="GET">
+                    <input type="submit" value="Dashboard">
+                </form>
+            </div>
                 </form>
                     <div class="out">
                         <form action="/Templates/html/index.html" method="GET">
@@ -31,21 +31,21 @@
                         </form>
                     </div>
                 </form>
-              </form>
+            </form>
     </header>
     <!-- CONTEÚDO -->
     <main class="pagina">
         <section class="cadastro">
             <!-- LADO ESQUERDO -->
-         <div class="apresentacao">
-         <h1>
+        <div class="apresentacao">
+        <h1>
             Cadastro de novo usuário
-         </h1>
+        </h1>
             <div class="linha"></div>
         <span class="description">
             Gestão escolar simples,
             organizada e eficiente.
-         </span>
+        </span>
             </div>
             <!-- LADO DIREITO -->
             <div class="formulario">
@@ -100,7 +100,7 @@
                             Cancelar
                         </a>
                         <button type="submit">
-                             Criar usuário
+                            Criar usuário
                         </button>
 
                     </div>

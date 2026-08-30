@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduControll - Painel</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header>
+        <h2>EduControll</h2>
+        <p>Bem-vindo(a), {{ user.nome }} ({{ user.get_perfil_display }})</p>
+        <form action="{% url 'logout' %}" method="POST">
+            {% csrf_token %}
+            <button type="submit">Sair</button>
+        </form>
+    </header>
+
+    {% if messages %}
+        {% for message in messages %}
+            <p class="mensagem {{ message.tags }}">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    <main>
+        <!-- Conteúdo específico de cada perfil entra aqui -->
+        <p>Página inicial provisória do painel.</p>
+    </main>
+</body>
+</html>

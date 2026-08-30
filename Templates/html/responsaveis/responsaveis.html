@@ -1,10 +1,11 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Responsável | EduControll</title>
-    <link rel="stylesheet" href="/Templates/css/responsaveis/responsaveis.css">
+    <link rel="stylesheet" href="{% static 'css/responsaveis/responsaveis.css' %}">
 </head>
 <body>
 <!-- MENU LATERAL -->
@@ -16,11 +17,11 @@
         <!-- PERFIL -->
         <div class="perfil">
             <div class="avatar">
-                M
+                {{ user.nome|first|upper }}
             </div>
             <div class="dados">
-                <strong>Maria Oliveira</strong>
-                <span>Responsável</span>
+                <strong>{{ user.nome }}</strong>
+                <span>{{ user.get_perfil_display }}</span>
             </div>
         </div>
         <!-- MENU -->
@@ -43,10 +44,13 @@
         </nav>
         <!-- SAIR -->
         <div class="menu-footer">
-            <a href="/Templates/html/index.html" method="GET" class="menu-item sair">
-                <span class="icone">⇥</span>
-                <span>Sair do Sistema</span>
-            </a>
+            <form action="{% url 'logout' %}" method="POST">
+                {% csrf_token %}
+                <button type="submit" class="menu-item sair">
+                    <span class="icone">⇥</span>
+                    <span>Sair do Sistema</span>
+                </button>
+            </form>
         </div>
     </aside>
 <!-- CONTEÚDO -->
@@ -58,7 +62,7 @@
                     Área do responsável
                 </p>
                 <h1>
-                    Olá, Maria
+                    Olá,{{ user.nome|upper }}!
                 </h1>
                 <p class="subtitulo">
                     Acompanhe os avisos e entre em contato
@@ -101,7 +105,7 @@
                 </p>
                 <div class="aviso-rodape">
                     <span>
-                         Calendário institucional
+                        Calendário institucional
                     </span>
                     <a href="#">
                         Ler aviso →
@@ -127,7 +131,7 @@
                 </p>
                 <div class="aviso-rodape">
                     <span>
-                         Administração
+                        Administração
                     </span>
                     <a href="#">
                         Ler aviso →
