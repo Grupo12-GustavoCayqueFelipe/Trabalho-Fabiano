@@ -59,6 +59,15 @@ class Usuario(AbstractUser):
     # Avisa se o 2FA está ligado para o usuario, caso esteja false o login não pede o segundo fator de autenticação
     otp_ativado = models.BooleanField(default=False)
     
+    # Guarda a data e hora do ultimo login do usuario que deu errado, para saber se ainda está dentro do tempo de bloqueio.
+    ultimo_login_falha = models.DateTimeField(blank=True, null=True)
+    
+    # Guarda a quantidade de tentativas de login falhas, para saber se o usuario deve ser bloqueado ou zera quando loga.
+    tentativas_login = models.PositiveIntegerField(default=0)
+    
+    # Guarda o tempo que a conta fica bloqueada.
+    bloqueado_ate = models.DateTimeField(blank=True, null=True)
+    
     # Define os campos obrigatorios, os nativos já são chamados automaticamente e o perfil já tem um valor default, então não precisa ser chamado.
     REQUIRED_FIELDS = ['nome']
     

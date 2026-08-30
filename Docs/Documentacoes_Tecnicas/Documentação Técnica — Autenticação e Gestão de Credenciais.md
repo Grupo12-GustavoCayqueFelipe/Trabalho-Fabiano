@@ -62,3 +62,14 @@ O fluxo tradicional de entrada foi adaptado. Após o authenticate() confirmar qu
 - Se otp_ativado for True: O login() não é chamado. O sistema salva apenas o ID do usuário em uma variável de sessão temporária (pre_2fa_user_id) e redireciona para /2fa/verificar/.
 
 Na etapa de verificação, somente após o código de 6 dígitos ser validado por meio de pyotp.TOTP(secret).verify(codigo) é que o login() é executado de fato e a sessão autenticada é criada. Isso garante que o conhecimento isolado da senha seja insuficiente para acessar contas com a restrição ativada.
+
+## 7. Política de sessão e bloqueio de conta
+### 7.1 Tentativas e bloqueio por conta
+Além do rate limiting por IP, o model Usuario recebeu três campos novos: tentativas_login, que conta quantas vezes seguidas a senha foi digitada errada, ultima_tentativa_falha, que guarda quando foi a última tentativa errada, e bloqueado_ate, que guarda até quando a conta fica bloqueada.
+Na login_view, antes de chamar authenticate(), o sistema busca o usuário pelo email e confere se bloqueado_ate ainda está no futuro. Se estiver, a tentativa é barrada e uma mensagem de bloqueio é exibida sem nem chegar a validar a senha.
+Quando a senha está errada, tentativas_login é incrementado. Ao atingir o limite de 5 tentativas, bloqueado_ate recebe a data e hora atual mais 15 minutos, bloqueando a conta independente do IP de onde vem a tentativa.
+Quando o login é bem sucedido, tentativas_login e bloqueado_ate são zerados, liberando o histórico de tentativas erradas anteriores.
+
+### 7.2 Política de sessão
+O settings.py define SESSION_COOKIE_AGE = 1800, ou seja a sessão expira depois de 30 minutos. Com SESSION_SAVE_EVERY_REQUEST = True, esse tempo é renovado a cada requisição, então os 30 minutos contam a partir da última ação do usuário, não do login.
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True também encerra a sessão quando o navegador é fechado, e SESSION_COOKIE_HTTPONLY = True impede que o cookie de sessão seja acessado via JavaScript, reduzindo o risco de roubo de sessão por ataques XSS.
