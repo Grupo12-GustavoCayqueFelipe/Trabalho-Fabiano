@@ -24,6 +24,11 @@ Além disso, o AUTH_PASSWORD_VALIDATORS está configurado no settings.py com os 
 ### 2.2 CSRF e acesso autenticado
 CrsfViewMiddleware está ativo em MIDDLEWARE, e os formulários de login usam {% csrf_token %}. As views que dependem de sessão ativa verificam request.user.is_authenticated, ou usam o decorador @login_required, e redirecionam para login caso contrário.
 
+### 2.3 Prevenção contra força bruta (Rate Limiting)
+O sistema usa a biblioteca django-ratelimit para barrar ataques de força bruta no login. O decorador @ratelimit(key='ip', rate='5/m', block=False) está aplicado na view de autenticação, restringindo as tentativas para no máximo 5 por minuto por endereço de IP.
+Quando o limite é atingido, a requisição é interceptada (usando getattr(request, 'limited', False)) antes de bater no banco de dados e exibe a mensagem de erro "Muitas tentativas de login. Tente novamente mais tarde." renderizando a página inicial novamente em vez de estourar um erro do servidor.
+
+
 ## 3. Banco de dados e armazenamento
 ### 3.1 PostgresSQL via Supabase
 A conexão com o banco é lida da variável DATABASE_URL, com ssl_require=True, ou seja a conexão é recusada se não for criptografada. Permitindo trocar entre Postgres local e Supabase sem mudar código, só mudando a variável de ambiente.
@@ -32,7 +37,7 @@ A conexão com o banco é lida da variável DATABASE_URL, com ssl_require=True, 
 1. Usuário acessa a pagina principal e envia email e senha pelo formulário de Templates/usuarios/index.html.
 2. login_view chama authenticate (request, email=email, password=senha).
 3. Se for válido, login (request, usuario) cria a sessão e redireciona para /dashboard/
-4. Se for inváçido, exibe mensagem genérica de erro, "Email ou senha inválidos.", sem indicar se o email existe.
+4. Se for inválido, exibe mensagem genérica de erro, "Email ou senha inválidos.", sem indicar se o email existe.
 5. dashboard_view bloqueia acesso de quem não está autentificado e escolhe o template conforme o "perfil" do usuário logado.
 6. logout_view que é protegida por @login_required, encerra a sessão e volta para o login.
 

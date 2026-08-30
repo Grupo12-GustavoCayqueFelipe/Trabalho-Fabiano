@@ -18,6 +18,8 @@ Marcar um X na coluna certa.
 | Kanban | X | | |
 | Release no GitHub | X | | |
 | Checklist publicado no repositório | X | | |
+| Validação do 2FA depois do login primário | X | | |
+| Rate limit / bloqueio contra força bruta | X | | |
 
 ---
 

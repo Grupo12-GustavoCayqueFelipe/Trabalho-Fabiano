@@ -8,9 +8,19 @@ from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django_ratelimit.decorators import ratelimit
 
 # Create your views here.
+
+# Função de Rate Limit para limitar o número de tentativas de login
+@ratelimit(key='ip', rate='5/m', block=False)
+
+# Função de login, verifica se o usuário está logado, se não estiver, pega os dados do formulário e autentica
 def login_view(request):
+  if getattr(request, 'limited', False):
+    messages.error(request, 'Muitas tentativas de login. Tente novamente mais tarde.')
+    return render(request, 'usuarios/index.html')
+  
   # Se o usuario estiver logado, redireciona para a página principal
   if request.user.is_authenticated:
     return redirect('dashboard') 
