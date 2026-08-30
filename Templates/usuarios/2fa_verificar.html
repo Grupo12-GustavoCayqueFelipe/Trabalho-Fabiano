@@ -1,0 +1,37 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduControll - Verificação em duas etapas</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <div class="login-box">
+        <div class="logo">
+            <h2>EduControll</h2>
+        </div>
+
+        <p>Digite o código de 6 dígitos do seu aplicativo autenticador para {{ email }}.</p>
+
+        {% if messages %}
+          <ul class="messages">
+            {% for message in messages %}
+              <li class="{{ message.tags }}">{{ message }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+
+        <form action="" method="POST">
+            {% csrf_token %}
+            <input type="text" name="codigo" placeholder="Código de 6 dígitos" inputmode="numeric" maxlength="6" required autofocus>
+            <input type="submit" value="Verificar">
+        </form>
+
+        <p class="prototipo">
+            Protótipo para avaliação do Projeto Integrador
+        </p>
+    </div>
+</body>
+</html>

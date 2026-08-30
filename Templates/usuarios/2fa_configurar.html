@@ -1,0 +1,46 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduControll - Autenticação de dois fatores</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+    <header>
+        <h2>EduControll</h2>
+        <p>Autenticação de dois fatores - {{ user.nome }}</p>
+        <a href="{% url 'dashboard' %}">Voltar ao painel</a>
+    </header>
+
+    {% if messages %}
+        {% for message in messages %}
+            <p class="mensagem {{ message.tags }}">{{ message }}</p>
+        {% endfor %}
+    {% endif %}
+
+    <main>
+        {% if otp_ativado %}
+            <p>O 2FA está <strong>ativado</strong> na sua conta.</p>
+            <form action="" method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="acao" value="desativar">
+                <button type="submit">Desativar 2FA</button>
+            </form>
+        {% else %}
+            <p>Escaneie o QR Code abaixo com o Google Authenticator, Authy ou outro app compatível com TOTP.</p>
+
+            <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR Code para configurar o 2FA">
+
+            <p>Ou digite a chave manualmente no app: <code>{{ otp_secret }}</code></p>
+
+            <form action="" method="POST">
+                {% csrf_token %}
+                <input type="text" name="codigo" placeholder="Digite o código gerado pelo app" inputmode="numeric" maxlength="6" required>
+                <input type="submit" value="Confirmar e ativar 2FA">
+            </form>
+        {% endif %}
+    </main>
+</body>
+</html>
