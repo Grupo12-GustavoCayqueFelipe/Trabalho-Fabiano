@@ -34,6 +34,10 @@ class UsuarioManager(BaseUserManager):
 
 # Classe de usuário personalizada.
 class Usuario(AbstractUser):
+    
+    # Remove os campos nativos de username do AbstractUser, pois vamos usar o email como campo de login
+    username = None
+    
     # Campo de tipo de usuário
     perfil = models.CharField(max_length=13, choices=TIPO_USUARIO, default='ALUNO', help_text='Define o tipo de usuário no sistema.')
     
@@ -51,8 +55,10 @@ class Usuario(AbstractUser):
     
     # Define os campos obrigatorios, os nativos já são chamados automaticamente e o perfil já tem um valor default, então não precisa ser chamado.
     REQUIRED_FIELDS = ['nome']
+    
     # Conecta o gerenciador acima
     objects = UsuarioManager()
+    
     # Define o nome da tabela no banco de dados
     class Meta:
         db_table = 'usuarios'

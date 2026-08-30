@@ -9,6 +9,7 @@ class UsuarioAdmin(UserAdmin):
   # Qual tabela será protegida
   model = Usuario
   
+  
   # Mostra para o admin as colunas nas tabelas
   list_display = ('email', 'nome', 'perfil', 'is_active')
   
@@ -18,6 +19,22 @@ class UsuarioAdmin(UserAdmin):
   # Ordena a tabela pelo nome
   ordering = ('nome',)
   
+  # Define os campos que serão exibidos no formulário de edição de usuários
+  fieldsets = (
+    (None, {'fields': ('email', 'password')}),
+    ('Informações Pessoais', {'fields': ('nome', 'perfil')}),
+    ('Permissões', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
+    ('Datas Importantes', {'fields': ('last_login', 'date_joined')}),
+  )
+  
+  # Define os campos que serão exibidos no formulário de criação de usuários
+  add_fieldsets = (
+    (None, {
+      'classes': ('wide',),
+      'fields': ('email', 'nome', 'perfil', 'password1', 'password2'),
+    }),
+  )
+
 # Registra o modelo Usuario com a classe UsuarioAdmin
 admin.site.register(Usuario, UsuarioAdmin)
 
