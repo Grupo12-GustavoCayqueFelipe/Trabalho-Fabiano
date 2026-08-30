@@ -12,6 +12,14 @@
         <div class="logo">
             <h2>EduControll</h2>
         </div>
+        <!-- Faz aparecer a mensagem de erro de login -->
+        {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+            <li class="{{ message.tags }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
         <form action="" method="POST">
             {% csrf_token %}
             <input type="email" name="email" placeholder="E-mail" required>

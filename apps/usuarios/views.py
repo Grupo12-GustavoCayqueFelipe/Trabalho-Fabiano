@@ -1,4 +1,4 @@
-from django.core.checks import messages
+from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -24,7 +24,7 @@ def login_view(request):
       return redirect('dashboard')
     else:
       # Mensagem de erro genérico
-      messages.error(request, 'E-mail ou senha inválidos.')
+      messages.error(request, 'Email ou senha inválidos.')
 
   # Se acessou o site sem estar logado, renderiza a página de login
   return render(request, 'usuarios/index.html')
