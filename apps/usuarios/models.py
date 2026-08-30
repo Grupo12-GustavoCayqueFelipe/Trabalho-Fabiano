@@ -53,6 +53,12 @@ class Usuario(AbstractUser):
     # Chama a função nativa para verificar se está ativo
     is_active = models.BooleanField(default=True, db_column='ativo')
     
+    # Chave secreta para gerar e validar o codigo de 6 digitos
+    otp_secret = models.CharField(max_length=32, blank=True, null=True)
+    
+    # Avisa se o 2FA está ligado para o usuario, caso esteja false o login não pede o segundo fator de autenticação
+    otp_ativado = models.BooleanField(default=False)
+    
     # Define os campos obrigatorios, os nativos já são chamados automaticamente e o perfil já tem um valor default, então não precisa ser chamado.
     REQUIRED_FIELDS = ['nome']
     
