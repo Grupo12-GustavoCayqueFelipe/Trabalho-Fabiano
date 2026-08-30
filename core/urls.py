@@ -17,6 +17,15 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
+# Após erro apelidei de 'usuarios_views' para não dar conflito com o nome do app
+from apps.usuarios import views as usuarios_views
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # Rota raiz para a aplicação de login
+    path('', usuarios_views.login_view, name='login'),
+    # Rota para a página principal
+    path('dashboard/', usuarios_views.dashboard_view, name='dashboard'),
+    #rota para a página de logout
+    path('logout/', usuarios_views.logout_view, name='logout'),
 ]
