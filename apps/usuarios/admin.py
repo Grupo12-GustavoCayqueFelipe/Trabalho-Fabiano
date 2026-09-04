@@ -35,6 +35,8 @@ class UsuarioAdmin(UserAdmin):
     }),
   )
 
+
+
 # Registra o modelo Usuario com a classe UsuarioAdmin
 admin.site.register(Usuario, UsuarioAdmin)
 

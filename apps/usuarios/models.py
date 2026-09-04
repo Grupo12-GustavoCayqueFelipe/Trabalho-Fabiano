@@ -1,14 +1,24 @@
+import hashlib
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.utils.translation import gettext_lazy
 
-#Opções de tipos de usuário sendo (Professor, Aluno, Responsável e Administrador)
+# Opções de tipos de usuário sendo (Professor, Aluno, Responsável e Administrador)
 TIPO_USUARIO = [
     ('ADMIN', 'Administrador'),
     ('PROF', 'Professor'),
     ('ALUNO', 'Aluno'),
     ('RESP','Responsável'),
 ]
+
+# Opções de tipos de logs
+EVENTO_LOG =[
+    ('SOLICITACAO', 'Solicitação de recuperação de senha'),
+    ('SUCESSO', 'Recuperação de senha bem-sucedida'),
+    ('FALHA_TOKEN_EXPIRADO', 'Token de recuperação de senha expirado'),
+    ('FALHA_TOKEN_INVALIDO', 'Token de recuperação de senha inválido'),
+]
+
 # Gerenciador que permite email como username
 class UsuarioManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -77,7 +87,8 @@ class Usuario(AbstractUser):
     # Define o nome da tabela no banco de dados
     class Meta:
         db_table = 'usuarios'
-    
+
+# Classe de aluno, que possui um relacionamento com a tabela de usuários.
 class Aluno(models.Model):
     # Campo de relacionamento com a tabela de usuários.
     usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE, db_column='usuario_id')
@@ -98,7 +109,8 @@ class Aluno(models.Model):
     # Define a representação em string do objeto Aluno
     def __str__(self):
         return f"Aluno: {self.usuario.nome} - {self.matricula}"
-    
+
+# Classe de professor, que possui um relacionamento com a tabela de usuários.
 class Professor(models.Model):
     # Campo de relacionamento com a tabela de usuários.
     usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE, db_column='usuario_id')
@@ -114,8 +126,9 @@ class Professor(models.Model):
     
     # Define a representação em string do objeto Professor
     def __str__(self):
-        return f"Professor: {self.usuario.nome} - {self.formacao}"
-    
+        return f"Professor: {self.usuario.nome} - {self.formacao}"    
+
+# Classe de responsável, que possui um relacionamento com a tabela de usuários.
 class Responsavel(models.Model):
     # Campo de relacionamento com a tabela de usuários.
     usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE, db_column='usuario_id')
@@ -131,7 +144,8 @@ class Responsavel(models.Model):
     # Define a representação em string do objeto Responsável
     def __str__(self):
         return f"Responsável: {self.usuario.nome} - {self.parentesco_principal}"
-    
+
+# Classe de relacionamento entre aluno e responsável, que possui um relacionamento com as tabelas de alunos e responsáveis.
 class AlunoResponsavel(models.Model):
     # Campo de relacionamento com a tabela de alunos.
     aluno = models.ForeignKey(Aluno, on_delete=models.CASCADE, db_column='aluno_id')
@@ -148,3 +162,39 @@ class AlunoResponsavel(models.Model):
     # Define a representação em string do objeto AlunoResponsavel
     def __str__(self):
         return f"Aluno: {self.aluno.usuario.nome} - Responsável: {self.responsavel.usuario.nome} - Parentesco: {self.parentesco}"
+
+# Classe de log de recuperação de senha, que possui um relacionamento com a tabela de usuários.
+class LogRecuperacaoSenha(models.Model):
+    # Campo de relacionamento com a tabela de usuários.
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, db_column='usuario_id')
+    
+    # Guarda oque aconteceu no log
+    evento = models.CharField(max_length=50, choices=EVENTO_LOG)
+    
+    # Guarda o token do usuário e usa o hash para não deixar o token exposto
+    token_hash = models.CharField(max_length=64, blank=True, null=True)
+    
+    # IP de quem fez a ação
+    ip = models.GenericIPAddressField(blank=True, null=True)
+    
+    # Data e hora do evento criado
+    criado_em = models.DateTimeField(auto_now_add=True)
+    
+    # Define o nome da tabela no banco de dados
+    class Meta:
+        db_table = 'log_recuperacao_senha'
+    
+    # Define a representação em string do objeto LogRecuperacaoSenha
+    def __str__(self):
+        return f"{self.evento} - Código: {self.usuario.email} - Usado: {self.criado_em}"
+
+# Função para registrar logs de recuperação de senha
+def registrar_log_recuperacao_senha(usuario, evento, token=None, ip=None):
+    # Se veio um token guarda só o hash dele
+    token_hash = None
+    if token:
+        # Gera o hash do token usando SHA-256
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+    
+    # Cria o log de recuperação de senha no banco de dados
+    LogRecuperacaoSenha.objects.create(usuario=usuario, evento=evento, token_hash=token_hash, ip=ip)
