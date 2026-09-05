@@ -28,4 +28,8 @@ urlpatterns = [
     path('dashboard/', usuarios_views.dashboard_view, name='dashboard'),
     #rota para a página de logout
     path('logout/', usuarios_views.logout_view, name='logout'),
+    # segundo passo do login, pede o código de 6 dígitos de quem tem 2FA ligado
+    path('2fa/verificar/', usuarios_views.dois_fatores_verificar_view, name='2fa_verificar'),
+    # tela onde o usuário liga e desliga o 2FA na própria conta
+    path('2fa/configurar/', usuarios_views.dois_fatores_configurar_view, name='2fa_configurar'),
 ]
