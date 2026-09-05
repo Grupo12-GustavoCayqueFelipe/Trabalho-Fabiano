@@ -1,0 +1,135 @@
+/* CONFIGURAÇÕES GERAIS */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+    min-height: 100vh;
+  background: linear-gradient(
+        180deg,
+        #210546,
+        #f4f4f5
+    );
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #172033;
+}
+/* PÁGINA */
+.pagina-recuperacao {
+    width: 100%;
+    max-width: 480px;
+    padding: 30px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+/* LOGO */
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 25px;
+    color: #210546;
+}
+.logo h1 {
+    font-size: 45px;
+    font-weight: 700;
+}
+/* CAIXA */
+.recuperacao-box {
+    width: 100%;
+  background: linear-gradient(
+        120deg,
+        #210546,
+        #f4f4f5
+    );
+    border-radius: 18px;
+    padding: 38px;
+    box-shadow:
+        0 10px 30px black;
+    text-align: center;
+}
+/* TÍTULO */
+.recuperacao-box h2 {
+    font-size: 24px;
+    margin-bottom: 12px;
+    color: white;
+}
+/*  DESCRIÇÃO */
+.descricao {
+    font-size: 13px;
+    line-height: 1.6;
+    color: white;
+    margin-bottom: 28px;
+}
+/* FORMULÁRIO */
+form {
+    text-align: left;
+}
+/* CAMPO */
+.campo {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-bottom: 20px;
+}
+.campo label {
+    font-size: 13px;
+    font-weight: 600;
+    color: white;
+}
+/* INPUT */
+.campo input {
+    width: 100%;
+    padding: 13px 14px;
+    border: 1px solid white;
+    outline: none;
+    font-size: 13px;
+    color: white;
+    transition: 0.2s;
+}
+.campo input::placeholder {
+    color: #a2acb8;
+}
+.campo input:focus {
+    border-color: #210546;
+}
+/* BOTÃO */
+form button {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 9px;
+    background: #210546;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+form button:hover {
+    background: black;
+}
+/* VOLTAR */
+.voltar {
+    display: inline-block;
+    margin-top: 22px;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+}
+.voltar:hover {
+    text-decoration: underline;
+}
+/* RODAPÉ */
+.rodape {
+    margin-top: 22px;
+    color: white;
+    font-size: 10px;
+    text-align: center;
+    line-height: 1.5;
+}

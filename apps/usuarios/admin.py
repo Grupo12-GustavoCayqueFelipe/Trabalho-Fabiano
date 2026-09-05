@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Usuario, Aluno, Professor, Responsavel, AlunoResponsavel
+from .models import Usuario, Aluno, Professor, Responsavel, AlunoResponsavel, LogRecuperacaoSenha
 # Register your models here.
 
 # Classe para garantir que o formulário use o hash de senha
@@ -35,6 +35,17 @@ class UsuarioAdmin(UserAdmin):
     }),
   )
 
+class LogRecuperacaoSenhaAdmin(admin.ModelAdmin):
+    # Mostra para o admin as colunas nas tabelas
+    list_display = ('usuario', 'evento', 'ip', 'criado_em')
+
+    # Permite que o admin busque por email do usuário e evento
+    list_filter = ('evento', 'criado_em')
+    
+    # Não deixa editar os campos do log, apenas visualizar
+    readonly_fields = ('usuario', 'evento', 'token_hash', 'ip', 'criado_em')
+
+
 # Registra o modelo Usuario com a classe UsuarioAdmin
 admin.site.register(Usuario, UsuarioAdmin)
 
@@ -42,3 +53,4 @@ admin.site.register(Aluno)
 admin.site.register(Professor)
 admin.site.register(Responsavel)
 admin.site.register(AlunoResponsavel)
+admin.site.register(LogRecuperacaoSenha, LogRecuperacaoSenhaAdmin)

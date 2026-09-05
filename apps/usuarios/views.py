@@ -2,15 +2,28 @@ import pyotp
 import qrcode
 import base64
 import io
+import datetime
 
 from .models import Usuario
+from django.utils import timezone
 from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
+from django_ratelimit.decorators import ratelimit
 
 # Create your views here.
+TENTATIVAS_MAX = 5
+TEMPO_BLOQUEIO_MINUTOS = 15
+# Função de Rate Limit para limitar o número de tentativas de login
+@ratelimit(key='ip', rate='5/m', block=False)
+
+# Função de login, verifica se o usuário está logado, se não estiver, pega os dados do formulário e autentica
 def login_view(request):
+  if getattr(request, 'limited', False):
+    messages.error(request, 'Muitas tentativas de login. Tente novamente mais tarde.')
+    return render(request, 'usuarios/index.html')
+  
   # Se o usuario estiver logado, redireciona para a página principal
   if request.user.is_authenticated:
     return redirect('dashboard') 
@@ -21,12 +34,30 @@ def login_view(request):
     email = request.POST.get('email')
     senha = request.POST.get('senha')
 
+    # Confere se já existe um usuario com esse email para poder checar o bloqueio antes de logar
+    usuario_existente = Usuario.objects.filter(email=email).first()
+    
+    # Se o usuário estiver bloqueado e confere o tempo de bloqueio já passou
+    if usuario_existente and usuario_existente.bloqueado_ate:
+      if timezone.now() < usuario_existente.bloqueado_ate:
+        messages.error(request, 'Conta temporariamente por excesso de tentativas. Tente novamente mais tarde.')
+        return render(request, 'usuarios/index.html')
+      else:
+        # Depois que passou o tempo libera e zera o contador
+        usuario_existente.bloqueado_ate = None
+        usuario_existente.tentativas_login = 0
+        usuario_existente.save()
+        
     # Pega a senha do usuário faz o hash e compara com a senha do banco de dados
     usuario = authenticate (request, email=email, password=senha)
     
     if usuario is not None:
+      # Zera o contador de tentativas com o login certo
+      usuario.tentativas_login = 0
+      usuario.bloqueado_ate = None
+      usuario.save()
+      
       # Se o usuário tiver o 2FA ligado, não loga e guarda o id na sessão
-      # e manda pra tela que pede o código
       if usuario.otp_ativado:
         request.session['pre_2fa_user_id'] = usuario.pk
         return redirect('2fa_verificar')
@@ -34,6 +65,15 @@ def login_view(request):
       login(request, usuario)
       return redirect('dashboard')
     else:
+      if usuario_existente:
+        usuario_existente.tentativas_login += 1
+        usuario_existente.ultimo_login_falha = timezone.now()
+        
+        # Bateu o limite de tentativas bloqueando a conta pelo tempo definido
+        if usuario_existente.tentativas_login >= TENTATIVAS_MAX:
+          usuario_existente.bloqueado_ate = timezone.now() + datetime.timedelta(minutes=TEMPO_BLOQUEIO_MINUTOS)
+          
+        usuario_existente.save()
       # Mensagem de erro genérico
       messages.error(request, 'Email ou senha inválidos.')
 

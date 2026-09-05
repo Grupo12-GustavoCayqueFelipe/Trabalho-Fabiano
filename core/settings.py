@@ -121,6 +121,18 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
 
+#Politica de sessão
+#Sessão expira em 30 minutos de inatividade
+SESSION_COOKIE_AGE = 1800
+
+# Tempo é renovado a cada requisição
+SESSION_SAVE_EVERY_REQUEST = True
+
+# Fecha a sessão quando o navegador é fechado
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+
+# Impede acesso ao cookie de sessão via JavaScript
+SESSION_COOKIE_HTTPONLY = True
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
