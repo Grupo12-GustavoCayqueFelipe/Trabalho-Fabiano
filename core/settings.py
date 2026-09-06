@@ -145,6 +145,13 @@ USE_I18N = True
 
 USE_TZ = True
 
+# Configuração de email
+# Em desenvolvimento, você pode usar o console backend para ver os emails no console.
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = 'EduControll <naoresponda@educontroll.com>'
+
+# Tempo em segundos que o token de recuperação de senha é válido (1 hora)
+PASSWORD_RESET_TIMEOUT = 3600  
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
