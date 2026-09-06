@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Usuario, Aluno, Professor, Responsavel, AlunoResponsavel, LogRecuperacaoSenha
+from .models import Usuario, Aluno, Professor, Responsavel, AlunoResponsavel, LogRecuperacaoSenha, TokenRecuperacaoSenha
 # Register your models here.
 
 # Classe para garantir que o formulário use o hash de senha
@@ -54,3 +54,4 @@ admin.site.register(Professor)
 admin.site.register(Responsavel)
 admin.site.register(AlunoResponsavel)
 admin.site.register(LogRecuperacaoSenha, LogRecuperacaoSenhaAdmin)
+admin.site.register(TokenRecuperacaoSenha)

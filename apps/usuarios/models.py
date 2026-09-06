@@ -186,7 +186,35 @@ class LogRecuperacaoSenha(models.Model):
     
     # Define a representação em string do objeto LogRecuperacaoSenha
     def __str__(self):
-        return f"{self.evento} - Código: {self.usuario.email} - Usado: {self.criado_em}"
+        return f"{self.evento} - Código: {self.usuario.email} - Usado: {self.criado_em}"    
+
+# Classe de token de recuperação de senha, que possui um relacionamento com a tabela de usuários.
+class TokenRecuperacaoSenha(models.Model):
+    # Campo de relacionamento com a tabela de usuários.
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, db_column='usuario_id', related_name='tokens_recuperacao')
+    
+    # Guarda o hash do token, nunca o token em texto puro
+    token_hash = models.CharField(max_length=64, unique=True)
+    
+    # Data e hora em que o token foi gerado
+    criado_em = models.DateTimeField(auto_now_add=True)
+    
+    # Data e hora em que o token deixa de ser válido
+    expira_em = models.DateTimeField()
+    
+    # Data e hora em que o token foi usado, fica nulo enquanto não for usado
+    usado_em = models.DateTimeField(blank=True, null=True)
+    
+    # IP de quem solicitou o token
+    ip = models.GenericIPAddressField(blank=True, null=True)
+    
+    # Define o nome da tabela no banco de dados
+    class Meta:
+        db_table = 'token_recuperacao_senha'
+    
+    # Define a representação em string do objeto TokenRecuperacaoSenha
+    def __str__(self):
+        return f"Token de {self.usuario.email} - Expira em: {self.expira_em}"
 
 # Função para registrar logs de recuperação de senha
 def registrar_log_recuperacao_senha(usuario, evento, token=None, ip=None):
