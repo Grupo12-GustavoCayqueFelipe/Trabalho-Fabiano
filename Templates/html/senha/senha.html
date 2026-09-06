@@ -1,0 +1,48 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+    <title>Recuperar Senha | EduControll</title>
+    <link rel="stylesheet" href="{% static 'css/senha/senha.css' %}">
+</head>
+<body>
+    <main class="pagina-recuperacao">
+        <!-- LOGO -->
+        <div class="logo">
+            <h1>
+                EduControll
+            </h1>
+        </div>
+        <!-- CAIXA DE RECUPERAÇÃO -->
+        <section class="recuperacao-box">
+            <h2>
+                Esqueceu sua senha?
+            </h2>
+            <p class="descricao"> Não se preocupe! Informe o e-mail cadastrado na sua conta e enviaremos um link para você criar uma nova senha. </p>
+            <!-- FORMULÁRIO -->
+            <form method="POST">
+                {% csrf_token %}
+                <div class="campo">
+                    <label for="email">
+                        E-mail
+                    </label>
+                    <input type="email" id="email" name="email" placeholder="Digite seu e-mail" required>
+                </div>
+                <button type="submit">
+                    Enviar link de recuperação
+                </button>
+            </form>
+            <!-- VOLTAR PARA LOGIN -->
+            <a href="{% url 'logout' %}" method="POST" class="voltar"> ← Voltar para o login</a>
+        </section>
+        <!-- RODAPÉ -->
+        <p class="rodape">
+            Protótipo para avaliação do
+            Projeto Integrador
+        </p>
+    </main>
+</body>
+</html>
