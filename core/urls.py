@@ -32,4 +32,8 @@ urlpatterns = [
     path('2fa/verificar/', usuarios_views.dois_fatores_verificar_view, name='2fa_verificar'),
     # tela onde o usuário liga e desliga o 2FA na própria conta
     path('2fa/configurar/', usuarios_views.dois_fatores_configurar_view, name='2fa_configurar'),
+    # rota para a página de solicitação de recuperação de senha, que envia o email com o token
+    path('senha/recuperar/', usuarios_views.solicitacao_recuperacao_senha_view, name='solicitacao_recuperacao_senha_view'),
+    # rota para a página de redefinição de senha, que recebe o token como parâmetro
+    path('senha/redefinir/<token>/', usuarios_views.redefinir_senha_view, name='redefinir_senha_view'),
 ]

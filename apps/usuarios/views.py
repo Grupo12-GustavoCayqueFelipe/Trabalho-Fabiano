@@ -3,14 +3,24 @@ import qrcode
 import base64
 import io
 import datetime
+import secrets
+import hashlib
 
-from .models import Usuario
+from core.settings import PASSWORD_RESET_TIMEOUT
+
+from .models import Usuario, registrar_log_recuperacao_senha, TokenRecuperacaoSenha
 from django.utils import timezone
 from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django_ratelimit.decorators import ratelimit
+from django_ratelimit.decorators import ratelimit, settings
+
+from django.core.mail import send_mail
+from django.urls import reverse
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
 
 # Create your views here.
 TENTATIVAS_MAX = 5
@@ -161,6 +171,92 @@ def dashboard_view(request):
   # Se o usuário estiver logado, renderiza a página principal
   template = templates_por_perfil.get(request.user.perfil, 'usuarios/dashboard.html')
   return render(request, template) 
+
+# Usuário solicita a recuperação de senha, se o email existir, gera um token e envia o email
+def solicitacao_recuperacao_senha_view(request):
+  # Se o usuário estiver logado, redireciona para a página principal
+  if request.method == 'POST':
+    # Pega o email do formulário e procura o usuário no banco de dados
+    email = request.POST.get('email')
+    usuario = Usuario.objects.filter(email=email).first()
+
+    # Se o usuário existir, gera um token de recuperação de senha e envia o email
+    if usuario:
+      # Gera um token aleatório e seguro, guarda só o hash dele no banco
+      token = secrets.token_urlsafe(32)
+      token_hash = hashlib.sha256(token.encode()).hexdigest()
+      
+      # Define o tempo de expiração do token com base na configuração do Django
+      TokenRecuperacaoSenha.objects.create(
+        usuario=usuario,
+        token_hash=token_hash,
+        expira_em=timezone.now() + datetime.timedelta(hours=PASSWORD_RESET_TIMEOUT),
+        ip=request.META.get('REMOTE_ADDR'),
+      )
+
+      # Monta o link de recuperação de senha com o token em texto puro (só existe aqui, nunca é salvo)
+      link = request.build_absolute_uri(reverse('redefinir_senha_view', kwargs={'token': token}))
+
+      # Envia o email com o link de recuperação de senha
+      send_mail(
+        'Recuperação de senha - EduControll',
+        f'Clique no link abaixo para redefinir sua senha:\n{link}\n\nSe você não solicitou a recuperação de senha, ignore este email.',
+        settings.DEFAULT_FROM_EMAIL,
+        [usuario.email],
+        fail_silently=False,
+      )
+      # Registra o log de solicitação de recuperação de senha
+      registrar_log_recuperacao_senha(usuario, evento='SOLICITACAO', ip=request.META.get('REMOTE_ADDR'))
+
+    # Mensagem genérica para não revelar se o email existe ou não no sistema
+    messages.success(request, 'Se o email existir em nosso sistema, um link de recuperação de senha foi enviado.')
+    return redirect('login')
+
+  return render(request, 'html/senha/senha.html')
+
+# Tela onde o usuário redefine a senha, acessando o link enviado por email
+def redefinir_senha_view(request, token):
+  # Faz o hash do token que veio na URL pra comparar com o que está salvo
+  token_hash = hashlib.sha256(token.encode()).hexdigest()
+  token_recuperacao = TokenRecuperacaoSenha.objects.filter(token_hash=token_hash).first()
+
+  # Confere se o token existe, não expirou e ainda não foi usado
+  token_valido = (
+    token_recuperacao is not None
+    and token_recuperacao.usado_em is None
+    and token_recuperacao.expira_em > timezone.now()
+  )
+  # Se o token não for válido, registra o log de falha e mostra a mensagem de erro
+  if not token_valido:
+    # Se o token existir, registra o log de falha com o evento correto
+    if token_recuperacao:
+      evento = 'FALHA_TOKEN_EXPIRADO' if token_recuperacao.expira_em <= timezone.now() else 'FALHA_TOKEN_INVALIDO'
+      registrar_log_recuperacao_senha(token_recuperacao.usuario, evento=evento, ip=request.META.get('REMOTE_ADDR'), token=token)
+    # Se o token não existir, registra o log de falha com o evento de token inválido
+    messages.error(request, 'Link de recuperação inválido ou expirado.')
+    return redirect('login')
+  
+  # Se o token for válido, pega o usuário relacionado a ele
+  usuario = token_recuperacao.usuario
+  
+  # Se o usuário enviar o formulário com a nova senha, atualiza a senha do usuário, marca o token como usado e registra o log de sucesso
+  if request.method == 'POST':
+    nova_senha = request.POST.get('nova_senha')
+    usuario.set_password(nova_senha)
+    usuario.save()
+
+    # Marca o token como usado, pra ele não poder ser reaproveitado
+    token_recuperacao.usado_em = timezone.now()
+    token_recuperacao.save()
+    
+    # Registra o log de sucesso da redefinição de senha
+    registrar_log_recuperacao_senha(usuario, evento='SUCESSO', ip=request.META.get('REMOTE_ADDR'), token=token)
+
+    # Mensagem de sucesso e redireciona para a página de login
+    messages.success(request, 'Senha redefinida com sucesso. Faça login com a nova senha.')
+    return redirect('login')
+
+  return render(request, 'html/senha/redefinir_senha.html')
 
 @login_required(login_url='login')
 def logout_view(request):
