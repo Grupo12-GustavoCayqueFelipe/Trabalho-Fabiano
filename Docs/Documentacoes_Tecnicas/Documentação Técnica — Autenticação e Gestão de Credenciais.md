@@ -32,7 +32,7 @@ A conexão com o banco é lida da variável DATABASE_URL, com ssl_require=True, 
 1. Usuário acessa a pagina principal e envia email e senha pelo formulário de Templates/usuarios/index.html.
 2. login_view chama authenticate (request, email=email, password=senha).
 3. Se for válido, login (request, usuario) cria a sessão e redireciona para /dashboard/
-4. Se for inváçido, exibe mensagem genérica de erro, "Email ou senha inválidos.", sem indicar se o email existe.
+4. Se for inválido, exibe mensagem genérica de erro, "Email ou senha inválidos.", sem indicar se o email existe.
 5. dashboard_view bloqueia acesso de quem não está autentificado e escolhe o template conforme o "perfil" do usuário logado.
 6. logout_view que é protegida por @login_required, encerra a sessão e volta para o login.
 
@@ -57,3 +57,26 @@ O fluxo tradicional de entrada foi adaptado. Após o authenticate() confirmar qu
 - Se otp_ativado for True: O login() não é chamado. O sistema salva apenas o ID do usuário em uma variável de sessão temporária (pre_2fa_user_id) e redireciona para /2fa/verificar/.
 
 Na etapa de verificação, somente após o código de 6 dígitos ser validado por meio de pyotp.TOTP(secret).verify(codigo) é que o login() é executado de fato e a sessão autenticada é criada. Isso garante que o conhecimento isolado da senha seja insuficiente para acessar contas com a restrição ativada.
+
+## 7. Política de sessão e bloqueio de conta
+### 7.1 Tentativas e bloqueio por conta
+Além do rate limiting por IP, o model Usuario recebeu três campos novos: tentativas_login, que conta quantas vezes seguidas a senha foi digitada errada, ultima_tentativa_falha, que guarda quando foi a última tentativa errada, e bloqueado_ate, que guarda até quando a conta fica bloqueada.
+Na login_view, antes de chamar authenticate(), o sistema busca o usuário pelo email e confere se bloqueado_ate ainda está no futuro. Se estiver, a tentativa é barrada e uma mensagem de bloqueio é exibida sem nem chegar a validar a senha.
+Quando a senha está errada, tentativas_login é incrementado. Ao atingir o limite de 5 tentativas, bloqueado_ate recebe a data e hora atual mais 15 minutos, bloqueando a conta independente do IP de onde vem a tentativa.
+Quando o login é bem sucedido, tentativas_login e bloqueado_ate são zerados, liberando o histórico de tentativas erradas anteriores.
+
+### 7.2 Política de sessão
+O settings.py define SESSION_COOKIE_AGE = 1800, ou seja a sessão expira depois de 30 minutos. Com SESSION_SAVE_EVERY_REQUEST = True, esse tempo é renovado a cada requisição, então os 30 minutos contam a partir da última ação do usuário, não do login.
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True também encerra a sessão quando o navegador é fechado, e SESSION_COOKIE_HTTPONLY = True impede que o cookie de sessão seja acessado via JavaScript, reduzindo o risco de roubo de sessão por ataques XSS.
+
+## 8. Recuperação de Senha
+### 8.1 Geração e validação do token
+Quando o usuário solicita a recuperação de senha em /senha/recuperar/, o sistema verifica se o email existe na base. Em caso positivo, gera um token aleatório de 32 bytes usando secrets.token_urlsafe(), a mesma biblioteca recomendada pela documentação oficial do Python para geração de valores criptograficamente seguros. Apenas o hash SHA-256 do token é salvo no banco, no model TokenRecuperacaoSenha, nunca o valor original sendo o token em texto puro existe só no momento da geração, dentro do link enviado por email.
+O token expira 1 hora após a criação (campo expira_em), e é marcado como usado (campo usado_em) assim que a senha é redefinida com sucesso, impedindo reuso do mesmo link.
+A resposta ao usuário é sempre a mesma mensagem genérica, independente do email existir ou não na base, evitando que a funcionalidade seja usada para descobrir quais emails estão cadastrados no sistema.
+
+### 8.2 Envio do email
+O envio usa a função send_mail nativa do Django. Em ambiente de desenvolvimento, o EMAIL_BACKEND está configurado como console, que imprime o conteúdo do email no terminal em vez de enviar de verdade, facilitando os testes sem depender de um servidor SMTP real.
+
+### 8.3 Registro e auditoria (2.6 e 2.7)
+Cada etapa do processo é registrada na tabela LogRecuperacaoSenha através da função registrar_log_recuperacao_senha: a solicitação inicial (SOLICITACAO), o sucesso da troca de senha (SUCESSO), e as duas formas de falha (FALHA_TOKEN_EXPIRADO e FALHA_TOKEN_INVALIDO), cada uma com o IP de origem, hash do token envolvido e data/hora. Os logs ficam marcados como somente leitura no Django Admin, impedindo alteração posterior do histórico.
