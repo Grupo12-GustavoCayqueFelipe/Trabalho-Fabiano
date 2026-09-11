@@ -1,0 +1,329 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(
+        220deg,
+        #210546,
+        #f4f4f5
+    );
+    color: #210546;
+}
+.LGPD-page {
+    width: 90%;
+    max-width: 850px;
+    margin: auto;
+    padding: 35px 0 60px;
+}
+
+/* TOPO */
+.topo {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 55px;
+}
+.topo a {
+    color: #210546;
+    text-decoration: none;
+    font-size: 14px;
+}
+.topo span {
+    color: white;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+/* VOLTAR */
+.voltar {
+    margin-bottom: 40px;
+}
+button.voltar-button {
+    border: none;
+    background: #210546;
+    color: white;
+    padding: 11px 18px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.voltar-button:hover {
+    background: black;
+}
+
+/* CABEÇALHO */
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+.cadeado {
+    width: 55px;
+    height: 55px;
+    background: #e5f5fc;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: auto auto 15px;
+    font-size: 25px;
+}
+header > span {
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+}
+header h1 {
+    font-size: 32px;
+    margin-top: 7px;
+}
+header p {
+    color: white;
+    margin-top: 8px;
+    font-size: 14px;
+}
+
+/* POLÍTICA */
+.politica {
+      background: linear-gradient(
+        5deg,
+        #210546,
+        #f4f4f5
+    );
+    color: white;
+    border-radius: 14px;
+    padding: 23px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 18px;
+}
+.politica h2 {
+    font-size: 17px;
+    color: #210546;
+}
+.politica p {
+    color: white;
+    font-size: 13px;
+    margin-top: 5px;
+    line-height: 1.5;
+}
+.politica button[type="button"] {
+    border: 1px solid #210546;
+    background: transparent;
+    color: #210546;
+    padding: 10px 14px;
+    border-radius: 7px;
+    cursor: pointer;
+    
+}
+
+/* OPÇÕES */
+.opcoes {
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+}
+.opcao {
+      background: linear-gradient(
+        5deg,
+        #210546,
+        #f4f4f5
+    );
+    border-radius: 13px;
+    padding: 21px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    transition: 0.2s;
+}
+.opcao:hover {
+    border-color: #a8d4e9;
+    transform: translateY(-1px);
+}
+.opcao.obrigatorio {
+      background: linear-gradient(
+        5deg,
+        #210546,
+        #f4f4f5
+    );
+}
+.opcao-conteudo {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+}
+.opcao-icone {
+    width: 43px;
+    height: 43px;
+    border-radius: 10px;
+    background: #e8f5fb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+}
+.opcao-icone.roxo {
+    background: #eeeaff;
+}
+.opcao-icone.verde {
+    background: #e3f7ed;
+}
+.tipo {
+    display: inline-block;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+}
+.tipo.opcional {
+    color: #6d55c4;
+}
+.opcao h2 {
+    font-size: 15px;
+}
+.opcao p {
+    color: white;
+    font-size: 13px;
+    line-height: 1.55;
+    max-width: 620px;
+    margin-top: 5px;
+}
+
+/* OBRIGATÓRIO */
+.status-bloqueado {
+    background: #edf1f4;
+    color: #210546;
+    padding: 7px 11px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* SWITCH */
+.switch input {
+    display: none;
+}
+.switch span {
+    width: 48px;
+    height: 26px;
+    background: #cbd5df;
+    border-radius: 30px;
+    display: block;
+    position: relative;
+    cursor: pointer;
+}
+.switch span::after {
+    content: "";
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    left: 3px;
+    top: 3px;
+    transition: 0.2s;
+}
+.switch input:checked + span {
+    background: #210546;
+}
+.switch input:checked + span::after {
+    transform: translateX(22px);
+}
+
+/* VERSÃO */
+.versao {
+    text-align: center;
+    color: black;
+    font-size: 11px;
+    margin: 25px 0 18px;
+}
+.versao span {
+    margin: 0 7px;
+}
+
+/* BOTÃO */
+.salvar {
+    width: 100%;
+    border: none;
+    background: #210546;
+    color: white;
+    padding: 14px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.salvar:hover {
+    background: #210546;
+}
+
+/* MODAL */
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 25, 40, 0.58);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 999;
+}
+.modal-box {
+    background: white;
+    width: 100%;
+    max-width: 650px;
+    max-height: 85vh;
+    overflow-y: auto;
+    border-radius: 15px;
+    padding: 30px;
+    position: relative;
+}
+.fechar {
+    position: absolute;
+    right: 18px;
+    top: 14px;
+    border: none;
+    background: transparent;
+    font-size: 28px;
+    cursor: pointer;
+    color: #718096;
+}
+.modal-box > span {
+    color: #210546;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+.modal-box h2 {
+    margin-top: 7px;
+    font-size: 22px;
+}
+.modal-box h3 {
+    margin-top: 23px;
+    margin-bottom: 6px;
+    font-size: 15px;
+}
+.modal-box p {
+    color: grey;
+    font-size: 13px;
+    line-height: 1.7;
+}
+.fechar-modal {
+    width: 100%;
+    border: none;
+    background:#210546;
+    color: white;
+    padding: 11px;
+    border-radius: 7px;
+    margin-top: 25px;
+    cursor: pointer;
+    font-weight: 600;
+}

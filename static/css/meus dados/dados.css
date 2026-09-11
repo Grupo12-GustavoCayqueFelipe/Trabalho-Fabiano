@@ -1,0 +1,369 @@
+* {
+    margin: 0;
+}
+body {
+    font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(
+        250deg,
+        #210546,
+        #f4f4f5
+    );
+    color: #182b49;
+}
+
+/* LAYOUT */
+.layout {
+    display: flex;
+    min-height: 100vh;
+    max-width: 320vh;
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 250px;
+        background: linear-gradient(
+        95deg,
+        #210546,
+        #f4f4f5
+    );
+    color: #210546;
+    padding: 28px 18px;
+    display: flex;
+    flex-direction: column;
+}
+.logo {
+    font-size: 30px;
+    font-weight: 700;
+    margin-bottom: 55px;
+    padding: 0px 20px;
+}
+.logo span {
+    color: #210546;
+}
+.sidebar-title {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: white;
+    margin-bottom: 12px;
+}
+.sidebar nav {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+.sidebar nav a,
+.sidebar-bottom a {
+    color: white;
+    text-decoration: none;
+    padding: 12px 13px;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: 0.2s;
+}
+.sidebar nav a:hover,
+.sidebar nav a.active {
+    background: #210546;
+    color: white;
+}
+.sidebar-bottom {
+    display: flex;
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid white;
+    padding: 20px 30px 0px;
+}
+button.sair{
+    background: #210546;
+    color: white;
+    border: 1px solid black;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* CONTEÚDO */
+.conteudo {
+    flex: 1;
+    max-width: 1050px;
+    padding: 45px 50px;
+}
+
+/* TOPO */
+.topo {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 30px;
+}
+.mini-titulo {
+    color: black;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+}
+.topo h1 {
+    font-size: 34px;
+    margin-top: 5px;
+}
+.topo p {
+    margin-top: 8px;
+    color: black;
+    max-width: 650px;
+}
+.lgpd-badge {
+    border: 1px solid #210546;
+      background: linear-gradient(
+        50deg,
+        #210546,
+        #f4f4f5
+    );
+    color: #210546;
+    padding: 9px 15px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* CARD */
+.card {
+      background: linear-gradient(
+        190deg,
+        #210546,
+        #f4f4f5
+    );
+    border: 1px solid #dde5ed;
+    border-radius: 15px;
+    padding: 27px;
+    margin-bottom: 20px;
+    box-shadow: 0 3px 12px black;
+}
+
+/* TÍTULO */
+.card-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 25px;
+}
+.card-title h2 {
+    font-size: 18px;
+    color: white;
+}
+.card-title p {
+    color: white;
+    font-size: 13px;
+    margin-top: 4px;
+}
+
+/* ÍCONES */
+.icone {
+    width: 45px;
+    height: 45px;
+    border-radius: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+.roxo {
+      background: linear-gradient(
+        145deg,
+        #210546,
+        #f4f4f5
+    );
+}
+
+/* DADOS */
+.dados-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    border-top: 1px solid #edf0f3;
+    padding-top: 20px;
+}
+.campo label {
+    display: block;
+    color: black;
+    font-size: 10px;
+    margin-bottom: 6px;
+}
+.campo input[type="name"], .campo input[type="email"], .campo input[type="tel"] {
+    width: 50%;
+    font-size: 14px;
+    padding: 8px;
+    border: 1px solid #d9e1e8;
+    border-radius: 9px;
+}
+.campo span {
+    font-size: 14px;
+    color: #182b49;
+    gap: 10px;
+}
+.campo strong {
+    font-size: 14px;
+    color: #182b49;
+}
+.button {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+}
+button {
+    height: 43px;
+    padding: 0 22px;
+    border: 1px solid;
+    border-radius: 9px;
+    background: #210546;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+    padding: 10px 20px;
+}
+button:hover {
+    background: #000000;
+}
+/* TRATAMENTOS */
+.tratamentos {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.tratamento {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 25px;
+    padding: 18px;
+    border: 1px solid #e1e7ed;
+    border-radius: 11px;
+    background: #fafcfe;
+    transition: 0.2s;
+}
+.tratamento:hover {
+    border-color: black;
+    background: #f7fbfd;
+}
+.tratamento-info {
+    flex: 1;
+}
+.tratamento-nome {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 6px;
+}
+.tratamento-nome strong {
+    font-size: 14px;
+}
+.tratamento-info p {
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 7px;
+}
+.tratamento-info small {
+    color: #8a98a8;
+    font-size: 11px;
+}
+
+/* TAGS */
+.tag {
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.tag.obrigatorio {
+    background: #edf1f4;
+    color: #596979;
+}
+.tag.opcional {
+    background: #eeeaff;
+    color: #6c54c2;
+}
+
+/* BASE LEGAL */
+.tratamento-legal {
+    min-width: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+.tratamento-legal span {
+    color: #8a98a8;
+    font-size: 10px;
+    margin-bottom: 4px;
+}
+.tratamento-legal strong {
+    color: #087eb5;
+    font-size: 12px;
+    text-align: right;
+}
+
+/* COMPARTILHAMENTO */
+.compartilhamento {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+}
+.compartilhamento > div {
+    background: white;
+    border-radius: 10px;
+    padding: 18px;
+}
+.compartilhamento strong {
+    font-size: 14px;
+}
+.compartilhamento p {
+    color: #718096;
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: 7px;
+}
+
+/* DPO */
+.dpo {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: white;
+    border: 1px solid white;
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 20px;
+}
+.dpo-icon {
+    font-size: 24px;
+}
+.dpo p {
+    font-size: 13px;
+    color: #64788c;
+    margin: 3px 0;
+}
+.dpo a {
+    color: #210546;
+    font-size: 13px;
+}
+
+/* BOTÃO */
+.acoes {
+    display: flex;
+    justify-content: flex-end;
+}
+.btn-exportar {
+    border: none;
+    background: #210546;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.btn-exportar:hover {
+    background: black;
+}

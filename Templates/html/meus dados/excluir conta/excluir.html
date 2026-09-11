@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excluir Conta - EduControll</title>
+    <link rel="stylesheet" href="/static/css/meus dados/excluir conta/excluir.css">
+</head>
+<body>
+    <main class="exclusao-page">
+        <form action="/Templates/html/meus dados/dados.html" class="voltar">
+            <button type="submit" class="voltar-button">
+                ← Voltar para meus dados
+            </button>
+        </form>
+
+        <div class="logo">
+            EduControll
+        </div>
+
+        <div class="titulo">
+            <span>
+                GERENCIAMENTO DA CONTA
+            </span>
+            <h1>
+                Encerramento da conta
+            </h1>
+            <p>
+                Antes de continuar, confira o que acontecerá
+                com suas informações.
+            </p>
+        </div>
+
+        <!-- ALERTA -->
+        <section class="alerta">
+            <div class="alerta-icon">
+                ⚠
+            </div>
+            <div>
+                <h2>
+                    Você está prestes a excluir sua conta
+                </h2>
+                <p>
+                    Essa operação é irreversível. Depois da confirmação,
+                    você não poderá acessar sua conta novamente.
+                </p>
+            </div>
+        </section>
+
+        <!-- IMPACTOS -->
+        <section class="impactos">
+            <div class="impacto remover">
+                <h2>
+                    Será removido
+                </h2>
+                <ul>
+                    <li>
+                        Nome e dados cadastrais
+                    </li>
+                    <li>
+                        E-mail e telefone
+                    </li>
+                    <li>
+                        Vínculo da conta com o sistema
+                    </li>
+                    <li>
+                        Preferências pessoais
+                    </li>
+                </ul>
+            </div>
+
+            <div class="impacto manter">
+                <h2>
+                    Poderá ser mantido
+                </h2>
+                <ul>
+                    <li>
+                        Histórico acadêmico necessário
+                        para cumprimento de obrigação legal
+                    </li>
+                    <li>
+                        Registros que precisem ser
+                        mantidos pela instituição
+                    </li>
+                    <li>
+                        Informações que poderão ser
+                        anonimizadas para preservar registros
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- CONFIRMAÇÃO -->
+        <section class="confirmacao">
+            <div class="confirmacao-titulo">
+                <span>
+                    🔐
+                </span>
+                <div>
+                    <h2>
+                        Confirmação de segurança
+                    </h2>
+                    <p>
+                        Digite sua senha para continuar.
+                    </p>
+                </div>
+            </div>
+            <label for="senha">
+                Senha da conta
+            </label>
+            <input type="password" id="senha" placeholder="Digite sua senha">
+            <label class="checkbox">
+                <input type="checkbox" id="confirmar">
+                <span>
+                    Entendo que essa ação não poderá ser desfeita.
+                </span>
+            </label>
+            <div class="acoes">
+                <div class="cancelar">
+                    <from action="#">
+                        <button type="submit" class="cancel">
+                            Cancelar
+                        </button>
+                    </from>
+                </div>
+                <button type="button" class="excluir" onclick="excluirConta()">
+                    Excluir minha conta
+                </button>
+            </div>
+        </section>
+        <div class="versao">
+
+            Exclusão de conta - EduControll
+
+            <span>•</span>
+
+            Última atualização: 10/09/2026
+
+        </div>
+    </main>
+    
+    <!--JAVA TALVEZ-->
+    <script class="excluirConta">
+        function excluirConta() {
+            const senha =
+                document.getElementById("senha").value;
+            const confirmar =
+                document.getElementById("confirmar").checked;
+            if (senha === "") {
+                alert("Digite sua senha.");
+                return;
+            }
+            if (!confirmar) {
+                alert("Marque a confirmação antes de continuar.");
+                return;
+            }
+            const resposta = confirm("Tem certeza que deseja excluir sua conta?");
+            if (resposta) {
+                alert("Solicitação de exclusão registrada.");
+            }
+        }
+    </script>
+</body>
+</html>

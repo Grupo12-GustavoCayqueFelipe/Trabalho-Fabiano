@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meus Dados - EduControll</title>
+    <link rel="stylesheet" href="/static/css/meus dados/dados.css">
+</head>
+<body>
+    <div class="layout">
+
+        <!-- MENU LATERAL -->
+        <aside class="sidebar">
+            <div class="logo">
+                Edu<span>Controll</span>
+            </div>
+            <div class="sidebar-title">
+                PRIVACIDADE
+            </div>
+            <nav>
+                <a href="/Templates/html/meus dados/dados.html" class="active">
+                    👤 Meus dados
+                </a>
+                <a href="/Templates/html/meus dados/excluir conta/excluir.html">
+                    🗑️ Excluir conta
+                </a>
+                <a href="/Templates/html/meus dados/LGPD/termos.html">
+                    🔐 Termos e Privacidade
+                </a>
+            </nav>
+            <div class="sidebar-bottom">
+                <form action="/Templates/usuarios/index.html" method="POST">
+                    <button type="submit" class="sair">
+                        Sair do sistema
+                    </button>
+                </form>
+            </div>
+        </aside>
+
+        <!-- CONTEÚDO -->
+        <main class="conteudo">
+
+            <!-- CABEÇALHO -->
+            <div class="topo">
+                <div>
+                    <span class="mini-titulo">
+                        CENTRAL DE PRIVACIDADE
+                    </span>
+                    <h1>
+                        Meus Dados
+                    </h1>
+                    <p>
+                        Consulte quais informações o EduControll
+                        possui sobre você e como elas são utilizadas.
+                    </p>
+                </div>
+                <div class="lgpd-badge">
+                    LGPD
+                </div>
+            </div>
+
+            <!-- INFORMAÇÕES PESSOAIS -->
+            <section class="card">
+                <div class="card-title">
+                    <div class="icone roxo">
+                        👤
+                    </div>
+                    <div>
+                        <h2>
+                            Informações pessoais
+                        </h2>
+                        <p>
+                            Dados cadastrados em sua conta.
+                        </p>
+                    </div>
+                </div>
+                <div class="dados-grid">
+                    <div class="campo">
+                        <label for="nome">
+                            Nome completo
+                        </label>
+                        <input type="name" id="nome" value="Cayque Luan Mota Ferreira" required> </input>
+                    </div>
+                    <div class="campo">
+                        <label for="email">
+                            E-mail
+                        </label>
+                        <input type="email" id="email" value="cayque@email.com" required> </input>
+                    </div>
+                    <div class="campo">
+                        <label for="telefone">
+                            Telefone
+                        </label>
+                        <input type="tel" id="telefone" value="(11) 99999-9999" required> </input>
+                    </div>
+                    <div class="campo">
+                        <span>
+                            Tipo de conta
+                        </span>
+                        <strong>
+                            Aluno
+                        </strong>
+                    </div>
+                    <div class="campo">
+                        <span>
+                            Cadastro realizado em
+                        </span>
+                        <strong>
+                            10/09/2026
+                        </strong>
+                    </div>
+                    <div class="button">
+                    <button class="salvar">
+                        Salvar informações
+                    </button>
+                </div>
+                </div>
+            </section>
+
+            <!-- TRATAMENTO DOS DADOS -->
+            <section class="card">
+                <div class="card-title">
+                    <div class="icone roxo">
+                        ◈
+                    </div>
+                    <div>
+                        <h2>
+                            Tratamento dos seus dados
+                        </h2>
+                        <p>
+                            Consulte a finalidade e a base legal de cada informação.
+                        </p>
+                    </div>
+                </div>
+                <div class="tratamentos">
+
+                    <!-- NOME -->
+                    <div class="tratamento">
+                        <div class="tratamento-info">
+                            <div class="tratamento-nome">
+                                <strong>
+                                    Nome
+                                </strong>
+                                <span class="tag obrigatorio">
+                                    Obrigatório
+                                </span>
+                            </div>
+                            <p>
+                                Identificação do usuário dentro do sistema escolar.
+                            </p>
+                            <small>
+                                Compartilhamento: administração e professores autorizados.
+                            </small>
+                        </div>
+
+                        <div class="tratamento-legal">
+                            <span>
+                                Base legal
+                            </span>
+                            <strong>
+                                Execução do serviço
+                            </strong>
+                        </div>
+                    </div>
+
+                    <!-- EMAIL -->
+                    <div class="tratamento">
+                        <div class="tratamento-info">
+                            <div class="tratamento-nome">
+                                <strong>
+                                    E-mail
+                                </strong>
+                                <span class="tag obrigatorio">
+                                    Obrigatório
+                                </span>
+                            </div>
+                            <p>
+                                Utilizado para login, autenticação e comunicação da plataforma.
+                            </p>
+                            <small>
+                                Compartilhamento: sistema EduControll e administração.
+                            </small>
+                        </div>
+
+                        <div class="tratamento-legal">
+                            <span>
+                                Base legal
+                            </span>
+                            <strong>
+                                Execução do serviço
+                            </strong>
+                        </div>
+                    </div>
+
+                    <!-- TELEFONE -->
+                    <div class="tratamento">
+                        <div class="tratamento-info">
+                            <div class="tratamento-nome">
+                                <strong>
+                                    Telefone
+                                </strong>
+                                <span class="tag opcional">
+                                    Opcional
+                                </span>
+                            </div>
+                            <p>
+                                Utilizado para contato relacionado ao funcionamento do sistema.
+                            </p>
+                            <small>
+                                Compartilhamento: somente quando autorizado.
+                            </small>
+                        </div>
+
+                        <div class="tratamento-legal">
+                            <span>
+                                Base legal
+                            </span>
+                            <strong>
+                                Consentimento
+                            </strong>
+                        </div>
+                    </div>
+
+                    <!-- MATRÍCULA -->
+                    <div class="tratamento">
+                        <div class="tratamento-info">
+                            <div class="tratamento-nome">
+                                <strong>
+                                    Dados de matrícula
+                                </strong>
+                                <span class="tag obrigatorio">
+                                    Obrigatório
+                                </span>
+                            </div>
+                            <p>
+                                Identificação acadêmica e vínculo com a instituição.
+                            </p>
+                            <small>
+                                Compartilhamento: administração e professores da turma.
+                            </small>
+                        </div>
+                        <div class="tratamento-legal">
+                            <span>
+                                Base legal
+                            </span>
+                            <strong>
+                                Execução do serviço
+                            </strong>
+                        </div>
+                    </div>
+
+                    <!-- FOTO -->
+                    <div class="tratamento">
+                        <div class="tratamento-info">
+                            <div class="tratamento-nome">
+                                <strong>
+                                    Foto
+                                </strong>
+                                <span class="tag opcional">
+                                    Opcional
+                                </span>
+                            </div>
+                            <p>
+                                Utilização em comunicados e divulgações escolares.
+                            </p>
+                            <small>
+                                Compartilhamento: somente mediante autorização.
+                            </small>
+                        </div>
+                        <div class="tratamento-legal">
+                            <span>
+                                Base legal
+                            </span>
+                            <strong>
+                                Consentimento
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- COMPARTILHAMENTO -->
+            <section class="card">
+                <div class="card-title">
+                    <div class="icone roxo">
+                        ⇄
+                    </div>
+                    <div>
+                        <h2>
+                            Compartilhamento
+                        </h2>
+                        <p>
+                            Entenda quem pode acessar determinadas informações.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="compartilhamento">
+                    <div>
+                        <strong>
+                            Professores
+                        </strong>
+                        <p>
+                            Nome, matrícula, turma, frequência e informações
+                            acadêmicas dos alunos vinculados às suas turmas.
+                        </p>
+                    </div>
+                    <div>
+                        <strong>
+                            Administração escolar
+                        </strong>
+                        <p>
+                            Dados cadastrais e acadêmicos necessários
+                            para a gestão da instituição.
+                        </p>
+                    </div>
+                    <div>
+                        <strong>
+                            Responsáveis
+                        </strong>
+                        <p>
+                            Informações disponibilizadas pela instituição
+                            sobre o aluno vinculado.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- DPO -->
+            <section class="dpo">
+                <div class="dpo-icon">
+                    🛡️
+                </div>
+                <div>
+                    <strong>
+                        Dúvidas sobre seus dados?
+                    </strong>
+                    <p>
+                        Entre em contato com o encarregado de dados:
+                    </p>
+                    <a href="mailto:dpo@educontroll.com">
+                        dpo@educontroll.com
+                    </a>
+                </div>
+            </section>
+
+            <!-- BOTÃO -->
+            <div class="acoes">
+                <button class="btn-exportar" onclick="exportarDados()">
+                    Exportar meus dados
+                </button>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

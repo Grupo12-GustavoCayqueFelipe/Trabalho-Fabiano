@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Termos e Privacidade - EduControll</title>
+    <link rel="stylesheet" href="/static/css/meus dados/LGPD/termos.css">
+</head>
+<body>
+
+    <main class="LGPD-page">
+
+        <!-- TOPO -->
+        <div class="topo">
+            <form action="/Templates/html/meus dados/dados.html" class="voltar">
+                <button type="submit" class="voltar-button">
+                    ← Voltar
+                </button>
+            </form>
+            <span>
+                EDUCONTROLL
+            </span>
+        </div>
+
+        <!-- CABEÇALHO -->
+        <header>
+            <div class="cadeado">
+                🔐
+            </div>
+            <span>
+                PRIVACIDADE E PROTEÇÃO DE DADOS
+            </span>
+            <h1>
+                Termos e Privacidade
+            </h1>
+            <p>
+                Escolha quais tratamentos opcionais dos seus
+                dados você autoriza.
+            </p>
+        </header>
+
+        <!-- POLÍTICA -->
+        <section class="politica">
+            <div>
+                <h2>
+                    Política de Privacidade
+                </h2>
+                <p>
+                    Consulte as informações completas sobre coleta,
+                    finalidade, compartilhamento e proteção dos seus dados.
+                </p>
+            </div>
+            <button type="button" onclick="abrirPolitica()">
+                Ler política completa →
+            </button>
+        </section>
+
+        <!-- OPÇÕES -->
+        <section class="opcoes">
+
+            <!-- OBRIGATÓRIO -->
+            <div class="opcao obrigatorio">
+                <div class="opcao-conteudo">
+                    <div class="opcao-icone">
+                        🏫
+                    </div>
+                    <div>
+                        <span class="tipo">
+                            OBRIGATÓRIO
+                        </span>
+                        <h2>
+                            Funcionamento do sistema escolar
+                        </h2>
+                        <p>
+                            Uso de dados de matrícula e contato
+                            necessários para o funcionamento do
+                            sistema escolar e prestação dos serviços
+                            educacionais.
+                        </p>
+                    </div>
+                </div>
+                <div class="status-bloqueado">
+                    🔒 Necessário
+                </div>
+            </div>
+
+            <!-- FOTO -->
+            <div class="opcao">
+                <div class="opcao-conteudo">
+                    <div class="opcao-icone roxo">
+                        📷
+                    </div>
+                    <div>
+                        <span class="tipo opcional">
+                            OPCIONAL
+                        </span>
+                        <h2>
+                            Uso de imagem e contato
+                        </h2>
+                        <p>
+                            Autorizo o uso da minha foto e dos meus
+                            dados de contato em comunicados,
+                            materiais e divulgações escolares.
+                        </p>
+                    </div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="imagem">
+                    <span></span>
+                </label>
+            </div>
+
+            <!-- WHATSAPP -->
+            <div class="opcao">
+                <div class="opcao-conteudo">
+                    <div class="opcao-icone verde">
+                        💬
+                    </div>
+                    <div>
+                        <span class="tipo opcional">
+                            OPCIONAL
+                        </span>
+                        <h2>
+                            Comunicados por WhatsApp
+                        </h2>
+                        <p>
+                            Autorizo o envio de comunicados e avisos
+                            pelo WhatsApp além do e-mail cadastrado.
+                        </p>
+                    </div>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="whatsapp">
+                    <span></span>
+                </label>
+            </div>
+        </section>
+
+        <!-- VERSÃO -->
+        <div class="versao">
+            Política e termos — versão 1.0
+            <span>•</span>
+            Última atualização: 03/09/2026
+        </div>
+
+        <!-- BOTÃO -->
+        <button type="button" class="salvar" onclick="salvarPreferencias()">
+            Salvar minhas preferências
+        </button>
+    </main>
+
+    <!-- MODAL DA POLÍTICA -->
+    <div class="modal" id="modalPolitica">
+        <div class="modal-box">
+            <button class="fechar" onclick="fecharPolitica()">
+                ×
+            </button>
+            <span>
+                POLÍTICA DE PRIVACIDADE
+            </span>
+            <h2>
+                Como o EduControll utiliza seus dados
+            </h2>
+            <h3>
+                1. Coleta de dados
+            </h3>
+            <p>
+                O EduControll coleta informações necessárias
+                para identificação, autenticação e funcionamento
+                dos serviços educacionais.
+            </p>
+            <h3>
+                2. Finalidade
+            </h3>
+            <p>
+                Os dados são utilizados para gerenciamento acadêmico,
+                comunicação, autenticação e prestação dos serviços
+                oferecidos pela plataforma.
+            </p>
+            <h3>
+                3. Compartilhamento
+            </h3>
+            <p>
+                Algumas informações podem ser disponibilizadas
+                internamente para professores, responsáveis e
+                administração, de acordo com suas funções.
+            </p>
+            <h3>
+                4. Consentimento
+            </h3>
+            <p>
+                Os tratamentos opcionais dependem da autorização
+                do usuário e podem ser revogados posteriormente.
+            </p>
+            <h3>
+                5. Seus direitos
+            </h3>
+            <p>
+                O titular pode solicitar informações sobre o
+                tratamento de seus dados e exercer os direitos
+                previstos na legislação aplicável.
+            </p>
+            <button class="fechar-modal" onclick="fecharPolitica()">
+                Entendi
+            </button>
+        </div>
+    </div>
+
+    <script src="/js/termos.js">
+        function abrirPolitica() {
+            document.getElementById(
+                "modalPolitica"
+            ).style.display = "flex";
+        }
+        function fecharPolitica() {
+            document.getElementById(
+                "modalPolitica"
+            ).style.display = "none";
+        }
+        function salvarPreferencias() {
+            const imagem = document.getElementById("imagem").checked;
+            const whatsapp = document.getElementById("whatsapp").checked;
+            if (imagem && whatsapp) {
+                alert("Preferências salvas: uso de imagem e WhatsApp autorizados.");
+            }
+            else if (imagem) {
+                alert("Preferência salva: uso de imagem autorizado.");
+            }
+            else if (whatsapp) {
+                alert("Preferência salva: WhatsApp autorizado.");
+            }
+            else {
+                alert("Preferências salvas sem autorizações opcionais.");
+            }
+        }
+    </script>
+
+</body>
+</html>

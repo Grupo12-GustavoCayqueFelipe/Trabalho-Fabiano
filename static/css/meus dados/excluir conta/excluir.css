@@ -1,0 +1,257 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(
+        20deg,
+        #210546,
+        #f4f4f5
+    );
+    color: #182b49;
+}
+.exclusao-page {
+    width: 100%;
+    max-width: 120vh;
+    margin: auto;
+    padding: 40px 0 60px;
+}
+
+/* VOLTAR */
+.voltar {
+    margin-bottom: 40px;
+}
+
+button.voltar-button {
+    border: none;
+    background: #210546;
+    color: white;
+    padding: 11px 18px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+}
+.voltar-button:hover {
+    background: black;
+}
+
+/* LOGO */
+.logo {
+    font-size: 30px;
+    font-weight: 700;
+    margin-bottom: 5px;
+    padding: 0px;
+    display: flex;
+    align-items: center;
+    color:#210546;
+}
+
+/* TÍTULO */
+.titulo {
+    margin-bottom: 28px;
+    color: #210546;
+}
+.titulo span {
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+}
+.titulo h1 {
+    font-size: 32px;
+    margin-top: 7px;
+}
+.titulo p {
+    color: white;
+    margin-top: 7px;
+}
+
+/* ALERTA */
+.alerta {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+      background: linear-gradient(
+        190deg,
+        #210546,
+        #f4f4f5
+    );
+    border: 1px solid red;
+    border-left: 5px solid #d83b3b;
+    border-radius: 13px;
+    padding: 22px;
+    margin-bottom: 20px;
+}
+.alerta-icon {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: #ffe1e1;
+    color: #d83b3b;
+    font-size: 24px;
+}
+.alerta h2 {
+    font-size: 17px;
+}
+.alerta p {
+    color: white;
+    font-size: 13px;
+    margin-top: 5px;
+    line-height: 1.5;
+}
+
+/* IMPACTOS */
+.impactos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 20px;
+}
+.impacto {
+      background: linear-gradient(
+        210deg,
+        #210546,
+        #f4f4f5
+    );
+    border-radius: 13px;
+    border: 1px solid #210546;
+    padding: 24px;
+}
+.impacto h2 {
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+.impacto ul {
+    padding-left: 20px;
+}
+.impacto li {
+    color: #210546;
+    font-size: 13px;
+    line-height: 1.7;
+    margin-bottom: 5px;
+}
+.remover {
+    border-top: 4px solid #d83b3b;
+}
+.manter {
+    border-top: 4px solid #210546;
+}
+
+/* CONFIRMAÇÃO */
+.confirmacao {
+      background: linear-gradient(
+        210deg,
+        #210546,
+        #f4f4f5
+    );
+    border: 1px solid #210546;
+    border-radius: 13px;
+    padding: 26px;
+}
+.confirmacao-titulo {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 25px;
+}
+.confirmacao-titulo > span {
+    font-size: 23px;
+}
+.confirmacao-titulo h2 {
+    font-size: 17px;
+}
+.confirmacao-titulo p {
+    color: white;
+    font-size: 13px;
+    margin-top: 3px;
+}
+
+/* INPUT */
+.confirmacao > label:not(.checkbox) {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 7px;
+}
+.confirmacao input[type="password"] {
+    width: 100%;
+    padding: 13px;
+    border: 1px solid white;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    margin-bottom: 18px;
+}
+.confirmacao input[type="password"]:focus {
+    border-color: black;
+}
+
+/* CHECKBOX */
+.checkbox {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: #210546;
+    font-size: 13px;
+    cursor: pointer;
+}
+.checkbox input {
+    width: 16px;
+    height: 16px;
+}
+
+/* AÇÕES */
+.acoes {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 25px;
+}
+.cancelar {
+    margin-right: 10px;
+    display: flex;
+}
+button.cancel {
+    border: none;
+    background: #d83b3b;
+    color: white;
+    padding: 11px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cancel:hover {
+    background: #bc2e2e;
+}
+
+.excluir {
+    border: none;
+    background: #d83b3b;
+    color: white;
+    padding: 11px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.excluir:hover {
+    background: #bc2e2e;
+}
+.versao {
+    margin-top: 40px;
+    font-size: 12px;
+    color: grey;
+    text-align: center;
+}
+
+/* JAVA TALVEZ */
+script.excluirConta {
+    margin-top: 20px;
+    font-size: 14px;
+    background: white;
+}
