@@ -1,10 +1,11 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Meus Dados - EduControll</title>
-    <link rel="stylesheet" href="/static/css/meus dados/dados.css">
+    <link rel="stylesheet" href="{% static 'css/meus_dados/dados.css' %}">
 </head>
 <body>
     <div class="layout">
@@ -18,18 +19,18 @@
                 PRIVACIDADE
             </div>
             <nav>
-                <a href="/Templates/html/meus dados/dados.html" class="active">
+                <a href="{% url 'meus_dados_view' %}" class="active">
                     👤 Meus dados
                 </a>
-                <a href="/Templates/html/meus dados/excluir conta/excluir.html">
+                <a href="{% url 'excluir_dados_view' %}">
                     🗑️ Excluir conta
                 </a>
-                <a href="/Templates/html/meus dados/LGPD/termos.html">
+                <a href="{% url 'termos_view' %}">
                     🔐 Termos e Privacidade
                 </a>
             </nav>
             <div class="sidebar-bottom">
-                <form action="/Templates/usuarios/index.html" method="POST">
+                <form action={% url 'logout' %} method="POST">
                     <button type="submit" class="sair">
                         Sair do sistema
                     </button>
@@ -74,47 +75,34 @@
                         </p>
                     </div>
                 </div>
-                <div class="dados-grid">
-                    <div class="campo">
-                        <label for="nome">
-                            Nome completo
-                        </label>
-                        <input type="name" id="nome" value="Cayque Luan Mota Ferreira" required> </input>
+                <form method="POST" action="{% url 'atualizar_telefone_view' %}">
+                    {% csrf_token %}
+                    <div class="dados-grid">
+                        <div class="campo">
+                            <label for="nome">Nome completo</label>
+                            <input type="text" id="nome" value="{{ usuario.nome }}" readonly>
+                        </div>
+                        <div class="campo">
+                            <label for="email">E-mail</label>
+                            <input type="email" id="email" value="{{ usuario.email }}" readonly>
+                        </div>
+                        <div class="campo">
+                            <label for="telefone">Telefone</label>
+                            <input type="tel" id="telefone" name="telefone" value="{{ telefone|default:'' }}">
+                        </div>
+                        <div class="campo">
+                            <span>Tipo de conta</span>
+                            <strong>{{ usuario.get_perfil_display }}</strong>
+                        </div>
+                        <div class="campo">
+                            <span>Cadastro realizado em</span>
+                            <strong>{{ usuario.date_joined|date:"d/m/Y" }}</strong>
+                        </div>
+                        <div class="button">
+                            <button type="submit" class="salvar">Salvar informações</button>
+                        </div>
                     </div>
-                    <div class="campo">
-                        <label for="email">
-                            E-mail
-                        </label>
-                        <input type="email" id="email" value="cayque@email.com" required> </input>
-                    </div>
-                    <div class="campo">
-                        <label for="telefone">
-                            Telefone
-                        </label>
-                        <input type="tel" id="telefone" value="(11) 99999-9999" required> </input>
-                    </div>
-                    <div class="campo">
-                        <span>
-                            Tipo de conta
-                        </span>
-                        <strong>
-                            Aluno
-                        </strong>
-                    </div>
-                    <div class="campo">
-                        <span>
-                            Cadastro realizado em
-                        </span>
-                        <strong>
-                            10/09/2026
-                        </strong>
-                    </div>
-                    <div class="button">
-                    <button class="salvar">
-                        Salvar informações
-                    </button>
-                </div>
-                </div>
+                </form>
             </section>
 
             <!-- TRATAMENTO DOS DADOS -->
@@ -328,27 +316,16 @@
 
             <!-- DPO -->
             <section class="dpo">
-                <div class="dpo-icon">
-                    🛡️
-                </div>
+                <div class="dpo-icon">🛡️</div>
                 <div>
-                    <strong>
-                        Dúvidas sobre seus dados?
-                    </strong>
-                    <p>
-                        Entre em contato com o encarregado de dados:
-                    </p>
-                    <a href="mailto:dpo@educontroll.com">
-                        dpo@educontroll.com
-                    </a>
+                    <strong>Dúvidas sobre seus dados?</strong>
+                    <p>Entre em contato com o encarregado de dados:</p>
+                    <a href="mailto:dpo@educontroll.com">dpo@educontroll.com</a>
                 </div>
             </section>
 
-            <!-- BOTÃO -->
             <div class="acoes">
-                <button class="btn-exportar" onclick="exportarDados()">
-                    Exportar meus dados
-                </button>
+                <a href="{% url 'exportar_dados_view' %}" class="btn-exportar">Exportar meus dados</a>
             </div>
         </main>
     </div>

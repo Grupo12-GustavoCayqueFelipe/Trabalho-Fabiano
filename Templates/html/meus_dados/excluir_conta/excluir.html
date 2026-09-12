@@ -1,14 +1,15 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Excluir Conta - EduControll</title>
-    <link rel="stylesheet" href="/static/css/meus dados/excluir conta/excluir.css">
+    <link rel="stylesheet" href="{% static 'css/meus_dados/excluir_conta/excluir.css' %}">
 </head>
 <body>
     <main class="exclusao-page">
-        <form action="/Templates/html/meus dados/dados.html" class="voltar">
+        <a href="{% url 'meus_dados_view' %}" class="voltar-button">← Voltar para meus dados</a>
             <button type="submit" class="voltar-button">
                 ← Voltar para meus dados
             </button>
@@ -91,42 +92,36 @@
         </section>
 
         <!-- CONFIRMAÇÃO -->
-        <section class="confirmacao">
-            <div class="confirmacao-titulo">
-                <span>
-                    🔐
-                </span>
-                <div>
-                    <h2>
-                        Confirmação de segurança
-                    </h2>
-                    <p>
-                        Digite sua senha para continuar.
-                    </p>
-                </div>
-            </div>
-            <label for="senha">
-                Senha da conta
-            </label>
-            <input type="password" id="senha" placeholder="Digite sua senha">
+        <form method="POST" action="{% url 'excluir_dados_view' %}">
+            {% csrf_token %}
+            <section class="confirmacao">
+                <div class="confirmacao-titulo">
+                    <span>
+                        🔐
+                    </span>
+                    <div>
+                        <h2>
+                            Confirmação de segurança
+                        </h2>
+                        <p>
+                            Digite sua senha para continuar.
+                        </p>
+                    </div>
+                </div>    
+                <label for="senha">
+                    Senha da conta
+                </label>
+            <input type="password" id="senha" name="senha" placeholder="Digite sua senha" required>
             <label class="checkbox">
-                <input type="checkbox" id="confirmar">
+                <input type="checkbox" name="confirmar" required>
                 <span>
                     Entendo que essa ação não poderá ser desfeita.
                 </span>
             </label>
             <div class="acoes">
-                <div class="cancelar">
-                    <from action="#">
-                        <button type="submit" class="cancel">
-                            Cancelar
-                        </button>
-                    </from>
-                </div>
-                <button type="button" class="excluir" onclick="excluirConta()">
-                    Excluir minha conta
-                </button>
-            </div>
+                <a href="{% url 'meus_dados_view' %}" class="cancel">Cancelar</a>
+                <button type="submit" class="excluir">Excluir minha conta</button>
+            </div> 
         </section>
         <div class="versao">
 
@@ -138,27 +133,5 @@
 
         </div>
     </main>
-    
-    <!--JAVA TALVEZ-->
-    <script class="excluirConta">
-        function excluirConta() {
-            const senha =
-                document.getElementById("senha").value;
-            const confirmar =
-                document.getElementById("confirmar").checked;
-            if (senha === "") {
-                alert("Digite sua senha.");
-                return;
-            }
-            if (!confirmar) {
-                alert("Marque a confirmação antes de continuar.");
-                return;
-            }
-            const resposta = confirm("Tem certeza que deseja excluir sua conta?");
-            if (resposta) {
-                alert("Solicitação de exclusão registrada.");
-            }
-        }
-    </script>
 </body>
 </html>

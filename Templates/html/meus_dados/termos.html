@@ -1,10 +1,11 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Termos e Privacidade - EduControll</title>
-    <link rel="stylesheet" href="/static/css/meus dados/LGPD/termos.css">
+    <link rel="stylesheet" href="{% static 'css/meus_dados/termos/termos.css' %}">
 </head>
 <body>
 
@@ -12,14 +13,8 @@
 
         <!-- TOPO -->
         <div class="topo">
-            <form action="/Templates/html/meus dados/dados.html" class="voltar">
-                <button type="submit" class="voltar-button">
-                    ← Voltar
-                </button>
-            </form>
-            <span>
-                EDUCONTROLL
-            </span>
+            <a href="{% url 'meus_dados_view' %}" class="voltar-button">← Voltar</a>
+            <span>EDUCONTROLL</span>
         </div>
 
         <!-- CABEÇALHO -->
@@ -50,9 +45,7 @@
                     finalidade, compartilhamento e proteção dos seus dados.
                 </p>
             </div>
-            <button type="button" onclick="abrirPolitica()">
-                Ler política completa →
-            </button>
+            <button type="button" onclick="abrirPolitica()">Ler política completa →</button>
         </section>
 
         <!-- OPÇÕES -->
@@ -105,7 +98,7 @@
                     </div>
                 </div>
                 <label class="switch">
-                    <input type="checkbox" id="imagem">
+                    <input type="checkbox" name="USO_IMAGEM" {% if imagem_aceito %}checked{% endif %}>
                     <span></span>
                 </label>
             </div>
@@ -130,7 +123,7 @@
                     </div>
                 </div>
                 <label class="switch">
-                    <input type="checkbox" id="whatsapp">
+                    <input type="checkbox" name="COMUNICACAO_WHATSAPP" {% if whatsapp_aceito %}checked{% endif %}>
                     <span></span>
                 </label>
             </div>
@@ -144,17 +137,13 @@
         </div>
 
         <!-- BOTÃO -->
-        <button type="button" class="salvar" onclick="salvarPreferencias()">
-            Salvar minhas preferências
-        </button>
+        <button type="submit" class="salvar">Salvar minhas preferências</button>
     </main>
 
     <!-- MODAL DA POLÍTICA -->
     <div class="modal" id="modalPolitica">
         <div class="modal-box">
-            <button class="fechar" onclick="fecharPolitica()">
-                ×
-            </button>
+            <button class="fechar" onclick="fecharPolitica()">×</button>
             <span>
                 POLÍTICA DE PRIVACIDADE
             </span>
@@ -200,40 +189,11 @@
                 tratamento de seus dados e exercer os direitos
                 previstos na legislação aplicável.
             </p>
-            <button class="fechar-modal" onclick="fecharPolitica()">
-                Entendi
-            </button>
+            <button class="fechar-modal" onclick="fecharPolitica()">Entendi</button>
         </div>
     </div>
 
-    <script src="/js/termos.js">
-        function abrirPolitica() {
-            document.getElementById(
-                "modalPolitica"
-            ).style.display = "flex";
-        }
-        function fecharPolitica() {
-            document.getElementById(
-                "modalPolitica"
-            ).style.display = "none";
-        }
-        function salvarPreferencias() {
-            const imagem = document.getElementById("imagem").checked;
-            const whatsapp = document.getElementById("whatsapp").checked;
-            if (imagem && whatsapp) {
-                alert("Preferências salvas: uso de imagem e WhatsApp autorizados.");
-            }
-            else if (imagem) {
-                alert("Preferência salva: uso de imagem autorizado.");
-            }
-            else if (whatsapp) {
-                alert("Preferência salva: WhatsApp autorizado.");
-            }
-            else {
-                alert("Preferências salvas sem autorizações opcionais.");
-            }
-        }
-    </script>
+    <script src="{% static 'js/termos.js' %}"></script>
 
 </body>
 </html>
