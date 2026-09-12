@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 import pyotp
 import qrcode
 import base64
@@ -8,7 +9,7 @@ import hashlib
 
 from core.settings import PASSWORD_RESET_TIMEOUT
 
-from .models import Usuario, registrar_log_recuperacao_senha, TokenRecuperacaoSenha
+from .models import Usuario, consentimentos_atuais, registrar_consentimento, registrar_log_recuperacao_senha, TokenRecuperacaoSenha, TIPO_CONSENTIMENTO
 from django.utils import timezone
 from django.contrib import messages
 from django.shortcuts import redirect, render
@@ -257,6 +258,149 @@ def redefinir_senha_view(request, token):
     return redirect('login')
 
   return render(request, 'html/senha/redefinir_senha.html')
+
+@login_required(login_url='login')
+# Tela onde o usuário logado pode ver seus dados pessoais, que são apenas para visualização, exceto o telefone que é editável
+def meus_dados_view(request):
+  # Pega o usuário logado
+  usuario = request.user
+
+  # Pega o telefone do usuário, dependendo do perfil (aluno, professor ou responsável)
+  telefone = None
+  if hasattr(usuario, 'aluno'):
+    telefone = usuario.aluno.telefone
+  elif hasattr(usuario, 'professor'):
+    telefone = usuario.professor.telefone
+  elif hasattr(usuario, 'responsavel'):
+    telefone = usuario.responsavel.telefone
+
+  return render(request, 'html/meus_dados/dados.html', {
+    'usuario': usuario,
+    'telefone': telefone,
+  })
+
+
+
+@login_required(login_url='login')
+# Tela onde o usuário logado pode exportar seus dados pessoais em formato JSON
+def exportar_dados_view(request):
+  # Pega o usuário logado e monta um dicionário com os dados pessoais, dependendo do perfil (aluno, professor ou responsável)
+  usuario = request.user
+  
+  # Monta o dicionário com os dados pessoais do usuário, dependendo do perfil (aluno, professor ou responsável)
+  dados = {
+    'nome': usuario.nome,
+    'email': usuario.email,
+    'perfil': usuario.perfil,
+    'conta_criada_em': str(usuario.date_joined),
+  }
+  
+  # Pega os dados específicos do perfil do usuário e adiciona ao dicionário
+  if hasattr(usuario, 'aluno'):
+    dados['matricula'] = usuario.aluno.matricula
+    dados['data_nascimento'] = str(usuario.aluno.data_nascimento)
+    dados['telefone'] = usuario.aluno.telefone
+    dados['endereco'] = usuario.aluno.endereco
+  elif hasattr(usuario, 'professor'):
+    dados['formacao'] = usuario.professor.formacao
+    dados['telefone'] = usuario.professor.telefone
+    dados['especialidade'] = usuario.professor.especialidade
+  elif hasattr(usuario, 'responsavel'):
+    dados['telefone'] = usuario.responsavel.telefone
+    dados['parentesco_principal'] = usuario.responsavel.parentesco_principal
+
+  # Retorna os dados em formato JSON, com o cabeçalho para download do arquivo
+  resposta = JsonResponse(dados, json_dumps_params={'ensure_ascii': False, 'indent': 2})
+  resposta['Content-Disposition'] = 'attachment; filename="meus_dados.json"'
+  return resposta
+
+
+# Tela onde o usuário logado pode excluir sua conta e todos os dados pessoais
+@login_required(login_url='login')
+def excluir_dados_view(request):
+  if request.method == 'POST':
+    senha = request.POST.get('senha')
+    confirmar = request.POST.get('confirmar') == 'on'
+    usuario = request.user
+
+    if not confirmar:
+      messages.error(request, 'Confirme que entende que a ação é irreversível.')
+      return render(request, 'html/meus_dados/excluir_conta/excluir.html')
+
+    if not usuario.check_password(senha):
+      messages.error(request, 'Senha incorreta. A conta não foi excluída.')
+      return render(request, 'html/meus_dados/excluir_conta/excluir.html')
+
+    logout(request)
+    usuario.delete()
+    messages.success(request, 'Sua conta e seus dados foram excluídos com sucesso.')
+    return redirect('login')
+
+  return render(request, 'html/meus_dados/excluir_conta/excluir.html')
+
+# Atualiza o telefone do usuário (único campo editável na tela de Meus Dados)
+@login_required(login_url='login')
+def atualizar_telefone_view(request):
+  # Se o usuário enviar o formulário com o novo telefone, atualiza o telefone do usuário e redireciona para a página de Meus Dados
+  if request.method == 'POST':
+    # Pega o usuário logado e o novo telefone do formulário
+    usuario = request.user
+    
+    # Pega o novo telefone do formulário e atualiza o campo telefone do usuário, dependendo do perfil (aluno, professor ou responsável)
+    novo_telefone = request.POST.get('telefone')
+
+    # Atualiza o telefone do usuário, dependendo do perfil (aluno, professor ou responsável)
+    if hasattr(usuario, 'aluno'):
+      usuario.aluno.telefone = novo_telefone
+      usuario.aluno.save()
+    elif hasattr(usuario, 'professor'):
+      usuario.professor.telefone = novo_telefone
+      usuario.professor.save()
+    elif hasattr(usuario, 'responsavel'):
+      usuario.responsavel.telefone = novo_telefone
+      usuario.responsavel.save()
+
+    messages.success(request, 'Informações atualizadas com sucesso.')
+
+  return redirect('meus_dados_view')
+
+# Tela de termos e privacidade, onde o usuário aceita ou revoga consentimentos opcionais
+@login_required(login_url='login')
+def termos_view(request):
+  # Pega o usuário logado
+  usuario = request.user
+
+  # Se o usuário enviar o formulário com os consentimentos, atualiza os consentimentos do usuário e redireciona para a página de Meus Dados
+  if request.method == 'POST':
+    # Para cada tipo de consentimento, pega o valor do formulário e compara com o valor atual do banco de dados
+    for tipo, _ in TIPO_CONSENTIMENTO:
+      # Pega o valor do formulário e compara com o valor atual do banco de dados
+      aceito = request.POST.get(tipo) == 'on'
+      
+      # Pega o consentimento atual do usuário para o tipo de consentimento, se existir
+      atual = consentimentos_atuais(usuario).get(tipo)
+
+      # Só registra um evento novo se o estado realmente mudou, pra não poluir o histórico
+      if atual is None or atual.aceito != aceito:
+        registrar_consentimento(usuario, tipo=tipo, aceito=aceito, ip=request.META.get('REMOTE_ADDR'))
+
+    messages.success(request, 'Preferências de privacidade salvas com sucesso.')
+    return redirect('termos_view')
+
+  # Pega o status atual dos consentimentos do usuário para exibir na tela
+  status_atual = consentimentos_atuais(usuario)
+  
+  # Pega o status de cada consentimento, se existir, e passa para o template
+  imagem = status_atual.get('USO_IMAGEM')
+  
+  # Pega o status de cada consentimento, se existir, e passa para o template
+  whatsapp = status_atual.get('COMUNICACAO_WHATSAPP')
+
+  # Renderiza a página de termos e privacidade com os status atuais dos consentimentos
+  return render(request, 'html/meus_dados/termos.html', {
+    'imagem_aceito': imagem.aceito if imagem else False,
+    'whatsapp_aceito': whatsapp.aceito if whatsapp else False,
+  })
 
 @login_required(login_url='login')
 def logout_view(request):

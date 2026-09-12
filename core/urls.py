@@ -36,4 +36,14 @@ urlpatterns = [
     path('senha/recuperar/', usuarios_views.solicitacao_recuperacao_senha_view, name='solicitacao_recuperacao_senha_view'),
     # rota para a página de redefinição de senha, que recebe o token como parâmetro
     path('senha/redefinir/<token>/', usuarios_views.redefinir_senha_view, name='redefinir_senha_view'),
+    # rota para a página de dados do usuário, onde ele pode ver e editar seus dados pessoais
+    path('meus-dados/', usuarios_views.meus_dados_view, name='meus_dados_view'),
+    # rota para a página de atualização de telefone do usuário, onde ele pode alterar seu número de telefone
+    path('meus-dados/atualizar/', usuarios_views.atualizar_telefone_view, name='atualizar_telefone_view'),
+    # rota para a página de termos de uso, onde o usuário pode ler e aceitar os termos de uso da aplicação
+    path('meus-dados/termos/', usuarios_views.termos_view, name='termos_view'),
+    # rota para a página de exportação de dados do usuário, onde ele pode baixar um arquivo com seus dados pessoais
+    path('meus-dados/exportar/', usuarios_views.exportar_dados_view, name='exportar_dados_view'),
+    # rota para a página de exclusão de dados do usuário, onde ele pode excluir sua conta e todos os seus dados pessoais
+    path('meus-dados/excluir/', usuarios_views.excluir_dados_view, name='excluir_dados_view'),
 ]
