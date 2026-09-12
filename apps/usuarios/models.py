@@ -19,6 +19,14 @@ EVENTO_LOG =[
     ('FALHA_TOKEN_INVALIDO', 'Token de recuperação de senha inválido'),
 ]
 
+# Define o tipo de consentimento do aluno para uso de imagem e comunicação por WhatsApp
+TIPO_CONSENTIMENTO = [
+    ('USO_IMAGEM', 'Uso de imagem em comunicados escolares'),
+    ('COMUNICACAO_WHATSAPP', 'Envio de comunicados por WhatsApp'),
+]
+
+VERSAO_TERMOS_ATUAL = '1.0'
+
 # Gerenciador que permite email como username
 class UsuarioManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -226,3 +234,42 @@ def registrar_log_recuperacao_senha(usuario, evento, token=None, ip=None):
     
     # Cria o log de recuperação de senha no banco de dados
     LogRecuperacaoSenha.objects.create(usuario=usuario, evento=evento, token_hash=token_hash, ip=ip)
+
+# Classe de consentimento do usuário, que possui um relacionamento com a tabela de usuários.
+class ConsentimentoUsuario(models.Model):
+    # Define o usuário que deu o consentimento, que possui um relacionamento com a tabela de usuários.
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='consentimentos')
+    
+    # Define o tipo de consentimento, que pode ser uso de imagem ou comunicação por WhatsApp.
+    tipo = models.CharField(max_length=30, choices=TIPO_CONSENTIMENTO)
+    
+    # Define se o consentimento foi aceito ou revogado
+    aceito = models.BooleanField()
+    
+    # Define a versão dos termos aceitos pelo usuário, com valor padrão sendo a versão atual dos termos.
+    versao_termos = models.CharField(max_length=10, default=VERSAO_TERMOS_ATUAL)
+    
+    # Define a data e hora em que o consentimento foi registrado, com valor padrão sendo a data e hora atual.
+    registrado_em = models.DateTimeField(auto_now_add=True)
+    
+    # Define o endereço IP do usuário que registrou o consentimento, que pode ser deixado em branco ou nulo.    
+    ip = models.GenericIPAddressField(blank=True, null=True)
+
+    class Meta:
+        db_table = 'consentimentos_usuario'
+
+    def __str__(self):
+        status = 'Aceito' if self.aceito else 'Revogado'
+        return f"{self.usuario.email} - {self.tipo} - {status} ({self.registrado_em})"
+
+# Função para registrar o consentimento do usuário, que cria um novo registro na tabela de consentimentos do usuário.
+def registrar_consentimento(usuario, tipo, aceito, ip=None):
+    ConsentimentoUsuario.objects.create(usuario=usuario, tipo=tipo, aceito=aceito, ip=ip)
+
+# Função para obter os consentimentos atuais do usuário, que retorna um dicionário com os tipos de consentimento e seus respectivos registros mais recentes.
+def consentimentos_atuais(usuario):
+    # Obtém os consentimentos atuais do usuário, que retorna um dicionário com os tipos de consentimento e seus respectivos registros mais recentes.
+    atuais = {}
+    for consentimento in usuario.consentimentos.order_by('registrado_em'):
+        atuais[consentimento.tipo] = consentimento
+    return atuais
