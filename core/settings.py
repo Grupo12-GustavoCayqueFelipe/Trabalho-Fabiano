@@ -180,6 +180,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Informar o Django onde vai encontrar os arquivos estáticos.
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
+    BASE_DIR / 'js',
 ]
 
 USE_SUPABASE_STORAGE = os.getenv('SUPABASE_S3_ACCESS_KEY') is not None

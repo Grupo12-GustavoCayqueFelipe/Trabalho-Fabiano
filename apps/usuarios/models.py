@@ -2,6 +2,7 @@ import hashlib
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.utils.translation import gettext_lazy
+from encrypted_model_fields.fields import EncryptedCharField, EncryptedTextField, EncryptedDateField
 
 # Opções de tipos de usuário sendo (Professor, Aluno, Responsável e Administrador)
 TIPO_USUARIO = [
@@ -103,9 +104,9 @@ class Aluno(models.Model):
     
     # Campos personalizados de aluno
     matricula = models.CharField(max_length=20, unique=True)
-    data_nascimento = models.DateField()
-    telefone = models.CharField(max_length=15, blank=True, null=True)
-    endereco = models.TextField(blank=True, null=True)
+    data_nascimento = EncryptedDateField()
+    telefone = EncryptedCharField(max_length=15, blank=True, null=True)
+    endereco = EncryptedTextField(blank=True, null=True)
     
     # Campo de relacionamento com a tabela de responsáveis, usando a tabela AlunoResponsavel.
     responsaveis = models.ManyToManyField('Responsavel', through='AlunoResponsavel', related_name='alunos_vinculados')
@@ -125,7 +126,7 @@ class Professor(models.Model):
     
     # Campos personalizados de professor
     formacao = models.CharField(max_length=100)
-    telefone = models.CharField(max_length=15, blank=True, null=True)
+    telefone = EncryptedCharField(max_length=15, blank=True, null=True)
     especialidade = models.CharField(max_length=100, blank=True, null=True)
     
     # Define o nome da tabela no banco de dados
@@ -142,7 +143,7 @@ class Responsavel(models.Model):
     usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE, db_column='usuario_id')
     
     # Campos personalizados de responsável
-    telefone = models.CharField(max_length=15, blank=True, null=True)
+    telefone = EncryptedCharField(max_length=15, blank=True, null=True)
     parentesco_principal = models.CharField(max_length=50, blank=True, null=True)
     
     # Define o nome da tabela no banco de dados
