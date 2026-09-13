@@ -80,3 +80,85 @@ O envio usa a função send_mail nativa do Django. Em ambiente de desenvolviment
 
 ### 8.3 Registro e auditoria (2.6 e 2.7)
 Cada etapa do processo é registrada na tabela LogRecuperacaoSenha através da função registrar_log_recuperacao_senha: a solicitação inicial (SOLICITACAO), o sucesso da troca de senha (SUCESSO), e as duas formas de falha (FALHA_TOKEN_EXPIRADO e FALHA_TOKEN_INVALIDO), cada uma com o IP de origem, hash do token envolvido e data/hora. Os logs ficam marcados como somente leitura no Django Admin, impedindo alteração posterior do histórico.
+
+## 9. LGPD Dados Pessoais e Direitos do Titular
+### 9.1 Dados pessoais coletados e finalidade
+| Dado coletado | Onde | Finalidade | Base legal |
+|---|---|---|---|
+| Nome, email | Usuario | Identificação e login no sistema | Execução do serviço |
+| Perfil (aluno/professor/etc) | Usuario | Controle de permissões de acesso | Execução do serviço |
+| Matrícula | Aluno | Identificação escolar única do aluno | Execução do serviço |
+| Data de nascimento | Aluno | Cálculo de idade/turma adequada, exigência legal escolar | Execução do serviço |
+| Telefone | Aluno/Professor/Responsável | Contato relacionado ao funcionamento do sistema | Consentimento |
+| Endereço | Aluno | Registro escolar, possível uso em documentos oficiais | Execução do serviço |
+| Formação | Professor | Registro de qualificação profissional | Execução do serviço |
+| Especialidade | Professor | Alocação em disciplinas | Execução do serviço |
+| Parentesco | Responsável/AlunoResponsavel | Definir vínculo legal com o aluno | Execução do serviço |
+| Uso de imagem | Usuario (via ConsentimentoUsuario) | Comunicados e divulgações escolares | Consentimento |
+| Comunicação por WhatsApp | Usuario (via ConsentimentoUsuario) | Envio de avisos além do email | Consentimento |
+
+### 9.2 Minimização de dados
+O sistema coleta apenas os dados necessários para o funcionamento do sistema escolar: identificação, contato, dados acadêmicos e vínculo familiar. Não são coletados dados como CPF, RG, dados bancários ou informações de saúde, por não serem necessários para as funcionalidades atuais do sistema.
+
+### 9.3 Consentimento
+O tratamento opcional de dados (uso de imagem e comunicação por WhatsApp) depende de consentimento explícito do usuário, registrado no model ConsentimentoUsuario através da tela /meus-dados/termos/. Cada registro guarda o tipo de consentimento, se foi aceito ou revogado, a versão dos termos vigente no momento e a data/hora do registro. O tratamento obrigatório dos dados de matrícula e contato básico não depende de consentimento, pois tem como base legal a execução do serviço educacional, seguindo o Art. 7º da LGPD.
+Cada aceite ou revogação gera um novo registro em vez de sobrescrever o anterior, preservando o histórico completo de decisões do usuário ao longo do tempo.
+
+### 9.4 Revogação do consentimento
+O usuário pode revogar um consentimento opcional a qualquer momento, desmarcando o respectivo toggle na tela de Termos e Privacidade. A revogação gera um novo registro com aceito=False, sem apagar o histórico anterior, e não afeta o acesso à conta nem aos dados obrigatórios do sistema, já que estes não dependem de consentimento.
+
+### 9.5 Consulta aos dados
+O usuário logado pode acessar /meus-dados/ para visualizar todos os dados pessoais que o sistema armazena sobre ele, incluindo a finalidade e base legal de cada categoria de dado.
+
+### 9.6 Exportação
+Na mesma tela, o usuário pode exportar seus dados em formato JSON através de /meus-dados/exportar/, atendendo ao direito de portabilidade previsto na LGPD.
+
+### 9.7 Exclusão
+O usuário pode solicitar a exclusão da própria conta em /meus-dados/excluir/, mediante confirmação de senha e de uma checkbox de ciência sobre a irreversibilidade da ação. A exclusão remove o Usuario e, em cascata, todos os registros de perfil associados (Aluno, Professor ou Responsavel).
+
+### 9.8 Fluxo de atendimento aos direitos
+Todos os direitos do titular (consulta, exportação, exclusão e gestão de consentimento) são exercidos diretamente pelo próprio usuário, de forma self-service, sem necessidade de solicitação manual a um administrador. Isso reduz o tempo de resposta a zero e elimina a dependência de terceiros para o exercício desses direitos.
+
+## 10. Justificativas Técnicas das Decisões do Projeto
+### 10.1 Hash de senha
+O sistema usa PBKDF2-SHA256, que é o hash padrão do Django, em vez de configurar um hasher próprio (Argon2 ou bcrypt). A escolha foi manter o padrão porque ele já é mantido e atualizado pelo próprio time de segurança do Django a cada versão, acompanhando as recomendações do NIST, sem precisar adicionar dependência externa nem lógica extra de configuração pro grupo administrar.
+
+### 10.2 Bloqueio de conta e sessão
+O limite de 5 tentativas erradas antes do bloqueio foi escolhido por equilibrar resistência a força bruta com usabilidade, evitando bloqueio por erro comum de digitação. O tempo de bloqueio de 15 minutos é suficiente pra inviabilizar ataque automatizado sem precisar de um admin desbloqueando na mão.
+A sessão expira em 30 minutos de inatividade e renovando a cada requisição, reduzindo a janela de uma sessão esquecida aberta sem atrapalhar o uso normal durante uma aula.
+
+### 10.3 Token de recuperação de senha
+Decidimos usar um model próprio (TokenRecuperacaoSenha) com token gerado por secrets.token_urlsafe() em vez do PasswordResetTokenGenerator nativo do Django. A vantagem de ter o próprio model é dar controle explícito sobre o campo usado_em, permitindo invalidar o token na hora certa (2.4). Só o hash SHA-256 do token é salvo no banco, nunca o valor original.
+O token expira em 1 hora, tempo curto o suficiente pra reduzir a janela de uso indevido de um link de email interceptado, mas longo o suficiente pra não travar quem demora um pouco pra checar o email.
+
+### 10.4 Envio de email
+Em desenvolvimento, o EMAIL_BACKEND está configurado como console, imprime o email no terminal em vez de mandar de verdade, pra não depender de credencial de SMTP real só pra testar o fluxo. Isso será trocado por um backend real na etapa de produção.
+
+### 10.5 Supabase Storage
+O settings.py já previa upload de arquivos usando o Supabase Storage (compatível com S3), mas faltavam as bibliotecas necessárias (django-storages e boto3) no requirements.txt pra esse backend funcionar de verdade. Optamos por corrigir a dependência faltante, em vez de remover a configuração, porque módulos futuros do projeto, foto de aluno e anexo de atividade, vão precisar de upload de arquivo.
+
+### 10.6 Deploy
+A hospedagem escolhida foi o Render.com, plano gratuito, porque oferece HTTPS automático sem precisar de cartão de crédito nem configuração manual de certificado. O banco de dados continua sendo o Supabase já configurado, em vez de usar o Postgres gratuito do próprio Render, porque o banco do Render expira sozinho depois de 30 dias no plano free.
+
+### 10.7 Incidente: exposição acidental do arquivo .env
+Durante o desenvolvimento, o arquivo .env foi commitado acidentalmente por um integrante, devido a uma falha de configuração do .gitignore (arquivo salvo em encoding incompatível, UTF-16 em vez de UTF-8). Assim que identificado, a senha do banco de dados e a SECRET_KEY do Django foram rotacionadas imediatamente no Supabase e localmente, e o arquivo foi removido do controle de versão a partir desse ponto. Optamos por não reescrever o histórico do repositório, pra preservar a rastreabilidade dos commits de desenvolvimento do projeto, já que as credenciais expostas já tinham sido invalidadas.
+
+### 10.8 Exclusão de conta (LGPD)
+A exclusão de conta pede confirmação de senha antes de apagar os dados, pra evitar que uma sessão aberta sem supervisão resulte em exclusão acidental ou maliciosa. A exclusão do Usuario propaga em cascata pros models de perfil (Aluno, Professor, Responsavel), via on_delete=models.CASCADE.
+
+### 10.9 Modelagem do consentimento como histórico, não como estado único
+Optamos por registrar cada aceite/revogação como uma linha nova em ConsentimentoUsuario, em vez de um único campo booleano editado no Usuario. Isso permite reconstruir quando cada decisão foi tomada e sob qual versão dos termos, atendendo ao requisito de registro de data e versão do consentimento, algo que um campo único sobrescrito não conseguiria provar depois.
+
+## 11. Criptografia e Comunicação Segura
+
+### 11.1 Comunicação segura (TLS/HTTPS)
+A aplicação está hospedada no Render.com, que fornece certificado TLS automático para o domínio gerado. O Django foi configurado com SECURE_SSL_REDIRECT, que força o redirecionamento de qualquer requisição HTTP para HTTPS, e SECURE_PROXY_SSL_HEADER, necessário porque o Render termina a conexão HTTPS na borda e repassa para a aplicação via HTTP internamente.
+
+### 11.2 Criptografia de dados em repouso
+Os campos telefone, endereço e data de nascimento são armazenados criptografados no banco de dados usando Fernet, AES-128 em modo CBC com autenticação HMAC, através da biblioteca django-encrypted-model-fields. A chave de criptografia (FIELD_ENCRYPTION_KEY) é mantida apenas em variável de ambiente, nunca commitada no repositório.
+
+### 11.3 Justificativa da escolha
+Optamos por Fernet em vez de implementar AES manualmente porque a biblioteca já lida corretamente com geração de IV, padding e autenticação da mensagem, evitando erros comuns de implementação criptográfica caseira. A integração direta com os campos do Django reduz o risco de algum campo sensível ser salvo sem criptografia por descuido.
+
+### 11.4 Critério de seleção dos campos criptografados
+Foram criptografados apenas os campos de alto risco em caso de vazamento: telefone, endereço e data de nascimento. Campos como parentesco e especialidade não foram criptografados por não se enquadrarem na definição legal de dado sensível (Art. 5º, II da LGPD), sendo informações funcionais que não revelam origem racial, convicção religiosa, dado de saúde ou orientação sexual. Criptografar esses campos adicionaria complexidade sem ganho de conformidade, além de impedir busca e filtro legítimos por esses valores. O campo matrícula também não foi criptografado, por ser um identificador escolar e não um dado de contato sensível usado ativamente em buscas do sistema.
