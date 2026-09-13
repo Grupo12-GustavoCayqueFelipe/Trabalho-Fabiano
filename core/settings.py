@@ -31,7 +31,8 @@ SECRET_KEY = os.getenv('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
@@ -43,6 +44,8 @@ CSRF_COOKIE_SECURE = True
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
+
+FIELD_ENCRYPTION_KEY = os.getenv('FIELD_ENCRYPTION_KEY')
 
 
 # Application definition
@@ -60,10 +63,12 @@ INSTALLED_APPS = [
     'apps.avaliacoes',
     'apps.atividades',
     'apps.comunicacao',
+    'encrypted_model_fields',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -170,6 +175,8 @@ PASSWORD_RESET_TIMEOUT = 3600
 # URL para o navegador acessar os arquivos
 STATIC_URL = 'static/'
 
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
 # Informar o Django onde vai encontrar os arquivos estáticos.
 STATICFILES_DIRS = [
     BASE_DIR / 'static',
@@ -192,7 +199,7 @@ if USE_SUPABASE_STORAGE:
             },
         },
         'staticfiles': {
-            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
+            'BACKEND': "whitenoise.storage.CompressedManifestStaticFilesStorage",
         },
     }
 else:
