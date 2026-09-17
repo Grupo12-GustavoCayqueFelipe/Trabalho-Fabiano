@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Módulo Acadêmico - EduControll</title>
+    <link rel="stylesheet" href="/static/css/academico/acad_admin.css">
+</head>
+<body>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="logo">
+            <h2>EduControll</h2>
+            <p>Gestão Acadêmica</p>
+        </div>
+        <nav>
+            <a href="#turmas" class="active">📚 Turmas</a>
+            <a href="#disciplinas">📖 Disciplinas</a>
+            <a href="#matricula">🎓 Matrícula</a>
+            <a href="#historico">📋 Histórico</a>
+            <a href="#aulas">📝 Registro de Aula</a>
+        </nav>
+            <div class="sidebar-bottom">
+                <form action={% url 'logout' %} method="POST">
+                    <button type="submit" class="sair">
+                        Sair do sistema
+                    </button>
+                </form>
+            </div>
+    </aside>
+
+    <!-- CONTEÚDO -->
+    <main class="content">
+        <header>
+            <span>MÓDULO ACADÊMICO</span>
+            <h1>Gestão Acadêmica</h1>
+            <p>Gerencie turmas, disciplinas, matrículas e aulas.</p>
+        </header>
+
+        <!-- TURMAS -->
+        <section id="turmas" class="card">
+            <div class="title">
+                <div>
+                    <small>TURMAS</small>
+                    <h2>Listagem de Turmas</h2>
+                </div>
+                <a href="#cadastro-turma" class="button">
+                    + Nova turma
+                </a>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Ano</th>
+                        <th>Turno</th>
+                        <th>Professor regente</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1º Ano A</td>
+                        <td>2026</td>
+                        <td>Manhã</td>
+                        <td>Mariana Oliveira</td>
+                        <td><a href="#cadastro-turma">Editar</a></td>
+                    </tr>
+                    <tr>
+                        <td>2º Ano B</td>
+                        <td>2026</td>
+                        <td>Tarde</td>
+                        <td>Ricardo Santos</td>
+                        <td><a href="#cadastro-turma">Editar</a></td>
+                    </tr>
+                    <tr>
+                        <td>3º Ano A</td>
+                        <td>2026</td>
+                        <td>Noite</td>
+                        <td>Juliana Costa</td>
+                        <td><a href="#cadastro-turma">Editar</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- CADASTRO DE TURMA -->
+        <section id="cadastro-turma" class="card">
+            <div class="title">
+                <div>
+                    <small>TURMAS</small>
+                    <h2>Cadastro / Edição de Turma</h2>
+                </div>
+            </div>
+            <form>
+                <div class="form-grid">
+                    <div>
+                        <label>Nome da turma</label>
+                        <input type="text" placeholder="Ex.: 1º Ano A">
+                    </div>
+                    <div>
+                        <label>Ano</label>
+                        <input type="number" placeholder="2026">
+                    </div>
+                    <div>
+                        <label>Turno</label>
+                        <select>
+                            <option>Manhã</option>
+                            <option>Tarde</option>
+                            <option>Noite</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Professor regente</label>
+                        <select>
+                            <option>Selecione o professor</option>
+                            <option>Mariana Oliveira</option>
+                            <option>Ricardo Santos</option>
+                            <option>Juliana Costa</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="button">Salvar turma</button>
+            </form>
+        </section>
+
+        <!-- DISCIPLINAS -->
+        <section id="disciplinas" class="card">
+            <div class="title">
+                <div>
+                    <small>DISCIPLINAS</small>
+                    <h2>Listagem de Disciplinas</h2>
+                </div>
+                <a href="#cadastro-disciplina" class="button">
+                    + Nova disciplina
+                </a>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Turmas vinculadas</th>
+                        <th>Professores vinculados</th>
+                        <th>Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Matemática</td>
+                        <td>4 turmas</td>
+                        <td>2 professores</td>
+                        <td><a href="#cadastro-disciplina">Editar</a></td>
+                    </tr>
+                    <tr>
+                        <td>Português</td>
+                        <td>4 turmas</td>
+                        <td>2 professores</td>
+                        <td><a href="#cadastro-disciplina">Editar</a></td>
+                    </tr>
+                    <tr>
+                        <td>História</td>
+                        <td>3 turmas</td>
+                        <td>1 professor</td>
+                        <td><a href="#cadastro-disciplina">Editar</a></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- CADASTRO DE DISCIPLINA -->
+        <section id="cadastro-disciplina" class="card">
+            <div class="title">
+                <div>
+                    <small>DISCIPLINAS</small>
+                    <h2>Cadastro / Edição de Disciplina</h2>
+                </div>
+            </div>
+            <form>
+                <label>Nome da disciplina</label>
+                <input type="text" placeholder="Ex.: Matemática">
+                <label>Turmas vinculadas</label>
+                <select multiple>
+                    <option>1º Ano A</option>
+                    <option>1º Ano B</option>
+                    <option>2º Ano A</option>
+                    <option>2º Ano B</option>
+                    <option>3º Ano A</option>
+                </select>
+                <label>Professores vinculados</label>
+                <select multiple>
+                    <option>Mariana Oliveira</option>
+                    <option>Ricardo Santos</option>
+                    <option>Juliana Costa</option>
+                    <option>Carlos Almeida</option>
+                </select>
+                <button class="button">Salvar disciplina</button>
+            </form>
+        </section>
+
+        <!-- MATRÍCULA -->
+        <section id="matricula" class="card">
+            <div class="title">
+                <div>
+                    <small>MATRÍCULA</small>
+                    <h2>Matrícula de Aluno em Turma</h2>
+                </div>
+            </div>
+            <form>
+                <label>Aluno</label>
+                <select>
+                    <option>Selecione o aluno</option>
+                    <option>João Pedro Silva</option>
+                    <option>Ana Beatriz Souza</option>
+                    <option>Lucas Oliveira</option>
+                </select>
+                <label>Turma</label>
+                <select>
+                    <option>Selecione a turma</option>
+                    <option>1º Ano A</option>
+                    <option>2º Ano B</option>
+                    <option>3º Ano A</option>
+                </select>
+                <button class="button">
+                    Confirmar matrícula
+                </button>
+            </form>
+        </section>
+
+        <!-- HISTÓRICO -->
+        <section id="historico" class="card">
+            <div class="title">
+                <div>
+                    <small>HISTÓRICO</small>
+                    <h2>Histórico de Matrículas</h2>
+                </div>
+            </div>
+            <div class="student">
+                <strong>João Pedro Silva</strong>
+                <span>Matrícula: 202600145</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Turma</th>
+                        <th>Ano</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>8º Ano A</td>
+                        <td>2024</td>
+                        <td><span class="status concluida">Concluída</span></td>
+                    </tr>
+                    <tr>
+                        <td>9º Ano B</td>
+                        <td>2025</td>
+                        <td><span class="status transferida">Transferida</span></td>
+                    </tr>
+                    <tr>
+                        <td>1º Ano A</td>
+                        <td>2026</td>
+                        <td><span class="status ativa">Ativa</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+                <!-- REGISTRO DE AULA -->
+        <section id="aulas" class="card">
+            <div class="title">
+                <div>
+                    <small>PROFESSOR</small>
+                    <h2>Registro de Aula</h2>
+                </div>
+            </div>
+            <form>
+                <div class="form-grid">
+                    <div>
+                        <label>Turma</label>
+                        <select>
+                            <option>Selecione a turma</option>
+                            <option>1º Ano A</option>
+                            <option>2º Ano B</option>
+                            <option>3º Ano A</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Disciplina</label>
+                        <select>
+                            <option>Selecione a disciplina</option>
+                            <option>Matemática</option>
+                            <option>Português</option>
+                            <option>História</option>
+                            <option>Programação</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Data</label>
+                        <input type="date">
+                    </div>
+                </div>
+                <label>Conteúdo dado</label>
+                <textarea
+                    placeholder="Descreva o conteúdo trabalhado na aula..."></textarea>
+                <button class="button">
+                    Registrar aula
+                </button>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

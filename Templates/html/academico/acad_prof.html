@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Aula</title>
+    <link rel="stylesheet" href="/static/css/academico/acad_prof.css">
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="logo">
+            <h2>EduControll</h2>
+        </div>
+        <nav>
+            <a href="#" class="ativo">Registro de Aula</a>
+        </nav>
+            <div class="sidebar-bottom">
+        <form action={% url 'logout' %} method="POST">
+             <button type="submit" class="sair">
+                    Sair do sistema
+                 </button>
+            </form>
+    </div>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL -->
+    <main class="conteudo">
+        <header>
+            <h1>Registro de Aula</h1>
+            <p>Registre o conteúdo trabalhado em cada aula.</p>
+        </header>
+
+        <!-- FORMULÁRIO -->
+        <section class="card">
+            <h2>Dados da Aula</h2>
+            <form>
+                <div class="campo">
+                    <label for="turma">Turma</label>
+                    <select id="turma" name="turma" required>
+                        <option value="">Selecione a turma</option>
+                        <option value="1A">1º Ano A</option>
+                        <option value="2A">2º Ano B</option>
+                        <option value="3A">3º Ano A</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label for="disciplina">Disciplina</label>
+                    <select id="disciplina" name="disciplina" required>
+                        <option value="">Selecione a disciplina</option>
+                        <option value="matematica">Matemática</option>
+                        <option value="portugues">Português</option>
+                        <option value="historia">História</option>
+                        <option value="programacao">Programação</option>
+                    </select>
+                </div>
+                <div class="campo">
+                    <label for="data">Data da aula</label>
+                    <input type="date" id="data" name="data" required>
+                </div>
+                <div class="campo">
+                    <label for="conteudo">Conteúdo dado</label>
+                    <textarea
+                            id="conteudo"
+                            name="conteudo"
+                            rows="8"
+                            placeholder="Descreva o conteúdo trabalhado durante a aula..."
+                            required
+                            ></textarea>
+                </div>
+                <div class="acoes">
+                    <input type="submit" value="Registrar Aula">
+                </div>
+            </form>
+        </section>
+    </main>
+</body>
+</html>

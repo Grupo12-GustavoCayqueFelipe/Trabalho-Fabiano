@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Histórico de Matrículas</title>
+    <link rel="stylesheet" href="/static/css/academico/acad_aluno_resp.css">
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="logo">
+            <h2>EduControll</h2>
+        </div>
+        <nav>
+            <a href="#" class="ativo">Histórico de Matrículas</a>
+        </nav>
+        <div class="sidebar-bottom">
+         <form action={% url 'logout' %} method="POST">
+             <button type="submit" class="sair">
+                    Sair do sistema
+                 </button>
+            </form>
+         </div>
+    </aside>
+
+    <!-- CONTEÚDO PRINCIPAL !-->
+    <main class="conteudo">
+        <header>
+            <h1>Histórico de Matrículas</h1>
+            <p>Consulte as turmas em que o aluno esteve matriculado.</p>
+        </header>
+
+        <!-- DADOS DO ALUNO -->
+        <section class="card">
+            <h2>Dados do Aluno</h2>
+            <div class="dados-aluno">
+                <div>
+                    <span>Nome</span>
+                    <strong>João Pedro Silva</strong>
+                </div>
+                <div>
+                    <span>Matrícula</span>
+                    <strong>202600145</strong>
+                </div>
+            </div>
+        </section>
+
+        <!-- HISTÓRICO -->
+        <section class="card">
+            <h2>Turmas já frequentadas</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Turma</th>
+                        <th>Ano</th>
+                        <th>Turno</th>
+                        <th>Professor</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>8º Ano A</td>
+                        <td>2024</td>
+                        <td>Manhã</td>
+                        <td>Marcos Oliveira</td>
+                        <td>
+                            <span class="status concluida">Concluída</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>9º Ano B</td>
+                        <td>2025</td>
+                        <td>Manhã</td>
+                        <td>Marcos Oliveira</td>
+                        <td>
+                            <span class="status transferida">Transferida</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>1º Ano A</td>
+                        <td>2026</td>
+                        <td>Noite</td>
+                        <td>Carla Santos</td>
+                        <td>
+                            <span class="status ativa">Ativa</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>1º Ano B</td>
+                        <td>2026</td>
+                        <td>Tarde</td>
+                        <td>Roberto Lima</td>
+                        <td>
+                            <span class="status cancelada">Cancelada</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+</body>
+</html>

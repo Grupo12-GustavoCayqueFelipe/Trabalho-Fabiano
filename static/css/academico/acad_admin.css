@@ -1,0 +1,233 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(
+        50deg,
+        #210546,
+        #f4f4f5
+    );
+    color: #172033;
+}
+
+/* SIDEBAR */
+.sidebar {
+    position: fixed;
+    width: 245px;
+    height: 100vh;
+      background: linear-gradient(
+        100deg,
+        #210546,
+        #f4f4f5
+    );
+    color: black;
+    padding: 30px 18px;
+}
+
+.logo {
+    padding: 0 12px 35px;
+}
+.logo h2 {
+    font-size: 24px;
+}
+.logo p {
+    font-size: 12px;
+    opacity: .7;
+    margin-top: 5px;
+}
+nav {
+    display: grid;
+    gap: 7px;
+}
+nav a {
+    color: white;
+    text-decoration: none;
+    padding: 13px;
+    border-radius: 8px;
+    font-size: 14px;
+}
+nav a:hover,
+nav .active {
+    background: black;
+}
+.sidebar-bottom {
+    position: absolute;
+    bottom: 25px;
+    left: 50px;
+}
+button.sair {
+    background: #210546;
+    color: white;
+    border: 1px solid #210546;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.sair:hover {
+    background: black;
+}
+
+/* CONTEÚDO */
+.content {
+    margin-left: 245px;
+    padding: 45px;
+    max-width: 1400px;
+}
+header {
+    margin-bottom: 30px;
+}
+header span,
+small {
+    color: #210546;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+}
+header h1 {
+    margin: 7px 0;
+    font-size: 30px;
+}
+header p {
+    color: white;
+}
+
+/* CARDS */
+.card {
+      background: linear-gradient(
+        220deg,
+        #210546,
+        #f4f4f5
+    );
+    border: 1px solid #e1e6ee;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 25px;
+}
+.title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 22px;
+}
+.title h2 {
+    margin-top: 5px;
+    font-size: 21px;
+}
+
+/* BOTÃO */
+.button {
+    display: inline-block;
+    background: #210546;
+    color: white;
+    border: none;
+    border-radius: 7px;
+    padding: 11px 17px;
+    text-decoration: none;
+    cursor: pointer;
+    font-weight: bold;
+}
+.button:hover {
+    background: black;
+}
+
+/* TABELA */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+th {
+    background: #f5f7fa;
+    color: #596579;
+    font-size: 12px;
+    text-align: left;
+}
+th,
+td {
+    padding: 14px;
+    border-bottom: 1px solid #e8ecf1;
+}
+td {
+    font-size: 14px;
+}
+td a {
+    color: white;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+/* FORMULÁRIOS */
+form {
+    display: grid;
+    gap: 10px;
+    max-width: 800px;
+}
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+}
+label {
+    display: block;
+    margin-top: 8px;
+    margin-bottom: 5px;
+    font-size: 13px;
+    font-weight: bold;
+}
+input,
+select,
+textarea {
+    width: 100%;
+    padding: 11px;
+    border: 1px solid #ccd3df;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 14px;
+}
+select[multiple] {
+    height: 120px;
+}
+textarea {
+    height: 120px;
+    resize: vertical;
+}
+
+/* ALUNO */
+.student {
+    display: flex;
+    justify-content: space-between;
+    background: #f5f8fc;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 18px;
+}
+.student span {
+    color: #687386;
+    font-size: 13px;
+}
+
+/* STATUS */
+.status {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.ativa {
+    background: #e5f8ed;
+    color: #16834d;
+}
+
+.transferida {
+    background: #fff2dc;
+    color: #a36300;
+}
+
+.concluida {
+    background: #e8eefc;
+    color: #3857a5;
+}

@@ -1,0 +1,182 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+html,
+body {
+    min-height: 100%;
+}
+body {
+    min-height: 100vh;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: #1e293b;
+    background: linear-gradient(
+        230deg,
+        #210546 0%,
+        #f4f4f5 100%
+    );
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+/* SIDEBAR */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 230px;
+    height: 100vh;
+    background: linear-gradient(
+        60deg,
+        #210546,
+        #f4f4f5
+    );
+    color: white;
+    padding: 25px 15px;
+}
+.sidebar-bottom {
+    position: absolute;
+    bottom: 25px;
+    left: 50px;
+}
+button.sair {
+    background: #210546;
+    color: white;
+    border: 1px solid #210546;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+button.sair:hover {
+    background: black;
+}
+/* LOGO */
+.logo {
+    padding-top: 5px;
+    text-align: center;
+    margin-bottom: 50px;
+    color: #210546;
+}
+.logo h2 {
+    font-size: 28px;
+}
+
+/* MENU */
+.sidebar nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.sidebar nav a {
+    text-decoration: none;
+    color: white;
+    padding: 13px 15px;
+    border-radius: 7px;
+    transition: 0.2s;
+}
+.sidebar nav a:hover,
+.sidebar nav a.ativo {
+    background-color: #210546;
+}
+
+/* CONTEÚDO */
+.conteudo {
+    margin-left: 230px;
+    padding: 35px;
+    max-width: 1400px;
+    min-height: 100vh;
+}
+
+/* CABEÇALHO */
+header {
+    margin-bottom: 25px;
+}
+header h1 {
+    color: #210546;
+    margin-bottom: 6px;
+}
+header p {
+    color: white;
+}
+
+/* CARDS */
+.card {
+    background: linear-gradient(
+        220deg,
+        #210546,
+        #f4f4f5
+    );
+    padding: 25px;
+    border-radius: 10px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 8px black;
+}
+.card h2 {
+    color: #210546;
+    font-size: 19px;
+    margin-bottom: 20px;
+}
+
+/* DADOS DO ALUNO */
+.dados-aluno {
+    display: flex;
+    gap: 80px;
+}
+.dados-aluno div {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.dados-aluno span {
+    font-size: 13px;
+    color: grey;
+}
+.dados-aluno strong {
+    font-size: 16px;
+}
+
+/* TABELA */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+th {
+    background-color: #210546;
+    color: white;
+    padding: 14px;
+    text-align: left;
+}
+td {
+    padding: 14px;
+    border-bottom: 1px solid #e2e8f0;
+}
+tr:hover {
+    background-color: #f8fafc;
+}
+
+/* STATUS */
+.status {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: bold;
+}
+.ativa {
+    background-color: #dcfce7;
+    color: #166534;
+}
+.transferida {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+.cancelada {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+.concluida {
+    background-color: #dbeafe;
+    color: #1e40af;
+}

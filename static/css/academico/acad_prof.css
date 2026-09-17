@@ -1,0 +1,168 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+html,
+body {
+    min-height: 100%;
+}
+body {
+    min-height: 100vh;
+    font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(
+        250deg,
+        #210546,
+        #f4f4f5
+    );
+    color: #1e293b;
+}
+
+/* SIDEBAR */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 245px;
+    height: 100vh;
+    background: linear-gradient(
+        250deg,
+        #210546,
+        #f4f4f5
+    );
+    color: white;
+    padding: 30px 18px;
+}
+.sidebar-bottom {
+    position: absolute;
+    bottom: 25px;
+    left: 50px;
+}
+button.sair {
+    background: #210546;
+    color: white;
+    border: 1px solid #210546;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+button.sair:hover {
+    background: black;
+}
+.logo {
+    text-align: center;
+    margin-bottom: 40px;
+}
+.logo h2 {
+    font-size: 22px;
+}
+.sidebar nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.sidebar nav a {
+    text-decoration: none;
+    color: white;
+    padding: 13px 15px;
+    border-radius: 7px;
+    transition: 0.2s;
+}
+.sidebar nav a:hover,
+.sidebar nav a.ativo {
+    background-color: black;
+}
+
+/* CONTEÚDO */
+.conteudo {
+    margin-left: 245px;
+    padding: 35px;
+    max-width: 1000px;
+    min-height: 100vh;
+}
+
+/* CABEÇALHO */
+header {
+    margin-bottom: 25px;
+}
+header h1 {
+    color: #210546;
+    margin-bottom: 6px;
+}
+header p {
+    color: black;
+}
+
+/* CARD */
+.card {
+      background: linear-gradient(
+        250deg,
+        #210546,
+        #f4f4f5
+    );
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px black;
+}
+.card h2 {
+    color: #102a56;
+    font-size: 19px;
+    margin-bottom: 25px;
+}
+
+/* FORMULÁRIO */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.campo {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.campo label {
+    font-weight: 600;
+    color: black;
+}
+.campo select,
+.campo input,
+.campo textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 15px;
+    outline: none;
+}
+.campo select:focus,
+.campo input:focus,
+.campo textarea:focus {
+    border-color: #210546;
+}
+
+/* TEXTAREA */
+.campo textarea {
+    resize: vertical;
+}
+
+/* BOTÃO */
+.acoes {
+    margin-top: 5px;
+}
+.acoes input {
+    background-color: #210546;
+    color: white;
+    border: none;
+    border-radius: 7px;
+    padding: 12px 25px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.acoes input:hover {
+    background-color: #210546;
+}
