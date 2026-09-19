@@ -9,7 +9,7 @@ import hashlib
 
 from core.settings import PASSWORD_RESET_TIMEOUT
 
-from .models import Usuario, consentimentos_atuais, registrar_consentimento, registrar_log_recuperacao_senha, TokenRecuperacaoSenha, TIPO_CONSENTIMENTO
+from .models import Usuario, consentimentos_atuais, registrar_consentimento, registrar_log_recuperacao_senha, TokenRecuperacaoSenha, TIPO_CONSENTIMENTO, registrar_log_acesso
 from django.utils import timezone
 from django.contrib import messages
 from django.shortcuts import redirect, render
@@ -67,6 +67,7 @@ def login_view(request):
       usuario.tentativas_login = 0
       usuario.bloqueado_ate = None
       usuario.save()
+      registrar_log_acesso(usuario, evento='LOGIN_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
       
       # Se o usuário tiver o 2FA ligado, não loga e guarda o id na sessão
       if usuario.otp_ativado:
@@ -83,7 +84,9 @@ def login_view(request):
         # Bateu o limite de tentativas bloqueando a conta pelo tempo definido
         if usuario_existente.tentativas_login >= TENTATIVAS_MAX:
           usuario_existente.bloqueado_ate = timezone.now() + datetime.timedelta(minutes=TEMPO_BLOQUEIO_MINUTOS)
-          
+          registrar_log_acesso(usuario_existente, evento='CONTA_BLOQUEADA', ip=request.META.get('REMOTE_ADDR'))
+        else:
+          registrar_log_acesso(usuario_existente, evento='LOGIN_FALHA', ip=request.META.get('REMOTE_ADDR'))
         usuario_existente.save()
       # Mensagem de erro genérico
       messages.error(request, 'Email ou senha inválidos.')
@@ -105,10 +108,12 @@ def dois_fatores_verificar_view(request):
 
     # Confere se o código bate com o que o app autenticador devia estar gerando
     if totp.verify(codigo):
+      registrar_log_acesso(usuario, evento='2FA_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
       del request.session['pre_2fa_user_id']
       login(request, usuario)
       return redirect('dashboard')
     else:
+      registrar_log_acesso(usuario, evento='2FA_FALHA', ip=request.META.get('REMOTE_ADDR'))
       messages.error(request, 'Código de verificação inválido ou expirado.')
 
   return render(request, 'usuarios/2fa_verificar.html', {'email': usuario.email})

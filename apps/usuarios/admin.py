@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Usuario, Aluno, Professor, Responsavel, AlunoResponsavel, LogRecuperacaoSenha, TokenRecuperacaoSenha, ConsentimentoUsuario
+from .models import Usuario, Aluno, Professor, Responsavel, AlunoResponsavel, LogRecuperacaoSenha, TokenRecuperacaoSenha, ConsentimentoUsuario, LogAcesso
 # Register your models here.
 
 # Classe para garantir que o formulário use o hash de senha
@@ -51,11 +51,25 @@ class ConsentimentoUsuarioAdmin(admin.ModelAdmin):
     # Mostra para o admin as colunas nas tabelas
     list_display = ('usuario', 'tipo', 'aceito', 'versao_termos', 'registrado_em')
     
+    list_filter = ('aceito', 'tipo', 'registrado_em')
+    
     # Permite que o admin busque por tipo, aceito e registrado_em
     search_fields = ('tipo', 'aceito', 'registrado_em')
     
     # Não deixa editar os campos do consentimento, apenas visualizar
     readonly_fields = ('usuario', 'tipo', 'aceito', 'versao_termos', 'registrado_em')
+
+class LogAcessoAdmin(admin.ModelAdmin):
+    # Mostra para o admin as colunas nas tabelas
+    list_display = ('usuario', 'evento', 'ip', 'criado_em')
+    
+    list_filter = ('evento', 'criado_em')
+    
+    # Permite que o admin busque por evento e criado_em
+    search_fields = ('evento', 'criado_em')
+    
+    # Não deixa editar os campos do log de acesso, apenas visualizar
+    readonly_fields = ('usuario', 'evento', 'ip', 'criado_em')
 
 # Registra o modelo Usuario com a classe UsuarioAdmin
 admin.site.register(Usuario, UsuarioAdmin)
@@ -66,4 +80,5 @@ admin.site.register(Responsavel)
 admin.site.register(AlunoResponsavel)
 admin.site.register(LogRecuperacaoSenha, LogRecuperacaoSenhaAdmin)
 admin.site.register(ConsentimentoUsuario, ConsentimentoUsuarioAdmin)
+admin.site.register(LogAcesso, LogAcessoAdmin)
 admin.site.register(TokenRecuperacaoSenha)

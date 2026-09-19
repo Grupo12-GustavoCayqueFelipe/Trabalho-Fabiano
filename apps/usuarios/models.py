@@ -20,6 +20,14 @@ EVENTO_LOG =[
     ('FALHA_TOKEN_INVALIDO', 'Token de recuperação de senha inválido'),
 ]
 
+EVENTO_ACESSO = [
+    ('LOGIN_FALHA', 'Falha de login'),
+    ('LOGIN_SUCESSO', 'Login bem-sucedido'),
+    ('CONTA_BLOQUEADA', 'Conta bloqueada devido a múltiplas tentativas de login falhas'),
+    ('2FA_SUCESSO', 'Autenticação de dois fatores bem-sucedida'),
+    ('2FA_FALHA', 'Falha na autenticação de dois fatores'),
+]
+
 # Define o tipo de consentimento do aluno para uso de imagem e comunicação por WhatsApp
 TIPO_CONSENTIMENTO = [
     ('USO_IMAGEM', 'Uso de imagem em comunicados escolares'),
@@ -224,6 +232,26 @@ class TokenRecuperacaoSenha(models.Model):
     # Define a representação em string do objeto TokenRecuperacaoSenha
     def __str__(self):
         return f"Token de {self.usuario.email} - Expira em: {self.expira_em}"
+
+# Classe de log de acesso, que possui um relacionamento com a tabela de usuários.
+class LogAcesso(models.Model):
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, db_column='usuario_id')
+    
+    evento = models.CharField(max_length=50, choices=EVENTO_ACESSO)
+    
+    ip = models.GenericIPAddressField(blank=True, null=True)
+    
+    criado_em = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'log_acesso'
+    
+    def __str__(self):
+        return f"{self.evento} - Código: {self.usuario.email} - Usado: {self.criado_em}"
+
+# Função para registrar logs de acesso, que cria um novo registro na tabela de logs de acesso.
+def registrar_log_acesso(usuario, evento, ip=None):
+    LogAcesso.objects.create(usuario=usuario, evento=evento, ip=ip)
 
 # Função para registrar logs de recuperação de senha
 def registrar_log_recuperacao_senha(usuario, evento, token=None, ip=None):
