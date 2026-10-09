@@ -7,7 +7,6 @@ import datetime
 import secrets
 import hashlib
 
-from core.settings import PASSWORD_RESET_TIMEOUT
 
 from .models import Usuario, consentimentos_atuais, registrar_consentimento, registrar_log_recuperacao_senha, TokenRecuperacaoSenha, TIPO_CONSENTIMENTO, registrar_log_acesso
 from django.utils import timezone
@@ -15,7 +14,8 @@ from django.contrib import messages
 from django.shortcuts import redirect, render
 from django.contrib.auth import authenticate, login, logout, validate_password
 from django.contrib.auth.decorators import login_required
-from django_ratelimit.decorators import ratelimit, settings
+from django_ratelimit.decorators import ratelimit
+from django.conf import settings
 from django.core.exceptions import ValidationError
 
 from django.core.mail import send_mail
@@ -28,7 +28,7 @@ from django.utils.encoding import force_bytes, force_str
 TENTATIVAS_MAX = 5
 TEMPO_BLOQUEIO_MINUTOS = 15
 # Função de Rate Limit para limitar o número de tentativas de login
-@ratelimit(key='ip', rate='5/m', block=False)
+@ratelimit(key='ip', rate='5/m', block=False, method='POST')
 
 # Função de login, verifica se o usuário está logado, se não estiver, pega os dados do formulário e autentica
 def login_view(request):
@@ -94,8 +94,19 @@ def login_view(request):
 
   # Se acessou o site sem estar logado, renderiza a página de login
   return render(request, 'usuarios/index.html')
+
+def chave_2fa(group, request):
+  return str(request.session.get('pre_2fa_user_id') or 'sem-usuario')
+
 # Segunda etapa do login pra quem tem 2FA ligado, pede o código de 6 dígitos
+@ratelimit(key=chave_2fa, rate='5/m', block=False, method='POST')
 def dois_fatores_verificar_view(request):
+  
+  if getattr(request, 'limited', False):
+    # Bloqueia a tentativa se o limite foi atingido
+    messages.error(request, 'Muitas tentativas de verificação. Tente novamente mais tarde.')
+    return render(request, 'usuarios/2fa_verificar.html')
+  
   # Confere se veio de um login válido, se não veio manda pro login normal
   usuario_id = request.session.get('pre_2fa_user_id')
   if not usuario_id:
@@ -180,7 +191,14 @@ def dashboard_view(request):
   return render(request, template) 
 
 # Usuário solicita a recuperação de senha, se o email existir, gera um token e envia o email
+@ratelimit(key='ip', rate='5/m', block=False, method='POST')
+@ratelimit(key='post:email', rate='5/m', block=False, method='POST')
 def solicitacao_recuperacao_senha_view(request):
+  # Resposta idêntica a normal, pra não revelar se o email existe nem se o limite foi atingido
+  if getattr(request, 'limited', False):
+    messages.error(request, 'Muitas tentativas de recuperação de senha. Tente novamente mais tarde.')
+    return redirect('login')
+  
   # Se o usuário estiver logado, redireciona para a página principal
   if request.method == 'POST':
     # Pega o email do formulário e procura o usuário no banco de dados
@@ -197,7 +215,7 @@ def solicitacao_recuperacao_senha_view(request):
       TokenRecuperacaoSenha.objects.create(
         usuario=usuario,
         token_hash=token_hash,
-        expira_em=timezone.now() + datetime.timedelta(seconds=PASSWORD_RESET_TIMEOUT),
+        expira_em=timezone.now() + datetime.timedelta(seconds=settings.PASSWORD_RESET_TIMEOUT),
         ip=request.META.get('REMOTE_ADDR'),
       )
 
