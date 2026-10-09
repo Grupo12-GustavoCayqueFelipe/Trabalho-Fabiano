@@ -196,7 +196,7 @@ def solicitacao_recuperacao_senha_view(request):
       TokenRecuperacaoSenha.objects.create(
         usuario=usuario,
         token_hash=token_hash,
-        expira_em=timezone.now() + datetime.timedelta(hours=PASSWORD_RESET_TIMEOUT),
+        expira_em=timezone.now() + datetime.timedelta(seconds=PASSWORD_RESET_TIMEOUT),
         ip=request.META.get('REMOTE_ADDR'),
       )
 
