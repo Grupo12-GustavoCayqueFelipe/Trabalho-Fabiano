@@ -13,9 +13,10 @@ from .models import Usuario, consentimentos_atuais, registrar_consentimento, reg
 from django.utils import timezone
 from django.contrib import messages
 from django.shortcuts import redirect, render
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, validate_password
 from django.contrib.auth.decorators import login_required
 from django_ratelimit.decorators import ratelimit, settings
+from django.core.exceptions import ValidationError
 
 from django.core.mail import send_mail
 from django.urls import reverse
@@ -248,12 +249,23 @@ def redefinir_senha_view(request, token):
   # Se o usuário enviar o formulário com a nova senha, atualiza a senha do usuário, marca o token como usado e registra o log de sucesso
   if request.method == 'POST':
     nova_senha = request.POST.get('nova_senha')
+    try:
+      # Valida a nova senha com as regras do Django
+      validate_password(nova_senha, user=usuario)
+    except ValidationError as erros:
+      for erro in erros.messages:
+        messages.error(request, erro)
+      return render(request, 'html/senha/redefinir_senha.html')
+
     usuario.set_password(nova_senha)
     usuario.save()
 
     # Marca o token como usado, pra ele não poder ser reaproveitado
     token_recuperacao.usado_em = timezone.now()
     token_recuperacao.save()
+    
+    # Invalida também qualquer outro token pendente desse usuário
+    TokenRecuperacaoSenha.objects.filter(usuario=usuario, usado_em__isnull=True,).update(usado_em=timezone.now())  # Marca todos os tokens não usados do usuário como usados
     
     # Registra o log de sucesso da redefinição de senha
     registrar_log_recuperacao_senha(usuario, evento='SUCESSO', ip=request.META.get('REMOTE_ADDR'), token=token)
