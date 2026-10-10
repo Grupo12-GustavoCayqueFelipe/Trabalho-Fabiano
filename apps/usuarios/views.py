@@ -68,14 +68,13 @@ def login_view(request):
       usuario.tentativas_login = 0
       usuario.bloqueado_ate = None
       usuario.save()
-      registrar_log_acesso(usuario, evento='LOGIN_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
       
       # Se o usuário tiver o 2FA ligado, não loga e guarda o id na sessão
       if usuario.otp_ativado:
         request.session['pre_2fa_user_id'] = usuario.pk
         return redirect('2fa_verificar')
-      # Se o hash da senha for igual, o usuário é autenticado e redirecionado para a página principal
       login(request, usuario)
+      registrar_log_acesso(usuario, evento='LOGIN_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
       return redirect('dashboard')
     else:
       if usuario_existente:
@@ -123,6 +122,7 @@ def dois_fatores_verificar_view(request):
       registrar_log_acesso(usuario, evento='2FA_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
       del request.session['pre_2fa_user_id']
       login(request, usuario)
+      registrar_log_acesso(usuario, evento='LOGIN_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
       return redirect('dashboard')
     else:
       registrar_log_acesso(usuario, evento='2FA_FALHA', ip=request.META.get('REMOTE_ADDR'))
