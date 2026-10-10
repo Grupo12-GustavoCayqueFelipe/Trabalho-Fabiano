@@ -26,6 +26,8 @@
             <form action="" method="POST">
                 {% csrf_token %}
                 <input type="hidden" name="acao" value="desativar">
+                <input type="password" name="senha" placeholder="Sua senha" required>
+                <input type="text" name="codigo" placeholder="Código de 6 dígitos" maxlength="6" required>
                 <button type="submit">Desativar 2FA</button>
             </form>
         {% else %}

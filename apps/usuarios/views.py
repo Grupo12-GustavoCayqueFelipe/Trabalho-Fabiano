@@ -135,13 +135,19 @@ def dois_fatores_verificar_view(request):
 def dois_fatores_configurar_view(request):
   usuario = request.user
 
-  if request.method == 'POST':
-    # Botão de desativar
-    if request.POST.get('acao') == 'desativar':
-      usuario.otp_ativado = False
-      usuario.otp_secret = None
-      usuario.save()
+# Botão de desativar: exige a senha e o código atual, pra uma sessão roubada não remover o 2FA
+  if request.POST.get('acao') == 'desativar':
+    senha = request.POST.get('senha', '')
+    codigo = request.POST.get('codigo', '')
+
+    if not usuario.check_password(senha) or not pyotp.TOTP(usuario.otp_secret).verify(codigo):
+      messages.error(request, 'Senha ou código inválido. O 2FA não foi desativado.')
       return redirect('2fa_configurar')
+
+    usuario.otp_ativado = False
+    usuario.otp_secret = None
+    usuario.save()
+    return redirect('2fa_configurar')
 
     # Confirma o código pra ativar de vez
     codigo = request.POST.get('codigo')
