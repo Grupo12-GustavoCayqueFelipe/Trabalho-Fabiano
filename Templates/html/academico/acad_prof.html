@@ -29,6 +29,14 @@
 
     <!-- CONTEÚDO PRINCIPAL -->
     <main class="conteudo">
+        {% if messages %}
+        <ul class="messages" style="list-style:none;padding:0;margin:0 0 16px;">
+            {% for message in messages %}
+            <li class="{{ message.tags }}">{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
         <header>
             <h1>Registro de Aula</h1>
             <p>Registre o conteúdo trabalhado em cada aula.</p>
