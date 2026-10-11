@@ -35,8 +35,19 @@ class UsuarioAdmin(UserAdmin):
     }),
   )
 
+# Impede cirar, editar ou apagar regisros de auditoria pelo admin
+class SomenteLeituraAdmin(admin.ModelAdmin):
+  def has_add_permission(self, request):
+    return False
+  
+  def has_change_permission(self, request, obj=None):
+    return False
+  
+  def has_delete_permission(self, request, obj=None):
+    return False
+
 # Classe para o admin do modelo LogRecuperacaoSenha
-class LogRecuperacaoSenhaAdmin(admin.ModelAdmin):
+class LogRecuperacaoSenhaAdmin(SomenteLeituraAdmin):
     # Mostra para o admin as colunas nas tabelas
     list_display = ('usuario', 'evento', 'ip', 'criado_em')
 
@@ -47,7 +58,7 @@ class LogRecuperacaoSenhaAdmin(admin.ModelAdmin):
     readonly_fields = ('usuario', 'evento', 'token_hash', 'ip', 'criado_em')
 
 # Classe para o admin do modelo ConsentimentoUsuario
-class ConsentimentoUsuarioAdmin(admin.ModelAdmin):
+class ConsentimentoUsuarioAdmin(SomenteLeituraAdmin):
     # Mostra para o admin as colunas nas tabelas
     list_display = ('usuario', 'tipo', 'aceito', 'versao_termos', 'registrado_em')
     
@@ -59,7 +70,7 @@ class ConsentimentoUsuarioAdmin(admin.ModelAdmin):
     # Não deixa editar os campos do consentimento, apenas visualizar
     readonly_fields = ('usuario', 'tipo', 'aceito', 'versao_termos', 'registrado_em')
 
-class LogAcessoAdmin(admin.ModelAdmin):
+class LogAcessoAdmin(SomenteLeituraAdmin):
     # Mostra para o admin as colunas nas tabelas
     list_display = ('usuario', 'evento', 'ip', 'criado_em')
     
