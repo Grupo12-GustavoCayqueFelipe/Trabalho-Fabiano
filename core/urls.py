@@ -19,6 +19,7 @@ from django.urls import path
 
 # Após erro apelidei de 'usuarios_views' para não dar conflito com o nome do app
 from apps.usuarios import views as usuarios_views
+from apps.academico import views as academico_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -46,4 +47,16 @@ urlpatterns = [
     path('meus-dados/exportar/', usuarios_views.exportar_dados_view, name='exportar_dados_view'),
     # rota para a página de exclusão de dados do usuário, onde ele pode excluir sua conta e todos os seus dados pessoais
     path('meus-dados/excluir/', usuarios_views.excluir_dados_view, name='excluir_dados_view'),
+    # rota para o painel principal do módulo acadêmico
+    path('academico/', academico_views.academico_painel_view, name='academico_painel_view'),
+    # rota para a página de criação e edição de turmas
+    path('academico/turma/salvar/', academico_views.salvar_turma_view, name='salvar_turma_view'),
+    # rota para a página de criação e edição de disciplinas
+    path('academico/disciplina/salvar/', academico_views.salvar_disciplina_view, name='salvar_disciplina_view'),
+    # rota para a página de realização de novas matrículas de alunos
+    path('academico/matricular/', academico_views.matricular_aluno_view, name='matricular_aluno_view'),
+    # rota para a página de consulta e histórico de matrículas dos alunos
+    path('academico/matriculas/', academico_views.historico_matriculas_view, name='historico_matriculas_view'),
+    # rota para a página de lançamento e registro de aulas ministradas
+    path('academico/aulas/registrar/', academico_views.registrar_aula_view, name='registrar_aula_view'),
 ]
