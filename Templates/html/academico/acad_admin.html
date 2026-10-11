@@ -1,10 +1,11 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Módulo Acadêmico - EduControll</title>
-    <link rel="stylesheet" href="/static/css/academico/acad_admin.css">
+    <link rel="stylesheet" href="{% static 'css/academico/acad_admin.css' %}">
 </head>
 <body>
     <!-- SIDEBAR -->
@@ -18,15 +19,15 @@
             <a href="#disciplinas">📖 Disciplinas</a>
             <a href="#matricula">🎓 Matrícula</a>
             <a href="#historico">📋 Histórico</a>
-            <a href="#aulas">📝 Registro de Aula</a>
         </nav>
-            <div class="sidebar-bottom">
-                <form action={% url 'logout' %} method="POST">
-                    <button type="submit" class="sair">
-                        Sair do sistema
-                    </button>
-                </form>
-            </div>
+        <div class="sidebar-bottom">
+            <form action="{% url 'logout' %}" method="POST">
+                {% csrf_token %}
+                <button type="submit" class="sair">
+                    Sair do sistema
+                </button>
+            </form>
+        </div>
     </aside>
 
     <!-- CONTEÚDO -->
@@ -34,7 +35,7 @@
         <header>
             <span>MÓDULO ACADÊMICO</span>
             <h1>Gestão Acadêmica</h1>
-            <p>Gerencie turmas, disciplinas, matrículas e aulas.</p>
+            <p>Gerencie turmas, disciplinas e matrículas.</p>
         </header>
 
         <!-- TURMAS -->
@@ -59,27 +60,17 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>1º Ano A</td>
-                        <td>2026</td>
-                        <td>Manhã</td>
-                        <td>Mariana Oliveira</td>
-                        <td><a href="#cadastro-turma">Editar</a></td>
-                    </tr>
-                    <tr>
-                        <td>2º Ano B</td>
-                        <td>2026</td>
-                        <td>Tarde</td>
-                        <td>Ricardo Santos</td>
-                        <td><a href="#cadastro-turma">Editar</a></td>
-                    </tr>
-                    <tr>
-                        <td>3º Ano A</td>
-                        <td>2026</td>
-                        <td>Noite</td>
-                        <td>Juliana Costa</td>
-                        <td><a href="#cadastro-turma">Editar</a></td>
-                    </tr>
+                    {% for t in turmas %}
+                        <tr>
+                            <td>{{ t.nome }}</td>
+                            <td>{{ t.ano }}</td>
+                            <td>{{ t.get_turno_display }}</td>
+                            <td>{{ t.professor_regente|default:"" }}</td>
+                            <td><a href="/academico/?editar_turma={{ t.pk }}#cadastro-turma">Editar</a></td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5">Nenhuma turma cadastrada ainda.</td></tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </section>
@@ -92,35 +83,37 @@
                     <h2>Cadastro / Edição de Turma</h2>
                 </div>
             </div>
-            <form>
+            <form method="POST" action="{% url 'salvar_turma_view' %}">
+                {% csrf_token %}
+                <input type="hidden" name="pk" value="{{ turma_editando.pk|default:'' }}">
                 <div class="form-grid">
                     <div>
                         <label>Nome da turma</label>
-                        <input type="text" placeholder="Ex.: 1º Ano A">
+                        <input type="text" name="nome" placeholder="Ex.: 1º Ano A" value="{{ turma_editando.nome|default:'' }}" required>
                     </div>
                     <div>
                         <label>Ano</label>
-                        <input type="number" placeholder="2026">
+                        <input type="number" name="ano" placeholder="2026" value="{{ turma_editando.ano|default:'' }}" required>
                     </div>
                     <div>
                         <label>Turno</label>
-                        <select>
-                            <option>Manhã</option>
-                            <option>Tarde</option>
-                            <option>Noite</option>
+                        <select name="turno" required>
+                            <option value="MANHA" {% if turma_editando.turno == 'MANHA' %}selected{% endif %}>Manhã</option>
+                            <option value="TARDE" {% if turma_editando.turno == 'TARDE' %}selected{% endif %}>Tarde</option>
+                            <option value="NOITE" {% if turma_editando.turno == 'NOITE' %}selected{% endif %}>Noite</option>
                         </select>
                     </div>
                     <div>
                         <label>Professor regente</label>
-                        <select>
-                            <option>Selecione o professor</option>
-                            <option>Mariana Oliveira</option>
-                            <option>Ricardo Santos</option>
-                            <option>Juliana Costa</option>
+                        <select name="professor_regente">
+                            <option value="">Sem regente</option>
+                            {% for p in professores %}
+                                <option value="{{ p.pk }}" {% if turma_editando.professor_regente == p %}selected{% endif %}>{{ p }}</option>
+                            {% endfor %}
                         </select>
                     </div>
                 </div>
-                <button class="button">Salvar turma</button>
+                <button class="button" type="submit">Salvar turma</button>
             </form>
         </section>
 
@@ -145,24 +138,16 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>Matemática</td>
-                        <td>4 turmas</td>
-                        <td>2 professores</td>
-                        <td><a href="#cadastro-disciplina">Editar</a></td>
-                    </tr>
-                    <tr>
-                        <td>Português</td>
-                        <td>4 turmas</td>
-                        <td>2 professores</td>
-                        <td><a href="#cadastro-disciplina">Editar</a></td>
-                    </tr>
-                    <tr>
-                        <td>História</td>
-                        <td>3 turmas</td>
-                        <td>1 professor</td>
-                        <td><a href="#cadastro-disciplina">Editar</a></td>
-                    </tr>
+                    {% for d in disciplinas %}
+                        <tr>
+                            <td>{{ d.nome }}</td>
+                            <td>{{ d.turmas.count }} turmas</td>
+                            <td>{{ d.professores.count }} professores</td>
+                            <td><a href="/academico/?editar_disciplina={{ d.pk }}#cadastro-disciplina">Editar</a></td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4">Nenhuma disciplina cadastrada ainda.</td></tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </section>
@@ -175,25 +160,24 @@
                     <h2>Cadastro / Edição de Disciplina</h2>
                 </div>
             </div>
-            <form>
+            <form method="POST" action="{% url 'salvar_disciplina_view' %}">
+                {% csrf_token %}
+                <input type="hidden" name="pk" value="{{ disciplina_editando.pk|default:'' }}">
                 <label>Nome da disciplina</label>
-                <input type="text" placeholder="Ex.: Matemática">
+                <input type="text" name="nome" placeholder="Ex.: Matemática" value="{{ disciplina_editando.nome|default:'' }}" required>
                 <label>Turmas vinculadas</label>
-                <select multiple>
-                    <option>1º Ano A</option>
-                    <option>1º Ano B</option>
-                    <option>2º Ano A</option>
-                    <option>2º Ano B</option>
-                    <option>3º Ano A</option>
+                <select name="turmas" multiple>
+                    {% for t in turmas %}
+                        <option value="{{ t.pk }}" {% if disciplina_editando and t in disciplina_editando.turmas.all %}selected{% endif %}>{{ t }}</option>
+                    {% endfor %}
                 </select>
                 <label>Professores vinculados</label>
-                <select multiple>
-                    <option>Mariana Oliveira</option>
-                    <option>Ricardo Santos</option>
-                    <option>Juliana Costa</option>
-                    <option>Carlos Almeida</option>
+                <select name="professores" multiple>
+                    {% for p in professores %}
+                        <option value="{{ p.pk }}" {% if disciplina_editando and p in disciplina_editando.professores.all %}selected{% endif %}>{{ p }}</option>
+                    {% endfor %}
                 </select>
-                <button class="button">Salvar disciplina</button>
+                <button class="button" type="submit">Salvar disciplina</button>
             </form>
         </section>
 
@@ -205,22 +189,19 @@
                     <h2>Matrícula de Aluno em Turma</h2>
                 </div>
             </div>
-            <form>
+            <form method="POST" action="{% url 'matricular_aluno_view' %}">
+                {% csrf_token %}
                 <label>Aluno</label>
-                <select>
-                    <option>Selecione o aluno</option>
-                    <option>João Pedro Silva</option>
-                    <option>Ana Beatriz Souza</option>
-                    <option>Lucas Oliveira</option>
+                <select name="aluno" required>
+                    <option value="">Selecione o aluno</option>
+                    {% for a in alunos %}<option value="{{ a.pk }}">{{ a }}</option>{% endfor %}
                 </select>
                 <label>Turma</label>
-                <select>
-                    <option>Selecione a turma</option>
-                    <option>1º Ano A</option>
-                    <option>2º Ano B</option>
-                    <option>3º Ano A</option>
+                <select name="turma" required>
+                    <option value="">Selecione a turma</option>
+                    {% for t in turmas %}<option value="{{ t.pk }}">{{ t }}</option>{% endfor %}
                 </select>
-                <button class="button">
+                <button class="button" type="submit">
                     Confirmar matrícula
                 </button>
             </form>
@@ -231,82 +212,29 @@
             <div class="title">
                 <div>
                     <small>HISTÓRICO</small>
-                    <h2>Histórico de Matrículas</h2>
+                    <h2>Últimas Matrículas</h2>
                 </div>
-            </div>
-            <div class="student">
-                <strong>João Pedro Silva</strong>
-                <span>Matrícula: 202600145</span>
             </div>
             <table>
                 <thead>
                     <tr>
+                        <th>Aluno</th>
                         <th>Turma</th>
-                        <th>Ano</th>
                         <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>8º Ano A</td>
-                        <td>2024</td>
-                        <td><span class="status concluida">Concluída</span></td>
-                    </tr>
-                    <tr>
-                        <td>9º Ano B</td>
-                        <td>2025</td>
-                        <td><span class="status transferida">Transferida</span></td>
-                    </tr>
-                    <tr>
-                        <td>1º Ano A</td>
-                        <td>2026</td>
-                        <td><span class="status ativa">Ativa</span></td>
-                    </tr>
+                    {% for m in matriculas %}
+                        <tr>
+                            <td>{{ m.aluno }}</td>
+                            <td>{{ m.turma }}</td>
+                            <td><span class="status {{ m.status|lower }}">{{ m.get_status_display }}</span></td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="3">Nenhuma matrícula registrada ainda.</td></tr>
+                    {% endfor %}
                 </tbody>
             </table>
-        </section>
-
-                <!-- REGISTRO DE AULA -->
-        <section id="aulas" class="card">
-            <div class="title">
-                <div>
-                    <small>PROFESSOR</small>
-                    <h2>Registro de Aula</h2>
-                </div>
-            </div>
-            <form>
-                <div class="form-grid">
-                    <div>
-                        <label>Turma</label>
-                        <select>
-                            <option>Selecione a turma</option>
-                            <option>1º Ano A</option>
-                            <option>2º Ano B</option>
-                            <option>3º Ano A</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>Disciplina</label>
-                        <select>
-                            <option>Selecione a disciplina</option>
-                            <option>Matemática</option>
-                            <option>Português</option>
-                            <option>História</option>
-                            <option>Programação</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>Data</label>
-                        <input type="date">
-                    </div>
-                </div>
-                <label>Conteúdo dado</label>
-                <textarea
-                    placeholder="Descreva o conteúdo trabalhado na aula..."></textarea>
-                <button class="button">
-                    Registrar aula
-                </button>
-            </form>
         </section>
     </main>
 </body>

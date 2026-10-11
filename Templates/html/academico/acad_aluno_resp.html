@@ -1,10 +1,11 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Histórico de Matrículas</title>
-    <link rel="stylesheet" href="/static/css/academico/acad_aluno_resp.css">
+    <link rel="stylesheet" href="{% static 'css/academico/acad_aluno_resp.css' %}">
 </head>
 <body>
 
@@ -17,15 +18,16 @@
             <a href="#" class="ativo">Histórico de Matrículas</a>
         </nav>
         <div class="sidebar-bottom">
-         <form action={% url 'logout' %} method="POST">
-             <button type="submit" class="sair">
+            <form action="{% url 'logout' %}" method="POST">
+                {% csrf_token %}
+                <button type="submit" class="sair">
                     Sair do sistema
-                 </button>
+                </button>
             </form>
-         </div>
+        </div>
     </aside>
 
-    <!-- CONTEÚDO PRINCIPAL !-->
+    <!-- CONTEÚDO PRINCIPAL -->
     <main class="conteudo">
         <header>
             <h1>Histórico de Matrículas</h1>
@@ -38,11 +40,11 @@
             <div class="dados-aluno">
                 <div>
                     <span>Nome</span>
-                    <strong>João Pedro Silva</strong>
+                    <strong>{{ aluno.usuario.nome|default:"" }}</strong>
                 </div>
                 <div>
                     <span>Matrícula</span>
-                    <strong>202600145</strong>
+                    <strong>{{ aluno.matricula|default:"" }}</strong>
                 </div>
             </div>
         </section>
@@ -61,42 +63,19 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr>
-                        <td>8º Ano A</td>
-                        <td>2024</td>
-                        <td>Manhã</td>
-                        <td>Marcos Oliveira</td>
-                        <td>
-                            <span class="status concluida">Concluída</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>9º Ano B</td>
-                        <td>2025</td>
-                        <td>Manhã</td>
-                        <td>Marcos Oliveira</td>
-                        <td>
-                            <span class="status transferida">Transferida</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>1º Ano A</td>
-                        <td>2026</td>
-                        <td>Noite</td>
-                        <td>Carla Santos</td>
-                        <td>
-                            <span class="status ativa">Ativa</span>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>1º Ano B</td>
-                        <td>2026</td>
-                        <td>Tarde</td>
-                        <td>Roberto Lima</td>
-                        <td>
-                            <span class="status cancelada">Cancelada</span>
-                        </td>
-                    </tr>
+                    {% for m in matriculas %}
+                        <tr>
+                            <td>{{ m.turma.nome }}</td>
+                            <td>{{ m.turma.ano }}</td>
+                            <td>{{ m.turma.get_turno_display }}</td>
+                            <td>{{ m.turma.professor_regente|default:"" }}</td>
+                            <td>
+                                <span class="status {{ m.status|lower }}">{{ m.get_status_display }}</span>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="5">Nenhuma matrícula encontrada.</td></tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </section>

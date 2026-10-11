@@ -17,6 +17,7 @@ from django.contrib.auth.decorators import login_required
 from django_ratelimit.decorators import ratelimit
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.views.decorators.http import require_POST
 
 from django.core.mail import send_mail
 from django.urls import reverse
@@ -444,6 +445,7 @@ def termos_view(request):
   })
 
 @login_required(login_url='login')
+@require_POST
 def logout_view(request):
   # Desloga o usuário e redireciona para a página de login
   logout(request)

@@ -23,17 +23,18 @@
                     👤 Meus dados
                 </a>
                 <a href="{% url 'excluir_dados_view' %}">
-                    🗑️ Excluir conta
+                    🗑 Excluir conta
                 </a>
                 <a href="{% url 'termos_view' %}">
                     🔐 Termos e Privacidade
                 </a>
-                <a href="#">
-                    🎓 Matricula
+                <a href="{% url 'historico_matriculas_view' %}">
+                    🎓 Matrícula
                 </a>
             </nav>
             <div class="sidebar-bottom">
-                <form action={% url 'logout' %} method="POST">
+                <form action="{% url 'logout' %}" method="POST">
+                    {% csrf_token %}
                     <button type="submit" class="sair">
                         Sair do sistema
                     </button>
@@ -319,7 +320,7 @@
 
             <!-- DPO -->
             <section class="dpo">
-                <div class="dpo-icon">🛡️</div>
+                <div class="dpo-icon">🛡</div>
                 <div>
                     <strong>Dúvidas sobre seus dados?</strong>
                     <p>Entre em contato com o encarregado de dados:</p>

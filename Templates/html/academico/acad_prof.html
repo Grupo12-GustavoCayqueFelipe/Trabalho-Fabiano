@@ -1,10 +1,11 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Registro de Aula</title>
-    <link rel="stylesheet" href="/static/css/academico/acad_prof.css">
+    <link rel="stylesheet" href="{% static 'css/academico/acad_prof.css' %}">
 </head>
 <body>
 
@@ -16,13 +17,14 @@
         <nav>
             <a href="#" class="ativo">Registro de Aula</a>
         </nav>
-            <div class="sidebar-bottom">
-        <form action={% url 'logout' %} method="POST">
-             <button type="submit" class="sair">
+        <div class="sidebar-bottom">
+            <form action="{% url 'logout' %}" method="POST">
+                {% csrf_token %}
+                <button type="submit" class="sair">
                     Sair do sistema
-                 </button>
+                </button>
             </form>
-    </div>
+        </div>
     </aside>
 
     <!-- CONTEÚDO PRINCIPAL -->
@@ -35,24 +37,20 @@
         <!-- FORMULÁRIO -->
         <section class="card">
             <h2>Dados da Aula</h2>
-            <form>
+            <form method="POST" action="{% url 'registrar_aula_view' %}">
+                {% csrf_token %}
                 <div class="campo">
                     <label for="turma">Turma</label>
                     <select id="turma" name="turma" required>
                         <option value="">Selecione a turma</option>
-                        <option value="1A">1º Ano A</option>
-                        <option value="2A">2º Ano B</option>
-                        <option value="3A">3º Ano A</option>
+                        {% for t in turmas %}<option value="{{ t.pk }}">{{ t }}</option>{% endfor %}
                     </select>
                 </div>
                 <div class="campo">
                     <label for="disciplina">Disciplina</label>
                     <select id="disciplina" name="disciplina" required>
                         <option value="">Selecione a disciplina</option>
-                        <option value="matematica">Matemática</option>
-                        <option value="portugues">Português</option>
-                        <option value="historia">História</option>
-                        <option value="programacao">Programação</option>
+                        {% for d in disciplinas %}<option value="{{ d.pk }}">{{ d }}</option>{% endfor %}
                     </select>
                 </div>
                 <div class="campo">
