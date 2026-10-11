@@ -50,7 +50,7 @@ class Disciplina(models.Model):
     turmas = models.ManyToManyField('Turma')
     
     # Define o professor que leciona a disciplina, relação many to many porque um professor pode lecionar varias disciplinas e uma disciplina pode pode ter vários professores.
-    professor = models.ManyToManyField('usuarios.Professor')
+    professores = models.ManyToManyField('usuarios.Professor')
     
     class Meta:
         db_table = 'disciplinas'
@@ -63,7 +63,7 @@ class Matricula(models.Model):
     aluno = models.ForeignKey('usuarios.Aluno', on_delete=models.CASCADE, related_name='matriculas')
     
     # Define a turma em que o aluno está matriculado, que possui um relacionamento com a tabela de turmas.
-    turma = models.ForeignKey('Turma', on_delete=models.CASCADE)
+    turma = models.ForeignKey('Turma', on_delete=models.PROTECT)
     
     # Define a data de matrícula do aluno na turma
     data_matricula = models.DateField(default=timezone.now)
@@ -76,14 +76,14 @@ class Matricula(models.Model):
         unique_together = ('aluno', 'turma')  # Garante que um aluno não possa se matricular na mesma turma mais de uma vez
 
     def __str__(self):
-        return f"Aluno: {self.aluno} - Turma: {self.turma} - Ano: {self.status}"
+        return f"Aluno: {self.aluno} - Turma: {self.turma} - Status: {self.status}"
 
 class Aula(models.Model):
     # Define a turma em que a aula será ministrada, que possui um relacionamento com a tabela de turmas.
-    turma = models.ForeignKey(Turma, on_delete=models.CASCADE, related_name='aulas')
+    turma = models.ForeignKey(Turma, on_delete=models.PROTECT, related_name='aulas')
     
     # Define a disciplina que será ministrada na aula, que possui um relacionamento com a tabela de disciplinas.
-    disciplina = models.ForeignKey(Disciplina, on_delete=models.CASCADE, related_name='aulas')
+    disciplina = models.ForeignKey(Disciplina, on_delete=models.PROTECT, related_name='aulas')
     
     # Define o professor que ministrará a aula, que possui um relacionamento com a tabela de professores. Se o professor for deletado, o campo será definido como NULL.
     professor = models.ForeignKey('usuarios.Professor', on_delete=models.SET_NULL, blank=True, null=True, related_name='aulas')
