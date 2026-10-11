@@ -48,7 +48,10 @@
             <button type="button" onclick="abrirPolitica()">Ler política completa →</button>
         </section>
 
-        <!-- OPÇÕES -->
+    <!-- OPÇÕES -->
+    <form method="POST" action="{% url 'termos_view' %}">
+        {% csrf_token %}
+
         <section class="opcoes">
 
             <!-- OBRIGATÓRIO -->
@@ -128,6 +131,9 @@
                 </label>
             </div>
         </section>
+
+        <button type="submit" class="salvar">Salvar minhas preferências</button>
+    </form>
 
         <!-- VERSÃO -->
         <div class="versao">
