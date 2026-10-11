@@ -81,7 +81,7 @@ class Usuario(AbstractUser):
     is_active = models.BooleanField(default=True, db_column='ativo')
     
     # Chave secreta para gerar e validar o codigo de 6 digitos
-    otp_secret = models.CharField(max_length=32, blank=True, null=True)
+    otp_secret = EncryptedCharField(max_length=32, blank=True, null=True)
     
     # Avisa se o 2FA está ligado para o usuario, caso esteja false o login não pede o segundo fator de autenticação
     otp_ativado = models.BooleanField(default=False)
