@@ -12,7 +12,8 @@ from .models import Usuario, consentimentos_atuais, registrar_consentimento, reg
 from django.utils import timezone
 from django.contrib import messages
 from django.shortcuts import redirect, render
-from django.contrib.auth import authenticate, login, logout, validate_password
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.decorators import login_required
 from django_ratelimit.decorators import ratelimit
 from django.conf import settings
