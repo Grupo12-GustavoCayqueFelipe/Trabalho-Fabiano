@@ -36,12 +36,12 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-SECURE_SSL_REDIRECT = False
+SECURE_SSL_REDIRECT = not DEBUG
 
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 
-SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_SECONDS = 31536000 if not DEBUG else 0
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
@@ -55,7 +55,7 @@ FIELD_ENCRYPTION_KEY = os.getenv('FIELD_ENCRYPTION_KEY')
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
+    'core.apps.EduAdminConfig',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
@@ -176,10 +176,12 @@ if os.getenv('EMAIL_HOST'):
     EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
     EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
     EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
-elif DEBUG:
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 else:
-    EMAIL_BACKEND = 'django.core.mail.backends.dummy.EmailBackend'
+    # Sem SMTP, desenvolvimento usa console; produção deve configurar o serviço.
+    if not DEBUG and os.getenv('DJANGO_SETTINGS_MODULE') != 'core.settings_test':
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured('EMAIL_HOST obrigatório em produção.')
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'EduControll <naoresponda@educontroll.com>'
 
 # Tempo em segundos que o token de recuperação de senha é válido (1 hora)
@@ -198,7 +200,7 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
 
-USE_SUPABASE_STORAGE = os.getenv('SUPABASE_S3_ACCESS_KEY') is not None
+USE_SUPABASE_STORAGE = bool(os.getenv('SUPABASE_S3_ACCESS_KEY'))
     
 if USE_SUPABASE_STORAGE:
     STORAGES = {
@@ -219,6 +221,21 @@ if USE_SUPABASE_STORAGE:
         },
     }
 else:
-    # Configuração para armazenamento local
+    # Armazenamento local durante desenvolvimento.
+    STORAGES = {
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage'},
+    }
     MEDIA_URL = '/media/'
     MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+# Contadores do rate limit devem ser compartilhados entre os workers em produção.
+if not os.getenv('REDIS_URL') and not DEBUG and os.getenv('DJANGO_SETTINGS_MODULE') != 'core.settings_test':
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured('REDIS_URL obrigatório em produção para proteger os limites de tentativas.')
+if os.getenv('REDIS_URL'):
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': os.environ['REDIS_URL'],
+        },
+    }

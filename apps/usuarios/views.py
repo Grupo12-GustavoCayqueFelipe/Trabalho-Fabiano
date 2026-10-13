@@ -1,4 +1,6 @@
 from django.http import JsonResponse
+from django.db import transaction
+from django.shortcuts import get_object_or_404
 import pyotp
 import qrcode
 import base64
@@ -8,7 +10,7 @@ import secrets
 import hashlib
 
 
-from .models import Usuario, consentimentos_atuais, registrar_consentimento, registrar_log_recuperacao_senha, TokenRecuperacaoSenha, TIPO_CONSENTIMENTO, registrar_log_acesso
+from .models import Usuario, consentimentos_atuais, registrar_consentimento, registrar_log_recuperacao_senha, TokenRecuperacaoSenha, TIPO_CONSENTIMENTO, registrar_log_acesso, registrar_operacao, ConsentimentoUsuario, Aluno
 from django.utils import timezone
 from django.contrib import messages
 from django.shortcuts import redirect, render
@@ -74,6 +76,7 @@ def login_view(request):
       # Se o usuário tiver o 2FA ligado, não loga e guarda o id na sessão
       if usuario.otp_ativado:
         request.session['pre_2fa_user_id'] = usuario.pk
+        request.session['pre_2fa_iniciado'] = timezone.now().timestamp()
         return redirect('2fa_verificar')
       login(request, usuario)
       registrar_log_acesso(usuario, evento='LOGIN_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
@@ -114,16 +117,29 @@ def dois_fatores_verificar_view(request):
     return redirect('login')
   
   # Pega o usuário pelo id guardado na sessão
-  usuario = Usuario.objects.get(pk=usuario_id)
+  # A etapa intermediária expira após cinco minutos e não substitui uma sessão completa.
+  inicio = request.session.get('pre_2fa_iniciado', 0)
+  if timezone.now().timestamp() - inicio > 300:
+    request.session.pop('pre_2fa_user_id', None)
+    request.session.pop('pre_2fa_iniciado', None)
+    messages.error(request, 'Verificação expirada. Entre novamente.')
+    return redirect('login')
+  usuario = Usuario.objects.filter(pk=usuario_id, is_active=True, otp_ativado=True).first()
+  if usuario is None or not usuario.otp_secret:
+    request.session.pop('pre_2fa_user_id', None)
+    request.session.pop('pre_2fa_iniciado', None)
+    return redirect('login')
   if request.method == 'POST':
-    codigo = request.POST.get('codigo')
+    codigo = (request.POST.get('codigo') or '').strip()
     totp = pyotp.TOTP(usuario.otp_secret)
 
     # Confere se o código bate com o que o app autenticador devia estar gerando
-    if totp.verify(codigo):
+    if len(codigo) == 6 and codigo.isascii() and codigo.isdecimal() and totp.verify(codigo):
       registrar_log_acesso(usuario, evento='2FA_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
-      del request.session['pre_2fa_user_id']
+      request.session.pop('pre_2fa_user_id', None)
+      request.session.pop('pre_2fa_iniciado', None)
       login(request, usuario)
+      request.session['2fa_verificado'] = usuario.pk
       registrar_log_acesso(usuario, evento='LOGIN_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
       return redirect('dashboard')
     else:
@@ -134,53 +150,62 @@ def dois_fatores_verificar_view(request):
 
 # Tela onde o usuário logado ativa ou desativa o 2FA na própria conta
 @login_required(login_url='login')
+@ratelimit(key='user', rate='5/m', block=False, method='POST')
 def dois_fatores_configurar_view(request):
+  # Configurar e remover o fator exigem validação no servidor.
   usuario = request.user
+  if getattr(request, 'limited', False):
+    messages.error(request, 'Muitas tentativas. Tente novamente mais tarde.')
+    return redirect('dashboard')
 
-# Botão de desativar: exige a senha e o código atual, pra uma sessão roubada não remover o 2FA
-  if request.POST.get('acao') == 'desativar':
-    senha = request.POST.get('senha', '')
-    codigo = request.POST.get('codigo', '')
-
-    if not usuario.check_password(senha) or not pyotp.TOTP(usuario.otp_secret).verify(codigo):
-      messages.error(request, 'Senha ou código inválido. O 2FA não foi desativado.')
-      return redirect('2fa_configurar')
-
-    usuario.otp_ativado = False
-    usuario.otp_secret = None
-    usuario.save()
-    return redirect('2fa_configurar')
-
-    # Confirma o código pra ativar de vez
-    codigo = request.POST.get('codigo')
-    totp = pyotp.TOTP(usuario.otp_secret)
-    if totp.verify(codigo):
-      usuario.otp_ativado = True
-      usuario.save()
-      messages.success(request, 'Autenticação de dois fatores ativada com sucesso.')
-      return redirect('2fa_configurar')
-    else:
-      messages.error(request, 'Código inválido, tenta escanear o QR Code de novo.')
-
-  # Gera a chave secreta na primeira vez que o usuário acessa essa tela
-  if not usuario.otp_secret:
+  # Na primeira visita gera o segredo apenas para uma configuração ainda desativada.
+  if not usuario.otp_secret and not usuario.otp_ativado:
     usuario.otp_secret = pyotp.random_base32()
-    usuario.save()
+    usuario.save(update_fields=['otp_secret'])
 
+  if request.method == 'POST':
+    acao = request.POST.get('acao', 'ativar')
+    codigo = (request.POST.get('codigo') or '').strip()
+    codigo_valido = len(codigo) == 6 and codigo.isascii() and codigo.isdecimal()
+    codigo_valido = codigo_valido and bool(usuario.otp_secret) and pyotp.TOTP(usuario.otp_secret).verify(codigo)
+
+    # A desativação precisa de senha, além do segundo fator já ativo.
+    if acao == 'desativar':
+      senha = request.POST.get('senha') or ''
+      if not usuario.otp_ativado or not usuario.check_password(senha) or not codigo_valido:
+        messages.error(request, 'Senha ou código inválido. O 2FA não foi desativado.')
+        return redirect('2fa_configurar')
+      with transaction.atomic():
+        usuario.otp_ativado = False
+        usuario.otp_secret = None
+        usuario.save(update_fields=['otp_ativado', 'otp_secret'])
+        registrar_log_acesso(usuario, '2FA_DESATIVADO', request.META.get('REMOTE_ADDR'))
+      request.session.pop('2fa_verificado', None)
+      messages.success(request, 'Autenticação de dois fatores desativada.')
+      return redirect('2fa_configurar')
+
+    # A confirmação deve estar fora do if de desativação para ser alcançável.
+    if acao == 'ativar' and not usuario.otp_ativado and codigo_valido:
+      with transaction.atomic():
+        usuario.otp_ativado = True
+        usuario.save(update_fields=['otp_ativado'])
+        registrar_log_acesso(usuario, '2FA_ATIVADO', request.META.get('REMOTE_ADDR'))
+      request.session['2fa_verificado'] = usuario.pk
+      messages.success(request, 'Autenticação de dois fatores ativada.')
+      return redirect('2fa_configurar')
+    messages.error(request, 'Código de autenticação inválido ou operação não permitida.')
+
+  # Só mostra QR Code na configuração inicial, nunca quando 2FA está ativo.
   qr_base64 = None
   if not usuario.otp_ativado:
-    # Monta a URI padrão que qualquer app autenticador entende e transforma num QR Code
-    totp = pyotp.TOTP(usuario.otp_secret)
-    uri = totp.provisioning_uri(name=usuario.email, issuer_name='EduControll')
-
+    uri = pyotp.TOTP(usuario.otp_secret).provisioning_uri(name=usuario.email, issuer_name='EduControll')
     imagem = qrcode.make(uri)
     buffer = io.BytesIO()
     imagem.save(buffer, format='PNG')
     qr_base64 = base64.b64encode(buffer.getvalue()).decode()
-
   return render(request, 'usuarios/2fa_configurar.html', {
     'otp_ativado': usuario.otp_ativado,
-    'otp_secret': usuario.otp_secret,
+    'otp_secret': usuario.otp_secret if not usuario.otp_ativado else None,
     'qr_base64': qr_base64,
   })
 
@@ -283,18 +308,17 @@ def redefinir_senha_view(request, token):
         messages.error(request, erro)
       return render(request, 'html/senha/redefinir_senha.html')
 
-    usuario.set_password(nova_senha)
-    usuario.save()
-
-    # Marca o token como usado, pra ele não poder ser reaproveitado
-    token_recuperacao.usado_em = timezone.now()
-    token_recuperacao.save()
-    
-    # Invalida também qualquer outro token pendente desse usuário
-    TokenRecuperacaoSenha.objects.filter(usuario=usuario, usado_em__isnull=True,).update(usado_em=timezone.now())  # Marca todos os tokens não usados do usuário como usados
-    
-    # Registra o log de sucesso da redefinição de senha
-    registrar_log_recuperacao_senha(usuario, evento='SUCESSO', ip=request.META.get('REMOTE_ADDR'), token=token)
+    # Bloqueia o token no banco para impedir dois POSTs simultâneos com o mesmo link.
+    with transaction.atomic():
+      token_bloqueado = TokenRecuperacaoSenha.objects.select_for_update().get(pk=token_recuperacao.pk)
+      if token_bloqueado.usado_em is not None or token_bloqueado.expira_em <= timezone.now():
+        messages.error(request, 'Link de recuperação inválido ou expirado.')
+        return redirect('login')
+      usuario.set_password(nova_senha)
+      usuario.save(update_fields=['password'])
+      # Invalida este token e todos os demais do mesmo usuário na mesma transação.
+      TokenRecuperacaoSenha.objects.filter(usuario=usuario, usado_em__isnull=True).update(usado_em=timezone.now())
+      registrar_log_recuperacao_senha(usuario, evento='SUCESSO', ip=request.META.get('REMOTE_ADDR'), token=token)
 
     # Mensagem de sucesso e redireciona para a página de login
     messages.success(request, 'Senha redefinida com sucesso. Faça login com a nova senha.')
@@ -352,6 +376,22 @@ def exportar_dados_view(request):
     dados['telefone'] = usuario.responsavel.telefone
     dados['parentesco_principal'] = usuario.responsavel.parentesco_principal
 
+  # Inclui histórico de consentimento, registros acadêmicos e comunicações do titular.
+  dados['consentimentos'] = list(usuario.consentimentos.values('tipo', 'aceito', 'versao_termos', 'registrado_em', 'aluno_representado_id'))
+  from apps.academico.models import Matricula, Aula
+  from apps.atividades.models import Entrega, Atividade
+  from apps.comunicacao.models import Mensagem
+  if hasattr(usuario, 'aluno'):
+    dados['matriculas'] = list(Matricula.objects.filter(aluno=usuario.aluno).values('turma__nome', 'turma__ano', 'status', 'data_matricula'))
+    dados['entregas'] = list(Entrega.objects.filter(aluno=usuario.aluno).values('atividade__titulo', 'resposta', 'nota', 'comentario_professor', 'entregue_em'))
+  elif hasattr(usuario, 'professor'):
+    dados['aulas_registradas'] = list(Aula.objects.filter(professor=usuario.professor).values('turma__nome', 'data', 'conteudo'))
+    dados['atividades_publicadas'] = list(Atividade.objects.filter(professor=usuario.professor).values('titulo', 'descricao', 'prazo'))
+  elif hasattr(usuario, 'responsavel'):
+    dados['alunos_vinculados'] = list(usuario.responsavel.alunos_vinculados.values('matricula'))
+  dados['mensagens_enviadas'] = list(Mensagem.objects.filter(remetente=usuario).values('assunto', 'texto', 'enviada_em'))
+  dados['mensagens_recebidas'] = list(Mensagem.objects.filter(destinatario=usuario).values('assunto', 'texto', 'enviada_em'))
+
   # Retorna os dados em formato JSON, com o cabeçalho para download do arquivo
   resposta = JsonResponse(dados, json_dumps_params={'ensure_ascii': False, 'indent': 2})
   resposta['Content-Disposition'] = 'attachment; filename="meus_dados.json"'
@@ -374,9 +414,46 @@ def excluir_dados_view(request):
       messages.error(request, 'Senha incorreta. A conta não foi excluída.')
       return render(request, 'html/meus_dados/excluir_conta/excluir.html')
 
+    # Preserva referências acadêmicas obrigatórias, mas remove dados de identificação.
+    # A retenção de históricos está sujeita à política institucional e à LGPD.
+    with transaction.atomic():
+      usuario.email = f'conta-{usuario.pk}@example.invalid'
+      usuario.nome = 'Conta desidentificada'
+      usuario.first_name = ''
+      usuario.last_name = ''
+      usuario.is_active = False
+      usuario.is_staff = False
+      usuario.is_superuser = False
+      usuario.otp_ativado = False
+      usuario.otp_secret = None
+      usuario.set_unusable_password()
+      usuario.save()
+      if hasattr(usuario, 'aluno'):
+        aluno = usuario.aluno
+        aluno.matricula = f'REMOVIDA-{aluno.pk}'
+        aluno.data_nascimento = None
+        aluno.telefone = None
+        aluno.endereco = None
+        aluno.save()
+      if hasattr(usuario, 'professor'):
+        professor = usuario.professor
+        professor.telefone = None
+        professor.formacao = 'Não informado'
+        professor.especialidade = None
+        professor.save()
+      if hasattr(usuario, 'responsavel'):
+        responsavel = usuario.responsavel
+        responsavel.telefone = None
+        responsavel.parentesco_principal = None
+        responsavel.save()
+      # IP não é necessário nos logs já vinculados à conta desidentificada.
+      usuario.logacesso_set.update(ip=None)
+      usuario.logrecuperacaosenha_set.update(ip=None)
+      usuario.consentimentos.update(ip=None)
+      usuario.tokens_recuperacao.all().delete()
+      registrar_operacao(usuario, 'CONTA_DESIDENTIFICADA', usuario.pk)
     logout(request)
-    usuario.delete()
-    messages.success(request, 'Sua conta e seus dados foram excluídos com sucesso.')
+    messages.success(request, 'Acesso encerrado e cadastro desidentificado. Históricos sujeitos a retenção legal foram preservados.')
     return redirect('login')
 
   return render(request, 'html/meus_dados/excluir_conta/excluir.html')
@@ -390,7 +467,12 @@ def atualizar_telefone_view(request):
     usuario = request.user
     
     # Pega o novo telefone do formulário e atualiza o campo telefone do usuário, dependendo do perfil (aluno, professor ou responsável)
-    novo_telefone = request.POST.get('telefone')
+    novo_telefone = (request.POST.get('telefone') or '').strip()
+    digitos = ''.join(letra for letra in novo_telefone if letra in '0123456789')
+    if novo_telefone and not 10 <= len(digitos) <= 13:
+      messages.error(request, 'Telefone inválido.')
+      return redirect('meus_dados_view')
+    novo_telefone = digitos
 
     # Atualiza o telefone do usuário, dependendo do perfil (aluno, professor ou responsável)
     if hasattr(usuario, 'aluno'):
@@ -415,23 +497,43 @@ def termos_view(request):
 
   # Se o usuário enviar o formulário com os consentimentos, atualiza os consentimentos do usuário e redireciona para a página de Meus Dados
   if request.method == 'POST':
+    # O responsável pode registrar autorização para uma criança vinculada.
+    representado = None
+    aluno_id = request.POST.get('aluno_representado')
+    if aluno_id:
+      if not hasattr(usuario, 'responsavel'):
+        messages.error(request, 'Somente responsáveis autorizados podem representar um aluno.')
+        return redirect('termos_view')
+      id_valido = aluno_id.isascii() and aluno_id.isdecimal() and len(aluno_id) <= 19 and 0 < int(aluno_id) <= 9223372036854775807
+      representado = usuario.responsavel.alunos_vinculados.filter(pk=aluno_id).first() if id_valido else None
+      if representado is None:
+        messages.error(request, 'Aluno não vinculado a este responsável.')
+        return redirect('termos_view')
+    elif hasattr(usuario, 'aluno') and usuario.aluno.data_nascimento:
+      nascimento = usuario.aluno.data_nascimento
+      hoje = timezone.localdate()
+      idade = hoje.year - nascimento.year - ((hoje.month, hoje.day) < (nascimento.month, nascimento.day))
+      if idade < 12 and any(request.POST.get(tipo) == 'on' for tipo, _ in TIPO_CONSENTIMENTO):
+        messages.error(request, 'Crianças precisam de autorização do responsável legal.')
+        return redirect('termos_view')
     # Para cada tipo de consentimento, pega o valor do formulário e compara com o valor atual do banco de dados
     for tipo, _ in TIPO_CONSENTIMENTO:
       # Pega o valor do formulário e compara com o valor atual do banco de dados
       aceito = request.POST.get(tipo) == 'on'
       
       # Pega o consentimento atual do usuário para o tipo de consentimento, se existir
-      atual = consentimentos_atuais(usuario).get(tipo)
+      atual = consentimentos_atuais(usuario, aluno_representado=representado).get(tipo)
 
       # Só registra um evento novo se o estado realmente mudou, pra não poluir o histórico
       if atual is None or atual.aceito != aceito:
-        registrar_consentimento(usuario, tipo=tipo, aceito=aceito, ip=request.META.get('REMOTE_ADDR'))
+        registrar_consentimento(usuario, tipo=tipo, aceito=aceito, ip=request.META.get('REMOTE_ADDR'), aluno_representado=representado)
 
     messages.success(request, 'Preferências de privacidade salvas com sucesso.')
     return redirect('termos_view')
 
   # Pega o status atual dos consentimentos do usuário para exibir na tela
   status_atual = consentimentos_atuais(usuario)
+  alunos_vinculados = usuario.responsavel.alunos_vinculados.all() if hasattr(usuario, 'responsavel') else Aluno.objects.none()
   
   # Pega o status de cada consentimento, se existir, e passa para o template
   imagem = status_atual.get('USO_IMAGEM')
@@ -443,6 +545,7 @@ def termos_view(request):
   return render(request, 'html/meus_dados/termos.html', {
     'imagem_aceito': imagem.aceito if imagem else False,
     'whatsapp_aceito': whatsapp.aceito if whatsapp else False,
+    'alunos_vinculados': alunos_vinculados,
   })
 
 @login_required(login_url='login')
