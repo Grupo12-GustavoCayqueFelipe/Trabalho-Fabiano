@@ -60,7 +60,7 @@ class Disciplina(models.Model):
 
 class Matricula(models.Model):
     # Define o aluno que está matriculado, que possui um relacionamento com a tabela de alunos.
-    aluno = models.ForeignKey('usuarios.Aluno', on_delete=models.CASCADE, related_name='matriculas')
+    aluno = models.ForeignKey('usuarios.Aluno', on_delete=models.PROTECT, related_name='matriculas')
     
     # Define a turma em que o aluno está matriculado, que possui um relacionamento com a tabela de turmas.
     turma = models.ForeignKey('Turma', on_delete=models.PROTECT)

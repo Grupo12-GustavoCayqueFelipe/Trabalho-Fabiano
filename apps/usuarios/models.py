@@ -26,6 +26,8 @@ EVENTO_ACESSO = [
     ('CONTA_BLOQUEADA', 'Conta bloqueada devido a múltiplas tentativas de login falhas'),
     ('2FA_SUCESSO', 'Autenticação de dois fatores bem-sucedida'),
     ('2FA_FALHA', 'Falha na autenticação de dois fatores'),
+    ('2FA_ATIVADO', 'Segundo fator ativado'),
+    ('2FA_DESATIVADO', 'Segundo fator desativado'),
 ]
 
 # Define o tipo de consentimento do aluno para uso de imagem e comunicação por WhatsApp
@@ -112,7 +114,7 @@ class Aluno(models.Model):
     
     # Campos personalizados de aluno
     matricula = models.CharField(max_length=20, unique=True)
-    data_nascimento = EncryptedDateField()
+    data_nascimento = EncryptedDateField(null=True, blank=True)
     telefone = EncryptedCharField(max_length=15, blank=True, null=True)
     endereco = EncryptedTextField(blank=True, null=True)
     
@@ -183,7 +185,7 @@ class AlunoResponsavel(models.Model):
 # Classe de log de recuperação de senha, que possui um relacionamento com a tabela de usuários.
 class LogRecuperacaoSenha(models.Model):
     # Campo de relacionamento com a tabela de usuários.
-    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, db_column='usuario_id')
+    usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True, db_column='usuario_id')
     
     # Guarda oque aconteceu no log
     evento = models.CharField(max_length=50, choices=EVENTO_LOG)
@@ -203,7 +205,7 @@ class LogRecuperacaoSenha(models.Model):
     
     # Define a representação em string do objeto LogRecuperacaoSenha
     def __str__(self):
-        return f"{self.evento} - Código: {self.usuario.email} - Usado: {self.criado_em}"    
+        return f"{self.evento} - Código: {self.usuario.email if self.usuario else 'Conta excluída'} - Usado: {self.criado_em}"    
 
 # Classe de token de recuperação de senha, que possui um relacionamento com a tabela de usuários.
 class TokenRecuperacaoSenha(models.Model):
@@ -235,7 +237,7 @@ class TokenRecuperacaoSenha(models.Model):
 
 # Classe de log de acesso, que possui um relacionamento com a tabela de usuários.
 class LogAcesso(models.Model):
-    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, db_column='usuario_id')
+    usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True, db_column='usuario_id')
     
     evento = models.CharField(max_length=50, choices=EVENTO_ACESSO)
     
@@ -247,7 +249,7 @@ class LogAcesso(models.Model):
         db_table = 'log_acesso'
     
     def __str__(self):
-        return f"{self.evento} - Código: {self.usuario.email} - Usado: {self.criado_em}"
+        return f"{self.evento} - Código: {self.usuario.email if self.usuario else 'Conta excluída'} - Usado: {self.criado_em}"
 
 # Função para registrar logs de acesso, que cria um novo registro na tabela de logs de acesso.
 def registrar_log_acesso(usuario, evento, ip=None):
@@ -268,6 +270,9 @@ def registrar_log_recuperacao_senha(usuario, evento, token=None, ip=None):
 class ConsentimentoUsuario(models.Model):
     # Define o usuário que deu o consentimento, que possui um relacionamento com a tabela de usuários.
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='consentimentos')
+
+    # Responsável pode registrar consentimento referente a um aluno vinculado.
+    aluno_representado = models.ForeignKey('Aluno', on_delete=models.PROTECT, null=True, blank=True, related_name='consentimentos_responsaveis')
     
     # Define o tipo de consentimento, que pode ser uso de imagem ou comunicação por WhatsApp.
     tipo = models.CharField(max_length=30, choices=TIPO_CONSENTIMENTO)
@@ -292,13 +297,32 @@ class ConsentimentoUsuario(models.Model):
         return f"{self.usuario.email} - {self.tipo} - {status} ({self.registrado_em})"
 
 # Função para registrar o consentimento do usuário, que cria um novo registro na tabela de consentimentos do usuário.
-def registrar_consentimento(usuario, tipo, aceito, ip=None):
-    ConsentimentoUsuario.objects.create(usuario=usuario, tipo=tipo, aceito=aceito, ip=ip)
+def registrar_consentimento(usuario, tipo, aceito, ip=None, aluno_representado=None):
+    ConsentimentoUsuario.objects.create(usuario=usuario, tipo=tipo, aceito=aceito, ip=ip, aluno_representado=aluno_representado)
 
 # Função para obter os consentimentos atuais do usuário, que retorna um dicionário com os tipos de consentimento e seus respectivos registros mais recentes.
-def consentimentos_atuais(usuario):
+def consentimentos_atuais(usuario, aluno_representado=None):
     # Obtém os consentimentos atuais do usuário, que retorna um dicionário com os tipos de consentimento e seus respectivos registros mais recentes.
     atuais = {}
-    for consentimento in usuario.consentimentos.order_by('registrado_em'):
+    for consentimento in usuario.consentimentos.filter(aluno_representado=aluno_representado).order_by('registrado_em', 'pk'):
         atuais[consentimento.tipo] = consentimento
     return atuais
+
+# Registra ações de escrita importantes sem copiar mensagens ou dados pessoais para o log.
+class LogOperacao(models.Model):
+    # O histórico permanece quando a conta é excluída.
+    usuario = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True)
+    evento = models.CharField(max_length=60)
+    objeto_id = models.PositiveBigIntegerField(null=True, blank=True)
+    criado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'log_operacao'
+
+    def __str__(self):
+        return f'{self.evento} - {self.criado_em}'
+
+
+# Uso compartilhado pelos módulos, sempre com evento e ID, sem conteúdo sensível.
+def registrar_operacao(usuario, evento, objeto_id=None):
+    LogOperacao.objects.create(usuario=usuario, evento=evento, objeto_id=objeto_id)
