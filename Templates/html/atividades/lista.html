@@ -1,0 +1,38 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Atividades - EduControll</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/modulos.css' %}">
+</head>
+<body>
+    <header><h1>Atividades</h1><nav><a href="{% url 'dashboard' %}">Painel</a> | <a href="{% url 'comunicacao_painel' %}">Comunicação</a></nav></header>
+    <main>
+        {% for message in messages %}<p class="mensagem {{ message.tags }}">{{ message }}</p>{% endfor %}
+        {% if user.perfil == 'PROF' %}
+        <section class="card">
+            <h2>Publicar atividade</h2>
+            <form method="POST" action="{% url 'atividade_criar' %}">
+                {% csrf_token %}
+                <label>Título <input name="titulo" maxlength="120" required></label>
+                <label>Descrição <textarea name="descricao" maxlength="4000" rows="5" required></textarea></label>
+                <label>Turma <select name="turma" required><option value="">Selecione</option>{% for turma in turmas %}<option value="{{ turma.pk }}">{{ turma }}</option>{% endfor %}</select></label>
+                <label>Disciplina <select name="disciplina" required><option value="">Selecione</option>{% for disciplina in disciplinas %}<option value="{{ disciplina.pk }}">{{ disciplina }}</option>{% endfor %}</select></label>
+                <label>Prazo <input type="datetime-local" name="prazo" required></label>
+                <button type="submit">Publicar</button>
+            </form>
+        </section>
+        {% endif %}
+        <section class="card"><h2>Atividades disponíveis</h2>
+            {% for atividade in atividades %}
+            <article><h3><a href="{% url 'atividade_detalhe' atividade.pk %}">{{ atividade.titulo }}</a></h3>
+                <p>{{ atividade.turma }} • {{ atividade.disciplina }} • Prazo: {{ atividade.prazo|date:'d/m/Y H:i' }}</p>
+            </article>
+            {% empty %}<p>Nenhuma atividade disponível para seu perfil.</p>{% endfor %}
+        </section>
+    </main>
+</body>
+</html>
