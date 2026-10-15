@@ -20,6 +20,8 @@ from django.urls import path
 # Após erro apelidei de 'usuarios_views' para não dar conflito com o nome do app
 from apps.usuarios import views as usuarios_views
 from apps.academico import views as academico_views
+from apps.atividades import views as atividades_views
+from apps.comunicacao import views as comunicacao_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -59,4 +61,21 @@ urlpatterns = [
     path('academico/matriculas/', academico_views.historico_matriculas_view, name='historico_matriculas_view'),
     # rota para a página de lançamento e registro de aulas ministradas
     path('academico/aulas/registrar/', academico_views.registrar_aula_view, name='registrar_aula_view'),
+    # Atividades: professor publica, aluno entrega e professor corrige.
+    path('atividades/', atividades_views.atividades_lista_view, name='atividades_lista'),
+    # rota para a página de criação de atividades, onde o professor pode criar novas atividades e definir suas datas de entrega
+    path('atividades/criar/', atividades_views.atividade_criar_view, name='atividade_criar'),
+    # rota para a página de edição de atividades, onde o professor pode editar atividades já criadas
+    path('atividades/<int:atividade_id>/', atividades_views.atividade_detalhe_view, name='atividade_detalhe'),
+    # rota para a página de entrega de atividades, onde o aluno pode enviar suas respostas para as atividades criadas pelo professor
+    path('atividades/<int:atividade_id>/entregar/', atividades_views.entrega_salvar_view, name='entrega_salvar'),
+    # rota para a página de correção de entregas, onde o professor pode corrigir as respostas enviadas pelos alunos
+    path('atividades/<int:atividade_id>/corrigir/<int:entrega_id>/', atividades_views.entrega_corrigir_view, name='entrega_corrigir'),
+    # Comunicação: mural por turma e mensagens internas restritas.
+    path('comunicacao/', comunicacao_views.comunicacao_painel_view, name='comunicacao_painel'),
+    # rota para a página de criação de avisos, onde o professor pode criar novos avisos para os alunos
+    path('comunicacao/aviso/criar/', comunicacao_views.aviso_criar_view, name='aviso_criar'),
+    # rota para a página de envio de mensagens, onde o usuário pode enviar mensagens privadas para outros usuários
+    path('comunicacao/mensagem/enviar/', comunicacao_views.mensagem_enviar_view, name='mensagem_enviar'),
+
 ]
