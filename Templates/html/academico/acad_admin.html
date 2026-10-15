@@ -19,7 +19,10 @@
             <a href="#disciplinas">📖 Disciplinas</a>
             <a href="#matricula">🎓 Matrícula</a>
             <a href="#historico">📋 Histórico</a>
-        </nav>
+        <!-- Novos módulos mantêm o menu existente e respeitam o perfil no servidor. -->
+<a href="{% url 'atividades_lista' %}">Atividades</a>
+<a href="{% url 'comunicacao_painel' %}">Comunicação</a>
+</nav>
         <div class="sidebar-bottom">
             <form action="{% url 'logout' %}" method="POST">
                 {% csrf_token %}

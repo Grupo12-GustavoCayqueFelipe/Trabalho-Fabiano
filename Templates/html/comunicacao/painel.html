@@ -1,0 +1,41 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Comunicação - EduControll</title><link rel="stylesheet" href="{% static 'css/style.css' %}"><link rel="stylesheet" href="{% static 'css/modulos.css' %}"></head>
+<body>
+    <header><h1>Comunicação escolar</h1><nav><a href="{% url 'dashboard' %}">Painel</a> | <a href="{% url 'atividades_lista' %}">Atividades</a></nav></header>
+    <main>
+        {% for message in messages %}<p class="mensagem {{ message.tags }}">{{ message }}</p>{% endfor %}
+        {% if user.perfil == 'ADMIN' or user.perfil == 'PROF' %}
+        <section class="card"><h2>Publicar aviso</h2>
+            <form method="POST" action="{% url 'aviso_criar' %}">{% csrf_token %}
+                <label>Título <input name="titulo" maxlength="120" required></label>
+                <label>Texto <textarea name="texto" maxlength="3000" rows="5" required></textarea></label>
+                <label>Turma <select name="turma"><option value="">{% if user.perfil == 'ADMIN' %}Aviso geral{% else %}Selecione a turma{% endif %}</option>{% for turma in turmas %}<option value="{{ turma.pk }}">{{ turma }}</option>{% endfor %}</select></label>
+                <button type="submit">Publicar aviso</button>
+            </form>
+        </section>
+        <section class="card"><h2>Enviar mensagem</h2>
+            <form method="POST" action="{% url 'mensagem_enviar' %}">{% csrf_token %}
+                <label>Destinatário <select name="destinatario" required><option value="">Selecione</option>{% for destinatario in destinatarios %}<option value="{{ destinatario.pk }}">{{ destinatario.nome }} ({{ destinatario.get_perfil_display }})</option>{% endfor %}</select></label>
+                <label>Assunto <input name="assunto" maxlength="120" required></label>
+                <label>Mensagem <textarea name="texto" maxlength="3000" rows="4" required></textarea></label>
+                <button type="submit">Enviar</button>
+            </form>
+        </section>
+        {% endif %}
+        <section class="card"><h2>Mural de avisos</h2>
+            {% for aviso in avisos %}<article><h3>{{ aviso.titulo }}</h3><p>{{ aviso.turma|default:'Aviso geral' }} • {{ aviso.criado_em|date:'d/m/Y H:i' }}</p><p class="texto">{{ aviso.texto|linebreaksbr }}</p></article>
+            {% empty %}<p>Não existem avisos para seu perfil.</p>{% endfor %}
+        </section>
+        <section class="card"><h2>Mensagens recebidas</h2>
+            {% for item in mensagens_recebidas %}<article><h3>{{ item.assunto }}</h3><p>De: {{ item.remetente.nome }} • {{ item.enviada_em|date:'d/m/Y H:i' }}</p><p class="texto">{{ item.texto|linebreaksbr }}</p></article>
+            {% empty %}<p>Nenhuma mensagem recebida.</p>{% endfor %}
+        </section>
+        <section class="card"><h2>Mensagens enviadas</h2>
+            {% for item in mensagens_enviadas %}<article><h3>{{ item.assunto }}</h3><p>Para: {{ item.destinatario.nome }}</p><p class="texto">{{ item.texto|linebreaksbr }}</p></article>
+            {% empty %}<p>Nenhuma mensagem enviada.</p>{% endfor %}
+        </section>
+    </main>
+</body>
+</html>
