@@ -208,6 +208,9 @@ class RecuperacaoSenhaTest(BaseUsuarioTest):
                 resposta, reverse("login"), fetch_redirect_response=False
             )
         self.assertEqual(TokenRecuperacaoSenha.objects.count(), 5)
+        # Uma sexta requisição não pode gerar outro token.
+        self.pedir()
+        self.assertEqual(TokenRecuperacaoSenha.objects.count(), 5)
 
     def test_senha_fraca_e_recusada(self):
         self.pedir()
@@ -288,7 +291,8 @@ class LogsSomenteLeituraTest(BaseUsuarioTest):
             resposta = self.client.post(
                 caminho, {"evento": "LOGIN_SUCESSO", "post": "yes"}
             )
-            self.assertEqual(resposta.status_code, 403, caminho)
+            # O acesso sem TOTP é barrado antes de chegar à alteração do log.
+            self.assertEqual(resposta.status_code, 302, caminho)
         self.assertEqual(LogAcesso.objects.get().evento, "LOGIN_FALHA")
 
 
@@ -310,3 +314,80 @@ class TermosTest(BaseUsuarioTest):
             .values_list("aceito", flat=True)
         )
         self.assertEqual(historico, [True, False])
+
+
+class SegurancaComplementarTest(BaseUsuarioTest):
+    # Testa a ativação que antes ficava em um bloco inalcançável.
+    def test_ativacao_do_2fa_funciona(self):
+        self.client.force_login(self.usuario)
+        self.client.get(reverse('2fa_configurar'))
+        self.usuario.refresh_from_db()
+        codigo = pyotp.TOTP(self.usuario.otp_secret).now()
+        self.client.post(reverse('2fa_configurar'), {'acao': 'ativar', 'codigo': codigo})
+        self.usuario.refresh_from_db()
+        self.assertTrue(self.usuario.otp_ativado)
+        self.assertTrue(LogAcesso.objects.filter(evento='2FA_ATIVADO').exists())
+
+    # Staff autenticado somente com senha não pode visualizar o admin.
+    def test_admin_exige_2fa_confirmado(self):
+        staff = Usuario.objects.create_superuser(email='staff@t.com', password=SENHA, nome='Staff')
+        self.client.force_login(staff)
+        self.assertEqual(self.client.get('/admin/').status_code, 302)
+        self.assertEqual(self.client.post('/admin/login/', {'username': staff.email, 'password': SENHA}).status_code, 302)
+        staff.otp_ativado = True
+        staff.otp_secret = pyotp.random_base32()
+        staff.save()
+        sessao = self.client.session
+        sessao['2fa_verificado'] = staff.pk
+        sessao.save()
+        self.assertEqual(self.client.get('/admin/').status_code, 200)
+
+    # Uma pessoa que não conhece a turma não pode consultar atividades de terceiros.
+    def test_login_excluido_impede_autenticacao(self):
+        self.client.force_login(self.usuario)
+        self.client.post(reverse('excluir_dados_view'), {'senha': SENHA, 'confirmar': 'on'})
+        self.usuario.refresh_from_db()
+        self.assertFalse(self.usuario.is_active)
+        self.assertEqual(self.usuario.nome, 'Conta desidentificada')
+        self.assertFalse(self.usuario.has_usable_password())
+
+
+class ConsentimentoCriancaTest(BaseUsuarioTest):
+    def test_crianca_nao_aceita_sem_responsavel(self):
+        import datetime as dt
+        from .models import Aluno, Responsavel, AlunoResponsavel
+        from django.utils import timezone as tz
+        crianca = Aluno.objects.create(
+            usuario=self.usuario, matricula='CRI-01',
+            data_nascimento=tz.localdate() - dt.timedelta(days=365 * 8)
+        )
+        self.client.force_login(self.usuario)
+        self.client.post(reverse('termos_view'), {'USO_IMAGEM': 'on'})
+        self.assertFalse(ConsentimentoUsuario.objects.filter(usuario=self.usuario, aceito=True).exists())
+
+        responsavel_usuario = Usuario.objects.create_user(
+            email='responsavel-test@teste.local', password=SENHA,
+            nome='Responsável Teste', perfil='RESP'
+        )
+        responsavel = Responsavel.objects.create(usuario=responsavel_usuario)
+        AlunoResponsavel.objects.create(aluno=crianca, responsavel=responsavel)
+        self.client.force_login(responsavel_usuario)
+        self.client.post(reverse('termos_view'), {'aluno_representado': crianca.pk, 'USO_IMAGEM': 'on'})
+        self.assertTrue(ConsentimentoUsuario.objects.filter(
+            usuario=responsavel_usuario, aluno_representado=crianca,
+            tipo='USO_IMAGEM', aceito=True
+        ).exists())
+
+    def test_responsavel_nao_concede_consentimento_para_aluno_alheio(self):
+        import datetime as dt
+        from .models import Aluno, Responsavel
+        from django.utils import timezone as tz
+        aluno = Aluno.objects.create(
+            usuario=self.usuario, matricula='CRI-02',
+            data_nascimento=tz.localdate() - dt.timedelta(days=365 * 8)
+        )
+        outro = Usuario.objects.create_user(email='resp2@teste.local', password=SENHA, nome='Responsável', perfil='RESP')
+        Responsavel.objects.create(usuario=outro)
+        self.client.force_login(outro)
+        self.client.post(reverse('termos_view'), {'aluno_representado': aluno.pk, 'USO_IMAGEM': 'on'})
+        self.assertFalse(ConsentimentoUsuario.objects.filter(aluno_representado=aluno).exists())

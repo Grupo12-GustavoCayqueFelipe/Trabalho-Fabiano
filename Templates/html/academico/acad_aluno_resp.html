@@ -63,6 +63,7 @@
             <table>
                 <thead>
                     <tr>
+                        <th>Aluno</th>
                         <th>Turma</th>
                         <th>Ano</th>
                         <th>Turno</th>
@@ -73,6 +74,7 @@
                 <tbody>
                     {% for m in matriculas %}
                         <tr>
+                            <td>{{ m.aluno.usuario.nome }}</td>
                             <td>{{ m.turma.nome }}</td>
                             <td>{{ m.turma.ano }}</td>
                             <td>{{ m.turma.get_turno_display }}</td>
@@ -82,7 +84,7 @@
                             </td>
                         </tr>
                     {% empty %}
-                        <tr><td colspan="5">Nenhuma matrícula encontrada.</td></tr>
+                        <tr><td colspan="6">Nenhuma matrícula encontrada.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

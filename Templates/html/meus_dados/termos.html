@@ -201,5 +201,20 @@
 
     <script src="{% static 'js/termos.js' %}"></script>
 
+
+        <!-- Responsável confirma a autorização específica para o aluno vinculado. -->
+        {% if alunos_vinculados %}
+        <section class="card">
+            <h2>Autorização para aluno vinculado</h2>
+            <p>O responsável pode aceitar ou revogar o uso de imagem e a comunicação por WhatsApp para uma criança vinculada.</p>
+            <form method="POST" action="{% url 'termos_view' %}">
+                {% csrf_token %}
+                <label>Aluno <select name="aluno_representado" required>{% for aluno in alunos_vinculados %}<option value="{{ aluno.pk }}">{{ aluno.usuario.nome }}</option>{% endfor %}</select></label>
+                <label><input type="checkbox" name="USO_IMAGEM"> Autorizar uso de imagem</label>
+                <label><input type="checkbox" name="COMUNICACAO_WHATSAPP"> Autorizar comunicação por WhatsApp</label>
+                <button type="submit">Registrar autorização ou revogação</button>
+            </form>
+        </section>
+        {% endif %}
 </body>
 </html>
