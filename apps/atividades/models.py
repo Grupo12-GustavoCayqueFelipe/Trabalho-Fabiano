@@ -34,6 +34,8 @@ class Entrega(models.Model):
     nota = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(10)])
     comentario_professor = EncryptedTextField(max_length=2000, blank=True)
     corrigida_em = models.DateTimeField(null=True, blank=True)
+    # A entrega após o prazo continua permitida, mas fica identificada.
+    atrasada = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'entregas_atividades'
@@ -41,3 +43,18 @@ class Entrega(models.Model):
 
     def __str__(self):
         return f'Entrega {self.pk} - atividade {self.atividade_id}'
+
+
+# Guarda cada correção, sem sobrescrever o histórico acadêmico anterior.
+class HistoricoCorrecao(models.Model):
+    entrega = models.ForeignKey(Entrega, on_delete=models.PROTECT, related_name='historico_correcoes')
+    professor = models.ForeignKey(Professor, on_delete=models.PROTECT)
+    nota_anterior = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+    nota_nova = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True)
+    comentario_anterior = EncryptedTextField(max_length=2000, blank=True)
+    comentario_novo = EncryptedTextField(max_length=2000, blank=True)
+    alterado_em = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'historico_correcoes'
+        ordering = ['-alterado_em', '-pk']

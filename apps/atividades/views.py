@@ -11,7 +11,7 @@ from django.views.decorators.http import require_POST
 
 from apps.academico.models import Turma, Disciplina, Matricula
 from apps.usuarios.models import registrar_operacao
-from .models import Atividade, Entrega
+from .models import Atividade, Entrega, HistoricoCorrecao
 
 
 # Confere se o id informado cabe no bigint do PostgreSQL.
@@ -38,7 +38,15 @@ def _aluno_pode_entregar(usuario, atividade):
 
 # Um professor só pode corrigir trabalhos das próprias atividades.
 def _professor_da_atividade(usuario, atividade):
-  return hasattr(usuario, 'professor') and atividade.professor_id == usuario.professor.pk
+  if not hasattr(usuario, 'professor'):
+    return False
+  professor = usuario.professor
+  if atividade.professor_id != professor.pk:
+    return False
+  # A autoria sozinha não dá permissão depois da saída da turma/disciplina.
+  return Disciplina.objects.filter(
+    pk=atividade.disciplina_id, turmas=atividade.turma, professores=professor
+  ).exists()
 
 
 # Lista atividades com RBAC: cada perfil só consulta registros relacionados.
@@ -133,7 +141,7 @@ def atividade_detalhe_view(request, atividade_id):
     'atividade': atividade,
     'entregas': entregas,
     'minha_entrega': minha_entrega,
-    'pode_entregar': _aluno_pode_entregar(request.user, atividade) and atividade.ativa and timezone.now() <= atividade.prazo,
+    'pode_entregar': _aluno_pode_entregar(request.user, atividade) and atividade.ativa and (minha_entrega is None or minha_entrega.corrigida_em is None),
   })
 
 
@@ -142,7 +150,7 @@ def atividade_detalhe_view(request, atividade_id):
 @require_POST
 def entrega_salvar_view(request, atividade_id):
   atividade = get_object_or_404(Atividade, pk=atividade_id, ativa=True)
-  if not _aluno_pode_entregar(request.user, atividade) or timezone.now() > atividade.prazo:
+  if not _aluno_pode_entregar(request.user, atividade):
     return redirect('atividades_lista')
 
   resposta = (request.POST.get('resposta') or '').strip()
@@ -150,15 +158,21 @@ def entrega_salvar_view(request, atividade_id):
     messages.error(request, 'A resposta deve conter de 1 a 5000 caracteres.')
     return redirect('atividade_detalhe', atividade_id=atividade.pk)
 
+  # Mesmo após o prazo, a resposta é armazenada com a marca de atraso.
+  atrasada = timezone.now() > atividade.prazo
   with transaction.atomic():
     # Não é permitido sobrescrever entrega já corrigida.
-    entrega, criada = Entrega.objects.select_for_update().get_or_create(atividade=atividade, aluno=request.user.aluno, defaults={'resposta': resposta})
+    entrega, criada = Entrega.objects.select_for_update().get_or_create(
+      atividade=atividade, aluno=request.user.aluno,
+      defaults={'resposta': resposta, 'atrasada': atrasada}
+    )
     if not criada:
       if entrega.corrigida_em is not None:
         messages.error(request, 'Essa entrega já foi corrigida.')
         return redirect('atividade_detalhe', atividade_id=atividade.pk)
       entrega.resposta = resposta
-      entrega.save(update_fields=['resposta', 'atualizada_em'])
+      entrega.atrasada = atrasada
+      entrega.save(update_fields=['resposta', 'atrasada', 'atualizada_em'])
     registrar_operacao(request.user, 'ENTREGA_SALVA', entrega.pk)
   messages.success(request, 'Resposta enviada com sucesso.')
   return redirect('atividade_detalhe', atividade_id=atividade.pk)
@@ -171,7 +185,6 @@ def entrega_corrigir_view(request, atividade_id, entrega_id):
   atividade = get_object_or_404(Atividade, pk=atividade_id)
   if not _professor_da_atividade(request.user, atividade):
     return redirect('atividades_lista')
-  entrega = get_object_or_404(Entrega, pk=entrega_id, atividade=atividade)
   comentario = (request.POST.get('comentario') or '').strip()
   nota_texto = (request.POST.get('nota') or '').strip()
 
@@ -188,6 +201,16 @@ def entrega_corrigir_view(request, atividade_id, entrega_id):
     return redirect('atividade_detalhe', atividade_id=atividade.pk)
 
   with transaction.atomic():
+    # Bloqueia a linha para evitar perder o histórico em correções simultâneas.
+    entrega = get_object_or_404(
+      Entrega.objects.select_for_update(), pk=entrega_id, atividade=atividade
+    )
+    HistoricoCorrecao.objects.create(
+      entrega=entrega, professor=request.user.professor,
+      nota_anterior=entrega.nota, nota_nova=nota,
+      comentario_anterior=entrega.comentario_professor,
+      comentario_novo=comentario
+    )
     entrega.nota = nota
     entrega.comentario_professor = comentario
     entrega.corrigida_em = timezone.now()

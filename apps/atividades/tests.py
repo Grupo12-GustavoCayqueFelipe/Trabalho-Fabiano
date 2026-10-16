@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from apps.academico.models import Turma, Disciplina, Matricula
 from apps.usuarios.models import Usuario, Professor, Aluno, LogOperacao
-from .models import Atividade, Entrega
+from .models import Atividade, Entrega, HistoricoCorrecao
 
 
 # Os testes usam SQLite isolado, sem acessar banco ou S3 de produção.
@@ -73,12 +73,38 @@ class AtividadesSegurancaTest(TestCase):
         entrega.refresh_from_db()
         self.assertEqual(entrega.resposta, 'Texto final')
 
-    def test_entrega_fora_do_prazo_e_bloqueada(self):
+    # A RN-08 determina que o atraso seja sinalizado, não bloqueado.
+    def test_entrega_fora_do_prazo_e_identificada(self):
         self.atividade.prazo = timezone.now() - datetime.timedelta(seconds=1)
         self.atividade.save()
         self.client.force_login(self.aluno_user)
         self.client.post(reverse('entrega_salvar', args=[self.atividade.pk]), {'resposta': 'Atrasada'})
-        self.assertFalse(Entrega.objects.exists())
+        entrega = Entrega.objects.get()
+        self.assertTrue(entrega.atrasada)
+
+    # Recorreção conserva nota e comentário anteriores na mesma entrega.
+    def test_historico_de_duas_correcoes(self):
+        entrega = Entrega.objects.create(atividade=self.atividade, aluno=self.aluno, resposta='Resposta')
+        self.client.force_login(self.prof_user)
+        rota = reverse('entrega_corrigir', args=[self.atividade.pk, entrega.pk])
+        self.client.post(rota, {'nota': '7.50', 'comentario': 'Revisar texto'})
+        self.client.post(rota, {'nota': '8.00', 'comentario': 'Texto revisado'})
+        historico = list(HistoricoCorrecao.objects.filter(entrega=entrega).order_by('pk'))
+        self.assertEqual(len(historico), 2)
+        self.assertEqual(str(historico[1].nota_anterior), '7.50')
+        self.assertEqual(historico[1].comentario_anterior, 'Revisar texto')
+        entrega.refresh_from_db()
+        self.assertEqual(str(entrega.nota), '8.00')
+
+    # Um professor removido do vínculo com a disciplina não corrige mais.
+    def test_professor_desvinculado_nao_corrige(self):
+        entrega = Entrega.objects.create(atividade=self.atividade, aluno=self.aluno, resposta='Resposta')
+        self.disciplina.professores.remove(self.prof)
+        self.client.force_login(self.prof_user)
+        self.client.post(reverse('entrega_corrigir', args=[self.atividade.pk, entrega.pk]), {'nota': '10'})
+        entrega.refresh_from_db()
+        self.assertIsNone(entrega.nota)
+        self.assertFalse(HistoricoCorrecao.objects.exists())
 
     def test_id_de_turma_excessivo_nao_gera_erro_500(self):
         self.client.force_login(self.prof_user)
