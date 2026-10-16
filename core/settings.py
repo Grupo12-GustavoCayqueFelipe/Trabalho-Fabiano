@@ -77,6 +77,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'core.middleware.Exigir2FAMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -159,7 +160,8 @@ SESSION_COOKIE_HTTPONLY = True
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+# A escola recebe datas e horários no fuso de São Paulo.
+TIME_ZONE = 'America/Sao_Paulo'
 
 USE_I18N = True
 
