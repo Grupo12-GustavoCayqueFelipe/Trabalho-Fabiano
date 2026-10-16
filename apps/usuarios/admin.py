@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import Usuario, Aluno, Professor, Responsavel, AlunoResponsavel, LogRecuperacaoSenha, TokenRecuperacaoSenha, ConsentimentoUsuario, LogAcesso
+from .models import Usuario, Aluno, Professor, Responsavel, AlunoResponsavel, LogRecuperacaoSenha, TokenRecuperacaoSenha, ConsentimentoUsuario, LogAcesso, LogOperacao
 # Register your models here.
 
 # Classe para garantir que o formulário use o hash de senha
@@ -28,12 +28,21 @@ class UsuarioAdmin(UserAdmin):
   )
   
   # Define os campos que serão exibidos no formulário de criação de usuários
+  # Exclusão física apaga vínculos históricos: use a desidentificação prevista no projeto.
+  def has_delete_permission(self, request, obj=None):
+    return False
+
   add_fieldsets = (
     (None, {
       'classes': ('wide',),
       'fields': ('email', 'nome', 'perfil', 'password1', 'password2'),
     }),
   )
+
+# Desativa exclusão física nos perfis com histórico acadêmico e familiar.
+class PerfilProtegidoAdmin(admin.ModelAdmin):
+  def has_delete_permission(self, request, obj=None):
+    return False
 
 # Impede cirar, editar ou apagar regisros de auditoria pelo admin
 class SomenteLeituraAdmin(admin.ModelAdmin):
@@ -82,14 +91,21 @@ class LogAcessoAdmin(SomenteLeituraAdmin):
     # Não deixa editar os campos do log de acesso, apenas visualizar
     readonly_fields = ('usuario', 'evento', 'ip', 'criado_em')
 
+# Logs de operação são visíveis, mas nunca editáveis pela interface.
+class LogOperacaoAdmin(SomenteLeituraAdmin):
+  list_display = ('usuario', 'evento', 'objeto_id', 'criado_em')
+  list_filter = ('evento', 'criado_em')
+  readonly_fields = ('usuario', 'evento', 'objeto_id', 'criado_em')
+
 # Registra o modelo Usuario com a classe UsuarioAdmin
 admin.site.register(Usuario, UsuarioAdmin)
 
-admin.site.register(Aluno)
-admin.site.register(Professor)
-admin.site.register(Responsavel)
-admin.site.register(AlunoResponsavel)
+admin.site.register(Aluno, PerfilProtegidoAdmin)
+admin.site.register(Professor, PerfilProtegidoAdmin)
+admin.site.register(Responsavel, PerfilProtegidoAdmin)
+admin.site.register(AlunoResponsavel, PerfilProtegidoAdmin)
 admin.site.register(LogRecuperacaoSenha, LogRecuperacaoSenhaAdmin)
 admin.site.register(ConsentimentoUsuario, ConsentimentoUsuarioAdmin)
 admin.site.register(LogAcesso, LogAcessoAdmin)
+admin.site.register(LogOperacao, LogOperacaoAdmin)
 admin.site.register(TokenRecuperacaoSenha)

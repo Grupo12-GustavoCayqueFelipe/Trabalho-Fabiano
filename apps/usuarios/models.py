@@ -53,6 +53,11 @@ class UsuarioManager(BaseUserManager):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('is_active', True)
+        # Superusuário também precisa do perfil usado pelas views acadêmicas.
+        extra_fields.setdefault('perfil', 'ADMIN')
+
+        if extra_fields.get('perfil') != 'ADMIN':
+            raise ValueError('Superusuário deve possuir perfil ADMIN.')
 
         if extra_fields.get('is_staff') is not True:
             raise ValueError('Superusuário deve ter is_staff=True.')
@@ -269,7 +274,7 @@ def registrar_log_recuperacao_senha(usuario, evento, token=None, ip=None):
 # Classe de consentimento do usuário, que possui um relacionamento com a tabela de usuários.
 class ConsentimentoUsuario(models.Model):
     # Define o usuário que deu o consentimento, que possui um relacionamento com a tabela de usuários.
-    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='consentimentos')
+    usuario = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='consentimentos')
 
     # Responsável pode registrar consentimento referente a um aluno vinculado.
     aluno_representado = models.ForeignKey('Aluno', on_delete=models.PROTECT, null=True, blank=True, related_name='consentimentos_responsaveis')

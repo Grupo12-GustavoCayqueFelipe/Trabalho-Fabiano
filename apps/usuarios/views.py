@@ -10,7 +10,7 @@ import secrets
 import hashlib
 
 
-from .models import Usuario, consentimentos_atuais, registrar_consentimento, registrar_log_recuperacao_senha, TokenRecuperacaoSenha, TIPO_CONSENTIMENTO, registrar_log_acesso, registrar_operacao, ConsentimentoUsuario, Aluno
+from .models import Usuario, consentimentos_atuais, registrar_consentimento, registrar_log_recuperacao_senha, TokenRecuperacaoSenha, TIPO_CONSENTIMENTO, registrar_log_acesso, registrar_operacao, ConsentimentoUsuario, Aluno, AlunoResponsavel, LogAcesso, LogOperacao, LogRecuperacaoSenha
 from django.utils import timezone
 from django.contrib import messages
 from django.shortcuts import redirect, render
@@ -379,16 +379,30 @@ def exportar_dados_view(request):
   # Inclui histórico de consentimento, registros acadêmicos e comunicações do titular.
   dados['consentimentos'] = list(usuario.consentimentos.values('tipo', 'aceito', 'versao_termos', 'registrado_em', 'aluno_representado_id'))
   from apps.academico.models import Matricula, Aula
-  from apps.atividades.models import Entrega, Atividade
-  from apps.comunicacao.models import Mensagem
+  from apps.atividades.models import Entrega, Atividade, HistoricoCorrecao
+  from apps.comunicacao.models import Mensagem, Aviso
   if hasattr(usuario, 'aluno'):
     dados['matriculas'] = list(Matricula.objects.filter(aluno=usuario.aluno).values('turma__nome', 'turma__ano', 'status', 'data_matricula'))
-    dados['entregas'] = list(Entrega.objects.filter(aluno=usuario.aluno).values('atividade__titulo', 'resposta', 'nota', 'comentario_professor', 'entregue_em'))
+    dados['entregas'] = list(Entrega.objects.filter(aluno=usuario.aluno).values('atividade__titulo', 'resposta', 'nota', 'comentario_professor', 'entregue_em', 'atrasada'))
+    # O aluno pode conferir as alterações das notas de suas entregas.
+    dados['historico_correcoes'] = list(HistoricoCorrecao.objects.filter(entrega__aluno=usuario.aluno).values(
+      'entrega__atividade__titulo', 'nota_anterior', 'nota_nova',
+      'comentario_anterior', 'comentario_novo', 'alterado_em'
+    ))
   elif hasattr(usuario, 'professor'):
     dados['aulas_registradas'] = list(Aula.objects.filter(professor=usuario.professor).values('turma__nome', 'data', 'conteudo'))
     dados['atividades_publicadas'] = list(Atividade.objects.filter(professor=usuario.professor).values('titulo', 'descricao', 'prazo'))
+    dados['correcoes_realizadas'] = list(HistoricoCorrecao.objects.filter(professor=usuario.professor).values(
+      'entrega__atividade__titulo', 'nota_anterior', 'nota_nova', 'alterado_em'
+    ))
   elif hasattr(usuario, 'responsavel'):
-    dados['alunos_vinculados'] = list(usuario.responsavel.alunos_vinculados.values('matricula'))
+    # O parentesco foi cadastrado pelo próprio vínculo do responsável.
+    dados['alunos_vinculados'] = list(AlunoResponsavel.objects.filter(responsavel=usuario.responsavel).values('aluno__matricula', 'parentesco'))
+  # Não exporta segredos TOTP, hash de tokens ou dados de terceiros sem vínculo.
+  dados['avisos_publicados'] = list(Aviso.objects.filter(autor=usuario).values('titulo', 'texto', 'criado_em'))
+  dados['logs_acesso'] = list(LogAcesso.objects.filter(usuario=usuario).values('evento', 'ip', 'criado_em'))
+  dados['operacoes'] = list(LogOperacao.objects.filter(usuario=usuario).values('evento', 'objeto_id', 'criado_em'))
+  dados['recuperacoes_senha'] = list(LogRecuperacaoSenha.objects.filter(usuario=usuario).values('evento', 'ip', 'criado_em'))
   dados['mensagens_enviadas'] = list(Mensagem.objects.filter(remetente=usuario).values('assunto', 'texto', 'enviada_em'))
   dados['mensagens_recebidas'] = list(Mensagem.objects.filter(destinatario=usuario).values('assunto', 'texto', 'enviada_em'))
 
@@ -400,7 +414,12 @@ def exportar_dados_view(request):
 
 # Tela onde o usuário logado pode excluir sua conta e todos os dados pessoais
 @login_required(login_url='login')
+@ratelimit(key='user', rate='5/m', block=False, method='POST')
 def excluir_dados_view(request):
+  # Impede tentativas repetidas da senha em sessão autenticada.
+  if getattr(request, 'limited', False):
+    messages.error(request, 'Muitas tentativas. Tente novamente mais tarde.')
+    return redirect('meus_dados_view')
   if request.method == 'POST':
     senha = request.POST.get('senha')
     confirmar = request.POST.get('confirmar') == 'on'
@@ -509,10 +528,13 @@ def termos_view(request):
       if representado is None:
         messages.error(request, 'Aluno não vinculado a este responsável.')
         return redirect('termos_view')
-    elif hasattr(usuario, 'aluno') and usuario.aluno.data_nascimento:
+    elif hasattr(usuario, 'aluno'):
+      # Sem data de nascimento não dá para presumir a maioridade.
       nascimento = usuario.aluno.data_nascimento
-      hoje = timezone.localdate()
-      idade = hoje.year - nascimento.year - ((hoje.month, hoje.day) < (nascimento.month, nascimento.day))
+      idade = 0
+      if nascimento is not None:
+        hoje = timezone.localdate()
+        idade = hoje.year - nascimento.year - ((hoje.month, hoje.day) < (nascimento.month, nascimento.day))
       if idade < 12 and any(request.POST.get(tipo) == 'on' for tipo, _ in TIPO_CONSENTIMENTO):
         messages.error(request, 'Crianças precisam de autorização do responsável legal.')
         return redirect('termos_view')
@@ -534,6 +556,17 @@ def termos_view(request):
   # Pega o status atual dos consentimentos do usuário para exibir na tela
   status_atual = consentimentos_atuais(usuario)
   alunos_vinculados = usuario.responsavel.alunos_vinculados.all() if hasattr(usuario, 'responsavel') else Aluno.objects.none()
+  consentimentos_alunos = []
+  for aluno in alunos_vinculados:
+    # Cada aluno tem suas próprias autorizações, sem misturar o histórico.
+    atuais = consentimentos_atuais(usuario, aluno_representado=aluno)
+    imagem_aluno = atuais.get('USO_IMAGEM')
+    whatsapp_aluno = atuais.get('COMUNICACAO_WHATSAPP')
+    consentimentos_alunos.append({
+      'aluno': aluno,
+      'imagem_aceito': imagem_aluno.aceito if imagem_aluno else False,
+      'whatsapp_aceito': whatsapp_aluno.aceito if whatsapp_aluno else False,
+    })
   
   # Pega o status de cada consentimento, se existir, e passa para o template
   imagem = status_atual.get('USO_IMAGEM')
@@ -546,6 +579,7 @@ def termos_view(request):
     'imagem_aceito': imagem.aceito if imagem else False,
     'whatsapp_aceito': whatsapp.aceito if whatsapp else False,
     'alunos_vinculados': alunos_vinculados,
+    'consentimentos_alunos': consentimentos_alunos,
   })
 
 @login_required(login_url='login')
