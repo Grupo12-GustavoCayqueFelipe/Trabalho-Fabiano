@@ -86,7 +86,7 @@ class Aula(models.Model):
     disciplina = models.ForeignKey(Disciplina, on_delete=models.PROTECT, related_name='aulas')
     
     # Define o professor que ministrará a aula, que possui um relacionamento com a tabela de professores. Se o professor for deletado, o campo será definido como NULL.
-    professor = models.ForeignKey('usuarios.Professor', on_delete=models.SET_NULL, blank=True, null=True, related_name='aulas')
+    professor = models.ForeignKey('usuarios.Professor', on_delete=models.PROTECT, blank=True, null=True, related_name='aulas')
     
     # Define a data da aula
     data = models.DateField()
