@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 def ano_atual():
@@ -32,6 +33,19 @@ class PeriodoLetivo(models.Model):
         verbose_name = "Período Letivo"
         verbose_name_plural = "Períodos Letivos"
         unique_together = ('ano', 'semestre')
+        # O próprio banco impede datas invertidas e semestres inválidos.
+        constraints = [
+            models.CheckConstraint(condition=models.Q(data_fim__gte=models.F('data_inicio')), name='periodo_datas_validas'),
+            models.CheckConstraint(condition=models.Q(semestre__in=[1, 2]), name='periodo_semestre_valido'),
+        ]
+
+    # Valida as datas e o número do semestre antes de persistir.
+    def clean(self):
+        super().clean()
+        if self.data_inicio and self.data_fim and self.data_fim < self.data_inicio:
+            raise ValidationError({'data_fim': 'A data final deve ser posterior à inicial.'})
+        if self.semestre not in (1, 2):
+            raise ValidationError({'semestre': 'Informe semestre 1 ou 2.'})
 
     def __str__(self):
         return f"{self.ano}/{self.semestre}"
@@ -50,7 +64,7 @@ class Turma(models.Model):
     # Professor regente da turma, que possui um relacionamento com a tabela de professores. Se o professor for deletado, o campo será definido como NULL.
     professor_regente = models.ForeignKey('usuarios.Professor', on_delete=models.SET_NULL, null=True, blank=True)
 
-        # Período letivo da turma
+    # Período letivo da turma
     periodo_letivo = models.ForeignKey('PeriodoLetivo', on_delete=models.PROTECT, null=True, blank=True, related_name='turmas')
     class Meta:
         db_table = 'turmas'
@@ -102,7 +116,7 @@ class Aula(models.Model):
     # Define a disciplina que será ministrada na aula, que possui um relacionamento com a tabela de disciplinas.
     disciplina = models.ForeignKey(Disciplina, on_delete=models.PROTECT, related_name='aulas')
     
-    # Define o professor que ministrará a aula, que possui um relacionamento com a tabela de professores. Se o professor for deletado, o campo será definido como NULL.
+    # Mantém a autoria da aula mesmo quando o professor deixa a instituição.
     professor = models.ForeignKey('usuarios.Professor', on_delete=models.PROTECT, blank=True, null=True, related_name='aulas')
     
     # Define a data da aula
