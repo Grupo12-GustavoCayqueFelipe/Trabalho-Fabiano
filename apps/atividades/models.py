@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from encrypted_model_fields.fields import EncryptedTextField
 from django.core.validators import MinValueValidator, MaxValueValidator
 from apps.academico.models import Turma, Disciplina
@@ -15,6 +16,8 @@ class Atividade(models.Model):
     prazo = models.DateTimeField()
     criada_em = models.DateTimeField(auto_now_add=True)
     ativa = models.BooleanField(default=True)
+    # Nota máxima da atividade
+    valor_nota = models.DecimalField(max_digits=4, decimal_places=2, default=10, validators=[MinValueValidator(0), MaxValueValidator(10)])
 
     class Meta:
         db_table = 'atividades'
@@ -22,6 +25,11 @@ class Atividade(models.Model):
 
     def __str__(self):
         return self.titulo
+
+    # Indica se o prazo já passou
+    @property
+    def esta_atrasada(self):
+        return timezone.now() > self.prazo
 
 
 # Entrega de um aluno: uma única por atividade, podendo atualizar antes do prazo.
@@ -34,6 +42,8 @@ class Entrega(models.Model):
     nota = models.DecimalField(max_digits=4, decimal_places=2, null=True, blank=True, validators=[MinValueValidator(0), MaxValueValidator(10)])
     comentario_professor = EncryptedTextField(max_length=2000, blank=True)
     corrigida_em = models.DateTimeField(null=True, blank=True)
+    # Arquivo anexo da entrega
+    arquivo = models.FileField(upload_to='entregas/%Y/%m/', blank=True, null=True)
 
     class Meta:
         db_table = 'entregas_atividades'

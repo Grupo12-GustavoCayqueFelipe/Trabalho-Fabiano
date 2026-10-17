@@ -12,10 +12,12 @@ class Aviso(models.Model):
     turma = models.ForeignKey(Turma, on_delete=models.PROTECT, null=True, blank=True, related_name='avisos')
     criado_em = models.DateTimeField(auto_now_add=True)
     ativo = models.BooleanField(default=True)
+    # NOVO: avisos fixados aparecem primeiro
+    fixado = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'avisos_escola'
-        ordering = ['-criado_em']
+        ordering = ['-fixado', '-criado_em']  # NOVO
 
     def __str__(self):
         return self.titulo

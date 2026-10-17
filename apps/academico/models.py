@@ -20,6 +20,21 @@ STATUS_CHOICES = [
 ]
 
 # Create your models here.
+# Classe de período letivo (ano/semestre com datas de início e fim).
+class PeriodoLetivo(models.Model):
+    ano = models.IntegerField(verbose_name="Ano")
+    semestre = models.IntegerField(verbose_name="Semestre")
+    data_inicio = models.DateField(verbose_name="Data de Início")
+    data_fim = models.DateField(verbose_name="Data de Término")
+
+    class Meta:
+        db_table = 'periodos_letivos'
+        verbose_name = "Período Letivo"
+        verbose_name_plural = "Períodos Letivos"
+        unique_together = ('ano', 'semestre')
+
+    def __str__(self):
+        return f"{self.ano}/{self.semestre}"
 
 # Classe de turma, que possui um relacionamento com a tabela de professores.
 class Turma(models.Model):
@@ -34,7 +49,9 @@ class Turma(models.Model):
 
     # Professor regente da turma, que possui um relacionamento com a tabela de professores. Se o professor for deletado, o campo será definido como NULL.
     professor_regente = models.ForeignKey('usuarios.Professor', on_delete=models.SET_NULL, null=True, blank=True)
-    
+
+        # Período letivo da turma
+    periodo_letivo = models.ForeignKey('PeriodoLetivo', on_delete=models.PROTECT, null=True, blank=True, related_name='turmas')
     class Meta:
         db_table = 'turmas'
 
