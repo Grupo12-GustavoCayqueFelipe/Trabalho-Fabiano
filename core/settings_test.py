@@ -14,9 +14,22 @@ CSRF_COOKIE_SECURE = False
 
 # Nos testes, não exige o manifesto do collectstatic.
 # Mantém a configuração de produção inalterada.
+# Nunca usa o armazenamento S3 da escola durante os testes.
+MEDIA_ROOT = BASE_DIR / '.test-media'
 STORAGES = {
     **STORAGES,
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
     'staticfiles': {
         'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
     },
 }
+# Impede que a suíte use Redis ou SMTP externos definidos no .env da máquina.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'educontroll-testes-isolados',
+    },
+}
+EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'

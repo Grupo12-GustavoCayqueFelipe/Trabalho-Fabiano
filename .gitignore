@@ -6,3 +6,5 @@ __pycache__/
 db.sqlite3
 apps/*/management/
 Login_Teste.md
+# Arquivos fictícios gravados exclusivamente pelos testes locais.
+.test-media/

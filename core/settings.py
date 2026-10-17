@@ -77,6 +77,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # Confere o segundo fator também para sessões já autenticadas.
     'core.middleware.Exigir2FAMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -214,7 +215,9 @@ if USE_SUPABASE_STORAGE:
                 'bucket_name': os.getenv('SUPABASE_S3_BUCKET_NAME'),
                 'endpoint_url': os.getenv('SUPABASE_S3_ENDPOINT_URL'),
                 'region_name': os.getenv('SUPABASE_S3_REGION_NAME'),
-                'querystring_auth': False,
+                'default_acl': 'private',
+                'querystring_auth': True,
+                'querystring_expire': 300,
                 'file_overwrite': False,
             },
         },
