@@ -98,8 +98,10 @@ def aviso_criar_view(request):
     messages.error(request, 'Professor deve selecionar uma turma.')
     return redirect('comunicacao_painel')
 
+  # Só o administrador pode fixar um comunicado no topo do mural.
+  fixado = usuario.perfil == 'ADMIN' and request.POST.get('fixado') == 'on'
   with transaction.atomic():
-    aviso = Aviso.objects.create(titulo=titulo, texto=texto, autor=usuario, turma=turma)
+    aviso = Aviso.objects.create(titulo=titulo, texto=texto, autor=usuario, turma=turma, fixado=fixado)
     registrar_operacao(usuario, 'AVISO_PUBLICADO', aviso.pk)
   messages.success(request, 'Aviso publicado com sucesso.')
   return redirect('comunicacao_painel')

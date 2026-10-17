@@ -6,6 +6,16 @@ from apps.academico.models import Aula, Disciplina, Matricula, Turma
 
 # Classe de administração para o modelo Turma
 class TurmaAdmin(admin.ModelAdmin):
+    # Impede alterar cadastros sem passar pelas views com auditoria.
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
     # Colunas que serão exibidas na lista de turmas no admin
     list_display = ('nome', 'ano', 'turno', 'professor_regente')
     
@@ -17,6 +27,16 @@ class TurmaAdmin(admin.ModelAdmin):
 
 # Classe de administração para o modelo Disciplina
 class DisciplinaAdmin(admin.ModelAdmin):
+    # Impede alterar cadastros sem passar pelas views com auditoria.
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
     # Colunas que serão exibidas na lista de disciplinas no admin
     list_display = ('nome',)
     
@@ -34,6 +54,16 @@ class MatriculaAdmin(admin.ModelAdmin):
     # Busca por nome do aluno e nome da turma
     search_fields = ('aluno__usuario__nome', 'turma__nome')
 
+    # Alterações de matrícula precisam usar a view auditada.
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request):
+        return False
+
 # Classe de administração para o modelo Aula
 class AulaAdmin(admin.ModelAdmin):
     # Colunas que serão exibidas na lista de aulas no admin
@@ -44,6 +74,16 @@ class AulaAdmin(admin.ModelAdmin):
     
     # Busca por nome da disciplina e nome da turma
     search_fields = ('disciplina__nome', 'turma__nome')
+
+    # A criação da aula registra operação e precisa continuar auditada.
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 admin.site.register(Turma, TurmaAdmin)
 admin.site.register(Disciplina, DisciplinaAdmin)
