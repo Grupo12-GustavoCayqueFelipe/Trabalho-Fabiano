@@ -13,4 +13,4 @@ class EduAdminSite(AdminSite):
 
     def login(self, request, extra_context=None):
         # Evita que o admin ofereça um login paralelo sem TOTP.
-        return redirect('login')
+        return redirect('login_funcionarios')

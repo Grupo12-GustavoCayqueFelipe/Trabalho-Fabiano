@@ -31,14 +31,16 @@ from django.utils.encoding import force_bytes, force_str
 # Create your views here.
 TENTATIVAS_MAX = 5
 TEMPO_BLOQUEIO_MINUTOS = 15
-# Função de Rate Limit para limitar o número de tentativas de login
-@ratelimit(key='ip', rate='5/m', block=False, method='POST')
-
-# Função de login, verifica se o usuário está logado, se não estiver, pega os dados do formulário e autentica
-def login_view(request):
+# Centraliza o login para os portais sem duplicar senha, bloqueio ou TOTP.
+def _processar_login(request, portal=None):
+  # Escolhe a tela conforme o portal solicitado.
+  template = {
+    'academico': 'html/login/login_academico.html',
+    'funcionarios': 'html/login/login_funcionarios.html',
+  }.get(portal, 'usuarios/index.html')
   if getattr(request, 'limited', False):
     messages.error(request, 'Muitas tentativas de login. Tente novamente mais tarde.')
-    return render(request, 'usuarios/index.html')
+    return render(request, template)
   
   # Se o usuario estiver logado, redireciona para a página principal
   if request.user.is_authenticated:
@@ -47,8 +49,9 @@ def login_view(request):
   # Para o botão entrar
   if request.method == 'POST':
     # Pegando os dados do formulário
-    email = request.POST.get('email')
-    senha = request.POST.get('senha')
+    # Apenas campos POST são aceitos; a senha nunca deve ser enviada por GET.
+    email = (request.POST.get('email') or '').strip()
+    senha = request.POST.get('senha') or ''
 
     # Confere se já existe um usuario com esse email para poder checar o bloqueio antes de logar
     usuario_existente = Usuario.objects.filter(email=email).first()
@@ -57,7 +60,7 @@ def login_view(request):
     if usuario_existente and usuario_existente.bloqueado_ate:
       if timezone.now() < usuario_existente.bloqueado_ate:
         messages.error(request, 'Conta temporariamente por excesso de tentativas. Tente novamente mais tarde.')
-        return render(request, 'usuarios/index.html')
+        return render(request, template)
       else:
         # Depois que passou o tempo libera e zera o contador
         usuario_existente.bloqueado_ate = None
@@ -67,7 +70,13 @@ def login_view(request):
     # Pega a senha do usuário faz o hash e compara com a senha do banco de dados
     usuario = authenticate (request, email=email, password=senha)
     
-    if usuario is not None:
+    # O portal restringe o perfil mesmo quando a senha está correta.
+    autorizado = (
+      portal is None
+      or (portal == 'academico' and usuario is not None and usuario.perfil in ('ALUNO', 'RESP'))
+      or (portal == 'funcionarios' and usuario is not None and usuario.perfil in ('ADMIN', 'PROF'))
+    )
+    if usuario is not None and autorizado:
       # Zera o contador de tentativas com o login certo
       usuario.tentativas_login = 0
       usuario.bloqueado_ate = None
@@ -75,6 +84,8 @@ def login_view(request):
       
       # Se o usuário tiver o 2FA ligado, não loga e guarda o id na sessão
       if usuario.otp_ativado:
+        # A confirmação de 2FA deve manter o portal de origem da tentativa.
+        request.session['pre_2fa_portal'] = portal
         request.session['pre_2fa_user_id'] = usuario.pk
         request.session['pre_2fa_iniciado'] = timezone.now().timestamp()
         return redirect('2fa_verificar')
@@ -82,7 +93,7 @@ def login_view(request):
       registrar_log_acesso(usuario, evento='LOGIN_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
       return redirect('dashboard')
     else:
-      if usuario_existente:
+      if usuario_existente and usuario is None:
         usuario_existente.tentativas_login += 1
         usuario_existente.ultimo_login_falha = timezone.now()
         
@@ -97,7 +108,25 @@ def login_view(request):
       messages.error(request, 'Email ou senha inválidos.')
 
   # Se acessou o site sem estar logado, renderiza a página de login
-  return render(request, 'usuarios/index.html')
+  return render(request, template)
+
+
+# Mantém a rota antiga para que os testes e links existentes não sejam quebrados.
+@ratelimit(key='ip', rate='5/m', block=False, method='POST')
+def login_view(request):
+  return _processar_login(request)
+
+
+# Formulário exclusivo de alunos e responsáveis.
+@ratelimit(key='ip', rate='5/m', block=False, method='POST')
+def login_academico_view(request):
+  return _processar_login(request, 'academico')
+
+
+# Formulário exclusivo de administradores e professores.
+@ratelimit(key='ip', rate='5/m', block=False, method='POST')
+def login_funcionarios_view(request):
+  return _processar_login(request, 'funcionarios')
 
 def chave_2fa(group, request):
   return str(request.session.get('pre_2fa_user_id') or 'sem-usuario')
@@ -125,9 +154,16 @@ def dois_fatores_verificar_view(request):
     messages.error(request, 'Verificação expirada. Entre novamente.')
     return redirect('login')
   usuario = Usuario.objects.filter(pk=usuario_id, is_active=True, otp_ativado=True).first()
-  if usuario is None or not usuario.otp_secret:
+  # O perfil ainda precisa corresponder ao portal depois do segundo fator.
+  portal = request.session.get('pre_2fa_portal')
+  perfil_invalido = (
+    (portal == 'academico' and usuario is not None and usuario.perfil not in ('ALUNO', 'RESP'))
+    or (portal == 'funcionarios' and usuario is not None and usuario.perfil not in ('ADMIN', 'PROF'))
+  )
+  if usuario is None or not usuario.otp_secret or perfil_invalido:
     request.session.pop('pre_2fa_user_id', None)
     request.session.pop('pre_2fa_iniciado', None)
+    request.session.pop('pre_2fa_portal', None)
     return redirect('login')
   if request.method == 'POST':
     codigo = (request.POST.get('codigo') or '').strip()
@@ -138,6 +174,7 @@ def dois_fatores_verificar_view(request):
       registrar_log_acesso(usuario, evento='2FA_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
       request.session.pop('pre_2fa_user_id', None)
       request.session.pop('pre_2fa_iniciado', None)
+      request.session.pop('pre_2fa_portal', None)
       login(request, usuario)
       request.session['2fa_verificado'] = usuario.pk
       registrar_log_acesso(usuario, evento='LOGIN_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
@@ -209,19 +246,53 @@ def dois_fatores_configurar_view(request):
     'qr_base64': qr_base64,
   })
 
+# Encaminha cada usuário ao painel correto sem liberar dados de outro perfil.
+@login_required(login_url='login')
 def dashboard_view(request):
-  # Bloqueia o acesso a página principal se o usuário não estiver logado
-  if not request.user.is_authenticated:
-    return redirect('login')
-  
-  # Template de dashboard para cada perfil de usuário
-  templates_por_perfil = {
-    'ALUNO': 'html/alunos/aluno.html',
-    'RESP': 'html/responsaveis/responsaveis.html',
-  }
-  # Se o usuário estiver logado, renderiza a página principal
-  template = templates_por_perfil.get(request.user.perfil, 'usuarios/dashboard.html')
-  return render(request, template) 
+  # Mantém o mesmo painel já utilizado pelos alunos e responsáveis.
+  if request.user.perfil == 'ALUNO':
+    return render(request, 'html/alunos/aluno.html')
+  if request.user.perfil == 'RESP':
+    return render(request, 'html/responsaveis/responsaveis.html')
+
+  # Importa os models utilizados apenas nos painéis institucionais.
+  from apps.academico.models import Turma, Disciplina, Aula, Matricula
+  from apps.usuarios.models import Professor, Aluno
+  from apps.atividades.models import Atividade, Entrega
+  from apps.comunicacao.models import Aviso
+
+  # O administrador vê totais da instituição, sem carregar dados de alunos no template.
+  if request.user.perfil == 'ADMIN':
+    contexto = {
+      'total_alunos': Aluno.objects.filter(matriculas__status='ATIVA').distinct().count(),
+      'total_professores': Professor.objects.count(),
+      'total_turmas': Turma.objects.count(),
+      'total_disciplinas': Disciplina.objects.count(),
+      'atividades_pendentes': Entrega.objects.filter(nota__isnull=True).count(),
+      'avisos_recentes': Aviso.objects.order_by('-criado_em')[:3],
+    }
+    return render(request, 'html/painel/painel_adm.html', contexto)
+
+  # O professor consulta apenas informações das disciplinas em que atua.
+  if request.user.perfil == 'PROF' and hasattr(request.user, 'professor'):
+    professor = request.user.professor
+    disciplinas = Disciplina.objects.filter(professores=professor).distinct()
+    turmas = Turma.objects.filter(disciplina__professores=professor).distinct()
+    # Usa somente as atividades criadas pelo próprio professor para os totais.
+    atividades = Atividade.objects.filter(professor=professor)
+    contexto = {
+      'total_turmas': turmas.count(),
+      'total_disciplinas': disciplinas.count(),
+      'total_aulas': Aula.objects.filter(professor=professor).count(),
+      'entregas_pendentes': Entrega.objects.filter(atividade__in=atividades, nota__isnull=True).count(),
+      'turmas_professor': turmas.prefetch_related('disciplina_set__professores')[:10],
+      'entregas_recentes': Entrega.objects.filter(atividade__in=atividades, nota__isnull=True).select_related('atividade', 'aluno__usuario').order_by('-entregue_em')[:5],
+    }
+    return render(request, 'html/painel/painel_prof.html', contexto)
+
+  # Uma conta com perfil incompleto não recebe acesso a painéis institucionais.
+  messages.error(request, 'Seu perfil não possui um painel disponível.')
+  return redirect('logout')
 
 # Usuário solicita a recuperação de senha, se o email existir, gera um token e envia o email
 @ratelimit(key='ip', rate='5/m', block=False, method='POST')
@@ -381,17 +452,26 @@ def exportar_dados_view(request):
   from apps.academico.models import Matricula, Aula
   from apps.atividades.models import Entrega, Atividade, HistoricoCorrecao
   from apps.comunicacao.models import Mensagem, Aviso
+  from apps.avaliacoes.models import Nota, Avaliacao, HistoricoNota
+  from apps.frequencia.models import RegistroFrequencia, HistoricoFrequencia
   if hasattr(usuario, 'aluno'):
     dados['matriculas'] = list(Matricula.objects.filter(aluno=usuario.aluno).values('turma__nome', 'turma__ano', 'status', 'data_matricula'))
-    dados['entregas'] = list(Entrega.objects.filter(aluno=usuario.aluno).values('atividade__titulo', 'resposta', 'nota', 'comentario_professor', 'entregue_em', 'atrasada'))
+    dados['entregas'] = list(Entrega.objects.filter(aluno=usuario.aluno).values('atividade__titulo', 'resposta', 'nota', 'comentario_professor', 'entregue_em', 'atrasada', 'arquivo'))
     # O aluno pode conferir as alterações das notas de suas entregas.
     dados['historico_correcoes'] = list(HistoricoCorrecao.objects.filter(entrega__aluno=usuario.aluno).values(
       'entrega__atividade__titulo', 'nota_anterior', 'nota_nova',
       'comentario_anterior', 'comentario_novo', 'alterado_em'
     ))
+    # Inclui notas e frequência relacionadas exclusivamente às matrículas do aluno.
+    dados['notas'] = list(Nota.objects.filter(matricula__aluno=usuario.aluno).values('avaliacao__nome', 'valor', 'observacao', 'avaliacao__nota_maxima'))
+    dados['historico_notas'] = list(HistoricoNota.objects.filter(nota__matricula__aluno=usuario.aluno).values('nota__avaliacao__nome', 'valor_anterior', 'valor_novo', 'observacao_anterior', 'observacao_nova', 'alterado_em'))
+    dados['frequencia'] = list(RegistroFrequencia.objects.filter(matricula__aluno=usuario.aluno).values('aula__data', 'aula__disciplina__nome', 'status', 'justificativa'))
+    dados['historico_frequencia'] = list(HistoricoFrequencia.objects.filter(registro__matricula__aluno=usuario.aluno).values('status_anterior', 'status_novo', 'justificativa_anterior', 'justificativa_nova', 'alterado_em'))
   elif hasattr(usuario, 'professor'):
     dados['aulas_registradas'] = list(Aula.objects.filter(professor=usuario.professor).values('turma__nome', 'data', 'conteudo'))
     dados['atividades_publicadas'] = list(Atividade.objects.filter(professor=usuario.professor).values('titulo', 'descricao', 'prazo'))
+    # Registros atribuídos ao professor sem exportar notas de terceiros.
+    dados['avaliacoes_publicadas'] = list(Avaliacao.objects.filter(disciplina__professores=usuario.professor).values('nome', 'data_avaliacao', 'nota_maxima'))
     dados['correcoes_realizadas'] = list(HistoricoCorrecao.objects.filter(professor=usuario.professor).values(
       'entrega__atividade__titulo', 'nota_anterior', 'nota_nova', 'alterado_em'
     ))
