@@ -115,6 +115,11 @@ def _processar_login(request, portal=None):
 # Mantém a rota antiga para que os testes e links existentes não sejam quebrados.
 @ratelimit(key='ip', rate='5/m', block=False, method='POST')
 def login_view(request):
+  # A rota legada continua recebendo POST dos clientes existentes.
+  if request.method == 'GET':
+    if request.user.is_authenticated:
+      return redirect('dashboard')
+    return render(request, 'usuarios/index.html')
   return _processar_login(request)
 
 
@@ -250,11 +255,62 @@ def dois_fatores_configurar_view(request):
 # Encaminha cada usuário ao painel correto sem liberar dados de outro perfil.
 @login_required(login_url='login')
 def dashboard_view(request):
-  # Mantém o mesmo painel já utilizado pelos alunos e responsáveis.
-  if request.user.perfil == 'ALUNO':
-    return render(request, 'html/alunos/aluno.html')
-  if request.user.perfil == 'RESP':
-    return render(request, 'html/responsaveis/responsaveis.html')
+  # Os dados são filtrados pelas matrículas do aluno ou pelos vínculos familiares.
+  if request.user.perfil in ('ALUNO', 'RESP'):
+    from django.db.models import Avg, Count, Q
+    from django.utils import timezone
+    from apps.academico.models import Disciplina, Matricula
+    from apps.atividades.models import Atividade
+    from apps.avaliacoes.models import Nota
+    from apps.frequencia.models import RegistroFrequencia
+    from apps.comunicacao.models import Aviso, Mensagem
+
+    if request.user.perfil == 'ALUNO':
+      aluno = getattr(request.user, 'aluno', None)
+      alunos_ids = [aluno.pk] if aluno else []
+    else:
+      responsavel = getattr(request.user, 'responsavel', None)
+      alunos_ids = (responsavel.alunos_vinculados.values_list('pk', flat=True)
+                    if responsavel else [])
+
+    matriculas = Matricula.objects.filter(
+      aluno_id__in=alunos_ids, status='ATIVA'
+    ).select_related('aluno__usuario', 'turma')
+    turmas_ids = matriculas.values_list('turma_id', flat=True)
+    disciplinas = Disciplina.objects.filter(turmas__in=turmas_ids).distinct()
+    atividades = Atividade.objects.filter(
+      turma_id__in=turmas_ids, ativa=True, prazo__gte=timezone.now()
+    ).select_related('disciplina', 'turma').distinct()
+    notas = Nota.objects.filter(matricula__in=matriculas)
+    frequencias = RegistroFrequencia.objects.filter(matricula__in=matriculas)
+    presencas = frequencias.aggregate(
+      total=Count('pk'), presentes=Count('pk', filter=Q(status='P'))
+    )
+    total = presencas['total'] or 0
+    contexto = {
+      'matriculas_ativas': matriculas,
+      'total_matriculas': matriculas.count(),
+      'total_disciplinas': disciplinas.count(),
+      'disciplinas_recentes': disciplinas.order_by('nome')[:6],
+      'media_notas': notas.aggregate(media=Avg('valor'))['media'],
+      'percentual_presenca': round(100 * (presencas['presentes'] or 0) / total) if total else None,
+      'total_registros_frequencia': total,
+      'total_atividades': atividades.count(),
+    }
+
+    if request.user.perfil == 'ALUNO':
+      pendentes = atividades.exclude(entregas__aluno_id=aluno.pk) if aluno else atividades.none()
+      contexto['atividades_pendentes_aluno'] = pendentes.count()
+      contexto['atividades_recentes'] = pendentes.order_by('prazo', 'pk')[:6]
+      return render(request, 'html/alunos/aluno.html', contexto)
+
+    contexto['avisos_recentes'] = Aviso.objects.filter(ativo=True).filter(
+      Q(turma__isnull=True) | Q(turma_id__in=turmas_ids)
+    ).select_related('turma', 'autor').distinct().order_by('-fixado', '-criado_em')[:5]
+    contexto['mensagens_recebidas'] = Mensagem.objects.filter(
+      destinatario=request.user
+    ).select_related('remetente').order_by('-enviada_em')[:5]
+    return render(request, 'html/responsaveis/responsaveis.html', contexto)
 
   # Importa os models utilizados apenas nos painéis institucionais.
   from apps.academico.models import Turma, Disciplina, Aula, Matricula
@@ -293,7 +349,8 @@ def dashboard_view(request):
 
   # Uma conta com perfil incompleto não recebe acesso a painéis institucionais.
   messages.error(request, 'Seu perfil não possui um painel disponível.')
-  return redirect('logout')
+  logout(request)
+  return redirect('login')
 
 # Usuário solicita a recuperação de senha, se o email existir, gera um token e envia o email
 @ratelimit(key='ip', rate='5/m', block=False, method='POST')

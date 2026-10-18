@@ -4,35 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EduControll</title>
+    <title>EduControll — Escolha seu portal</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
 </head>
 <body>
-    <div class="login-box">
-        <div class="logo">
-            <h2>EduControll</h2>
-        </div>
-        <!-- Faz aparecer a mensagem de erro de login -->
-        {% if messages %}
-            <ul class="messages">
-                {% for message in messages %}
-            <li class="{{ message.tags }}">{{ message }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-        <form action="" method="POST">
-            {% csrf_token %}
-            <input type="email" name="email" placeholder="E-mail" required>
-            <input type="password" name="senha" placeholder="Senha" required>
-            <input type="submit" value="Entrar no Sistema" required>
-        </form>
-        <a href="{% url 'solicitacao_recuperacao_senha_view' %}">Esqueceu sua senha?</a>
-        <!-- Direciona o usuário para o portal de seu perfil sem criar outro sistema de senha. -->
-        <p><a href="{% url 'login_academico' %}">Portal de Alunos e Responsáveis</a></p>
-        <p><a href="{% url 'login_funcionarios' %}">Portal de Funcionários</a></p>
-        <p class="prototipo">
-            Protótipo para avaliação do Projeto Integrador
-        </p>
-    </div>
+    <main class="login-box">
+        <div class="logo"><h2>EduControll</h2></div>
+        <p>Selecione o portal de acesso correspondente ao seu perfil.</p>
+        {% for message in messages %}<p class="mensagem {{ message.tags }}">{{ message }}</p>{% endfor %}
+        <p><a href="{% url 'login_academico' %}">Entrar como aluno ou responsável</a></p>
+        <p><a href="{% url 'login_funcionarios' %}">Entrar como professor ou administrador</a></p>
+        <p class="prototipo">Projeto Integrador — ambiente acadêmico</p>
+    </main>
 </body>
 </html>

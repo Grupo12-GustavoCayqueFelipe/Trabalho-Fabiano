@@ -26,27 +26,27 @@
         </div>
         <!-- MENU -->
         <nav class="menu">
-            <a href="#" class="menu-item ativo">
+            <a href="{% url 'dashboard' %}" class="menu-item ativo">
                 <span class="icone">⌂</span>
                 <span>Início</span>
             </a>
-            <a href="#" class="menu-item">
+            <a href="{% url 'frequencia_painel' %}" class="menu-item">
                 <span class="icone">◷</span>
                 <span>Frequência Geral</span>
             </a>
-            <a href="#" class="menu-item">
+            <a href="{% url 'avaliacoes_painel' %}" class="menu-item">
                 <span class="icone">▤</span>
                 <span>Boletim</span>
             </a>
-            <a href="#" class="menu-item">
+            <a href="{% url 'atividades_lista' %}" class="menu-item">
                 <span class="icone">☑</span>
                 <span>Atividades Geral</span>
-                <span class="notificacao">3</span>
+                {% if atividades_pendentes_aluno %}<span class="notificacao">{{ atividades_pendentes_aluno }}</span>{% endif %}
             </a>
-        <!-- Novos módulos mantêm o menu existente e respeitam o perfil no servidor. -->
-<a href="{% url 'atividades_lista' %}">Atividades</a>
-<a href="{% url 'comunicacao_painel' %}">Comunicação</a>
-</nav>
+            <a href="{% url 'comunicacao_painel' %}" class="menu-item">
+                <span class="icone">✉</span><span>Comunicação</span>
+            </a>
+        </nav>
         <!-- RODAPÉ DO MENU -->
         <div class="menu-sair">
             <form action="{% url 'logout' %}" method="POST">
@@ -75,7 +75,7 @@
             </div>
             <div class="periodo">
                 <span>Período atual</span>
-                <strong>7º Semestre • 2026</strong>
+                <strong>{% if matriculas_ativas %}{{ matriculas_ativas.0.turma.nome }} • {{ matriculas_ativas.0.turma.ano }}{% else %}Sem matrícula ativa{% endif %}</strong>
             </div>
         </header>
         <!-- CARDS -->
@@ -88,7 +88,7 @@
                     </div>
                     <span>Frequência Geral</span>
                 </div>
-                <h2>92%</h2>
+                <h2>{% if percentual_presenca is not None %}{{ percentual_presenca }}%{% else %}—{% endif %}</h2>
                 <p>
                     Frequência geral
                 </p>
@@ -101,7 +101,7 @@
                     </div>
                     <span>Média geral</span>
                 </div>
-                <h2>8,4</h2>
+                <h2>{% if media_notas is not None %}{{ media_notas|floatformat:1 }}{% else %}—{% endif %}</h2>
                 <p>
                     Desempenho acadêmico
                 </p>
@@ -114,7 +114,7 @@
                     </div>
                     <span>Atividades Geral</span>
                 </div>
-                <h2>3</h2>
+                <h2>{{ atividades_pendentes_aluno }}</h2>
                 <p>
                     Atividades pendentes
                 </p>
@@ -127,135 +127,40 @@
                     </div>
                     <span>Disciplinas</span>
                 </div>
-                <h2>2</h2>
+                <h2>{{ total_disciplinas }}</h2>
                 <p>
                     Neste semestre
                 </p>
             </div>
         </section>
-        <!-- PARTE INFERIOR -->
+        <!-- Dados reais: não exibe exemplos fictícios de tarefas ou notas. -->
         <section class="area-inferior">
-            <!-- PRÓXIMAS ATIVIDADES -->
             <div class="painel atividades">
                 <div class="painel-titulo">
-                    <div>
-                        <h2>
-                            Próximas atividades
-                        </h2>
-                        <p>
-                            Acompanhe suas próximas entregas.
-                        </p>
-                    </div>
-                    <a href="#">
-                        Ver todas
-                    </a>
+                    <div><h2>Próximas atividades</h2><p>Atividades ainda não entregues.</p></div>
+                    <a href="{% url 'atividades_lista' %}">Ver todas</a>
                 </div>
-                <!-- ATIVIDADE 1 -->
+                {% for atividade in atividades_recentes %}
                 <div class="atividade">
-                    <div class="data">
-                        <strong>02</strong>
-                        <span>SET</span>
-                    </div>
+                    <div class="data"><strong>{{ atividade.prazo|date:'d' }}</strong><span>{{ atividade.prazo|date:'M' }}</span></div>
                     <div class="atividade-info">
-                        <strong>
-                            Trabalho de Banco de Dados
-                        </strong>
-                        <span>
-                            Banco de Dados • Trabalho
-                        </span>
+                        <strong><a href="{% url 'atividade_detalhe' atividade.pk %}">{{ atividade.titulo }}</a></strong>
+                        <span>{{ atividade.disciplina.nome }} • {{ atividade.turma.nome }}</span>
                     </div>
-                    <span class="status pendente">
-                        Pendente
-                    </span>
+                    <span class="status pendente">Pendente</span>
                 </div>
-                <!-- ATIVIDADE 2 -->
-                <div class="atividade">
-                    <div class="data">
-                        <strong>30</strong>
-                        <span>AGO</span>
-                    </div>
-                    <div class="atividade-info">
-                        <strong>
-                            Projeto Integrador
-                        </strong>
-                        <span>
-                            Engenharia de Software • Projeto
-                        </span>
-                    </div>
-                    <span class="status pendente">
-                        Pendente
-                    </span>
-                </div>
-                <!-- ATIVIDADE 3 -->
-                <div class="atividade">
-                    <div class="data">
-                        <strong>10</strong>
-                        <span>SET</span>
-                    </div>
-                    <div class="atividade-info">
-                        <strong>
-                            Exercícios de Programação
-                        </strong>
-                        <span>
-                            Desenvolvimento Web • Lista
-                        </span>
-                    </div>
-                    <span class="status concluido">
-                        Em andamento
-                    </span>
-                </div>
+                {% empty %}
+                <p>Não há atividades pendentes para suas matrículas ativas.</p>
+                {% endfor %}
             </div>
-            <!-- DISCIPLINAS -->
             <div class="painel disciplinas">
-                <div class="painel-titulo">
-                    <div>
-                        <h2>
-                            Minhas disciplinas
-                        </h2>
-                        <p>
-                            Seu desempenho atual.
-                        </p>
-                    </div>
-                </div>
-                <div class="disciplina">
-                    <div class="disciplina-info">
-                        <strong>
-                            Programação Web
-                        </strong>
-                        <span>
-                            Média: 8,7
-                        </span>
-                    </div>
-                    <div class="barra">
-                        <div class="progresso" style="width: 87%;"></div>
-                    </div>
-                </div>
-                <div class="disciplina">
-                    <div class="disciplina-info">
-                        <strong>
-                            Banco de Dados
-                        </strong>
-                        <span>
-                            Média: 8,1
-                        </span>
-                    </div>
-                    <div class="barra">
-                        <div class="progresso" style="width: 81%;"></div>
-                    </div>
-                </div>
-                <div class="disciplina">
-                    <div class="disciplina-info">
-                        <strong>
-                            Engenharia de Software
-                        </strong>
-                        <span>
-                            Média: 9,0
-                        </span>
-                    </div>
-                    <div class="barra">
-                        <div class="progresso" style="width: 90%;"></div>
-                    </div>
-                </div>
+                <div class="painel-titulo"><div><h2>Minhas disciplinas</h2><p>Disciplinas das matrículas ativas.</p></div></div>
+                {% for disciplina in disciplinas_recentes %}
+                <div class="disciplina"><div class="disciplina-info">
+                    <strong>{{ disciplina.nome }}</strong>
+                    <span><a href="{% url 'avaliacoes_painel' %}">Consultar notas</a></span>
+                </div></div>
+                {% empty %}<p>Nenhuma disciplina vinculada.</p>{% endfor %}
             </div>
         </section>
     </main>

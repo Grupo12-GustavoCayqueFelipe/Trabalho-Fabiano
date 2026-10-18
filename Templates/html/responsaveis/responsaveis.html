@@ -26,7 +26,7 @@
         </div>
         <!-- MENU -->
         <nav class="menu">
-            <a href="#" class="menu-item ativo">
+            <a href="{% url 'dashboard' %}" class="menu-item ativo">
                 <span class="icone">⌂</span>
                 <span>Início</span>
             </a>
@@ -37,14 +37,12 @@
             <a href="#chat" class="menu-item">
                 <span class="icone">💬</span>
                 <span>Chat</span>
-                <span class="notificacao">
-                    2
-                </span>
+
             </a>
-        <!-- Novos módulos mantêm o menu existente e respeitam o perfil no servidor. -->
-<a href="{% url 'atividades_lista' %}">Atividades</a>
-<a href="{% url 'comunicacao_painel' %}">Comunicação</a>
-</nav>
+            <a href="{% url 'atividades_lista' %}" class="menu-item"><span class="icone">☑</span><span>Atividades</span></a>
+            <a href="{% url 'avaliacoes_painel' %}" class="menu-item"><span class="icone">▤</span><span>Notas</span></a>
+            <a href="{% url 'frequencia_painel' %}" class="menu-item"><span class="icone">◷</span><span>Frequência</span></a>
+        </nav>
         <!-- SAIR -->
         <div class="menu-footer">
             <form action="{% url 'logout' %}" method="POST">
@@ -65,7 +63,7 @@
                     Área do responsável
                 </p>
                 <h1>
-                    Olá,{{ user.nome|upper }}!
+                    Olá, {{ user.nome }}!
                 </h1>
                 <p class="subtitulo">
                     Acompanhe os avisos e entre em contato
@@ -73,190 +71,30 @@
                 </p>
             </div>
         </header>
-            <!-- MURAL DE AVISOS -->
+        <!-- Avisos autorizados por turma; mensagens apenas do usuário autenticado. -->
         <section class="secao" id="mural">
-            <div class="titulo-secao">
-                <div>
-                    <h2>
-                        📢 Mural de Avisos
-                    </h2>
-                    <p>
-                        Comunicados importantes da instituição.
-                    </p>
-                </div>
-                <span class="contador">
-                    3 novos
-                </span>
-            </div>
-            <!-- AVISO 2 -->
+            <div class="titulo-secao"><div><h2>📢 Mural de avisos</h2><p>Comunicados das turmas vinculadas.</p></div></div>
+            {% for aviso in avisos_recentes %}
             <article class="aviso">
-                <div class="aviso-topo">
-                    <span class="categoria azul">
-                        COMUNICADO
-                    </span>
-                    <span class="data">
-                        27 AGO 2026
-                    </span>
-                </div>
-                <h3>
-                    Calendário Geral
-                </h3>
-                <p>
-                    O calendário da instituição foi
-                    atualizado com novas datas e
-                    informações importantes.
-                </p>
-                <div class="aviso-rodape">
-                    <span>
-                        Calendário institucional
-                    </span>
-                    <a href="#">
-                        Ler aviso →
-                    </a>
-                </div>
+                <div class="aviso-topo"><span class="categoria azul">{% if aviso.fixado %}FIXADO{% else %}COMUNICADO{% endif %}</span>
+                    <span class="data">{{ aviso.criado_em|date:'d/m/Y' }}</span></div>
+                <h3>{{ aviso.titulo }}</h3>
+                <p>{{ aviso.texto|truncatechars:220 }}</p>
+                <div class="aviso-rodape"><span>{{ aviso.turma.nome|default:'Aviso geral' }}</span>
+                    <a href="{% url 'comunicacao_painel' %}">Ver comunicado →</a></div>
             </article>
-            <!-- AVISO 3 -->
-            <article class="aviso">
-                <div class="aviso-topo">
-                    <span class="categoria verde">
-                        INFORMAÇÃO
-                    </span>
-                    <span class="data">
-                        25 AGO 2026
-                    </span>
-                </div>
-                <h3>
-                    Comunicado aos responsáveis
-                </h3>
-                <p>
-                    Confira as informações disponibilizadas
-                    pela instituição para os próximos dias.
-                </p>
-                <div class="aviso-rodape">
-                    <span>
-                        Administração
-                    </span>
-                    <a href="#">
-                        Ler aviso →
-                    </a>
-                </div>
-            </article>
+            {% empty %}<p>Não existem avisos para as turmas vinculadas.</p>{% endfor %}
         </section>
-        <!-- CHAT -->
         <section class="chat-section" id="chat">
-            <div class="titulo-secao">
-                <div>
-                    <h2>
-                        💬 Fale com um professor
-                    </h2>
-                    <p>
-                        Entre em contato para tirar dúvidas
-                        ou enviar uma mensagem.
-                    </p>
-                </div>
-            </div>
-            <div class="chat-container">
-                <!-- LISTA DE PROFESSORES -->
-                <div class="professores">
-                    <div class="professores-topo">
-                        <strong>
-                            Professores
-                        </strong>
-                    </div>
-                    <div class="professor selecionado">
-                        <div class="avatar-professor">
-                            C
-                        </div>
-                        <div>
-                            <strong>
-                                Carlos Mendes
-                            </strong>
-                            <span>
-                                IA
-                            </span>
-                        </div>
-                        <div class="online"></div>
-                    </div>
-                    <div class="professor">
-                        <div class="avatar-professor">
-                            A
-                        </div>
-                        <div>
-                            <strong>
-                                Ana Souza
-                            </strong>
-                            <span>
-                                Banco de Dados
-                            </span>
-                        </div>
-                    </div>
-                    <div class="professor">
-                        <div class="avatar-professor">
-                            R
-                        </div>
-                        <div>
-                            <strong>
-                                Rafael Lima
-                            </strong>
-                            <span>
-                                Engenharia de Software
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <!-- CONVERSA -->
-                <div class="conversa">
-                    <!-- CABEÇALHO DO CHAT -->
-                    <div class="conversa-header">
-                        <div class="avatar-professor">
-                            C
-                        </div>
-                        <div>
-                            <strong>
-                                Carlos Mendes
-                            </strong>
-                            <span>
-                                Professor de IA
-                            </span>
-                        </div>
-                        <div class="online"></div>
-                    </div>
-                    <!-- MENSAGENS -->
-                    <div class="mensagens">
-                        <div class="mensagem professor-msg">
-                            <p>
-                                Olá! Como posso ajudar?
-                            </p>
-                            <span>
-                                14:20
-                            </span>
-                        </div>
-                        <div class="mensagem responsavel-msg">
-                            <p>
-                                Olá, professor! Gostaria de tirar uma dúvida sobre as atividades do meu filho.
-                            </p>
-                            <span>
-                                14:22
-                            </span>
-                        </div>
-                        <div class="mensagem professor-msg">
-                            <p>
-                                Claro! Pode me explicar qual é a dúvida.
-                            </p>
-                            <span>
-                                14:23
-                            </span>
-                        </div>
-                    </div>
-                    <!-- ENVIO DA MENSAGEM -->
-                    <div class="campo-mensagem">
-                        <input type="text" placeholder="Digite sua mensagem...">
-                        <button>
-                            ➤
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <div class="titulo-secao"><div><h2>💬 Mensagens recebidas</h2><p>Caixa postal institucional.</p></div></div>
+            {% for mensagem in mensagens_recebidas %}
+            <article class="aviso">
+                <h3>{{ mensagem.assunto }}</h3>
+                <p>De {{ mensagem.remetente.nome }} em {{ mensagem.enviada_em|date:'d/m/Y H:i' }}</p>
+                <p>{{ mensagem.texto|truncatechars:220 }}</p>
+            </article>
+            {% empty %}<p>Nenhuma mensagem recebida.</p>{% endfor %}
+            <p><a href="{% url 'comunicacao_painel' %}">Acessar a comunicação completa →</a></p>
         </section>
     </main>
 </body>
