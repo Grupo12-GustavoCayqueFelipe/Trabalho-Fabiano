@@ -27,6 +27,9 @@
             <input type="submit" value="Entrar no Sistema" required>
         </form>
         <a href="{% url 'solicitacao_recuperacao_senha_view' %}">Esqueceu sua senha?</a>
+        <!-- Direciona o usuário para o portal de seu perfil sem criar outro sistema de senha. -->
+        <p><a href="{% url 'login_academico' %}">Portal de Alunos e Responsáveis</a></p>
+        <p><a href="{% url 'login_funcionarios' %}">Portal de Funcionários</a></p>
         <p class="prototipo">
             Protótipo para avaliação do Projeto Integrador
         </p>

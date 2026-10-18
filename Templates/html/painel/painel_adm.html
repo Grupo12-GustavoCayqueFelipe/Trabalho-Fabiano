@@ -1,11 +1,11 @@
-```html
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel do Administrador - EduControll</title>
-    <link rel="stylesheet" href="/static/css/painel/painel_adm.css">
+    <link rel="stylesheet" href="{% static 'css/painel/painel_adm.css' %}">
 </head>
 <body>
 
@@ -14,17 +14,20 @@
         <p class="perfil">Administrador</p>
 
         <nav>
-            <a href="#" class="ativo">Início</a>
-            <a href="#">Usuários</a>
-            <a href="#">Turmas</a>
-            <a href="#">Disciplinas</a>
-            <a href="#">Matrículas</a>
-            <a href="#">Períodos Letivos</a>
-            <a href="#">Comunicação</a>
-            <a href="#">Auditoria</a>
+            <a href="{% url 'dashboard' %}" class="ativo">Início</a>
+            <a href="/admin/">Usuários</a>
+            <a href="{% url 'academico_painel_view' %}#turmas">Turmas</a>
+            <a href="{% url 'academico_painel_view' %}#disciplinas">Disciplinas</a>
+            <a href="{% url 'academico_painel_view' %}#historico">Matrículas</a>
+            <a href="{% url 'academico_painel_view' %}#periodos">Períodos Letivos</a>
+            <a href="{% url 'comunicacao_painel' %}">Comunicação</a>
+            <a href="/admin/usuarios/logoperacao/">Auditoria</a>
         </nav>
 
-        <a href="#" class="sair">Sair do sistema</a>
+        <form action="{% url 'logout' %}" method="POST">
+          {% csrf_token %}
+          <button type="submit" class="sair">Sair do sistema</button>
+        </form>
     </aside>
 
     <main class="conteudo">
@@ -33,7 +36,7 @@
                 <h1>Painel do Administrador</h1>
                 <p>Visão geral da instituição de ensino.</p>
             </div>
-            <div class="usuario">Administrador</div>
+            <div class="usuario">{{ request.user.nome }}</div>
         </header>
 
         <section class="boas-vindas">
@@ -44,31 +47,31 @@
         <section class="indicadores">
             <div class="card">
                 <span>Alunos matriculados</span>
-                <h2>--</h2>
+                <h2>{{ total_alunos }}</h2>
                 <p>Total de alunos ativos</p>
             </div>
 
             <div class="card">
                 <span>Professores cadastrados</span>
-                <h2>--</h2>
+                <h2>{{ total_professores }}</h2>
                 <p>Profissionais da instituição</p>
             </div>
 
             <div class="card">
                 <span>Turmas ativas</span>
-                <h2>--</h2>
+                <h2>{{ total_turmas }}</h2>
                 <p>Turmas em andamento</p>
             </div>
 
             <div class="card">
                 <span>Disciplinas</span>
-                <h2>--</h2>
+                <h2>{{ total_disciplinas }}</h2>
                 <p>Disciplinas cadastradas</p>
             </div>
 
             <div class="card">
                 <span>Atividades pendentes</span>
-                <h2>--</h2>
+                <h2>{{ atividades_pendentes }}</h2>
                 <p>Atividades aguardando conclusão</p>
             </div>
         </section>
@@ -77,7 +80,7 @@
             <h2>Acessos rápidos</h2>
 
             <div class="atalhos">
-                <a href="#" class="atalho">
+                <a href="/admin/" class="atalho">
                     <span class="icone">♙</span>
                     <div>
                         <h3>Gestão de usuários</h3>
@@ -86,7 +89,7 @@
                     <span class="seta">›</span>
                 </a>
 
-                <a href="#" class="atalho">
+                <a href="{% url 'academico_painel_view' %}#turmas" class="atalho">
                     <span class="icone">▤</span>
                     <div>
                         <h3>Turmas</h3>
@@ -95,7 +98,7 @@
                     <span class="seta">›</span>
                 </a>
 
-                <a href="#" class="atalho">
+                <a href="{% url 'academico_painel_view' %}#disciplinas" class="atalho">
                     <span class="icone">▧</span>
                     <div>
                         <h3>Disciplinas</h3>
@@ -104,7 +107,7 @@
                     <span class="seta">›</span>
                 </a>
 
-                <a href="#" class="atalho">
+                <a href="{% url 'academico_painel_view' %}#historico" class="atalho">
                     <span class="icone">▣</span>
                     <div>
                         <h3>Matrículas</h3>
@@ -113,7 +116,7 @@
                     <span class="seta">›</span>
                 </a>
 
-                <a href="#" class="atalho">
+                <a href="{% url 'academico_painel_view' %}#periodos" class="atalho">
                     <span class="icone">▦</span>
                     <div>
                         <h3>Períodos letivos</h3>
@@ -122,7 +125,7 @@
                     <span class="seta">›</span>
                 </a>
 
-                <a href="#" class="atalho">
+                <a href="{% url 'comunicacao_painel' %}" class="atalho">
                     <span class="icone">✉</span>
                     <div>
                         <h3>Comunicação</h3>
@@ -138,7 +141,11 @@
             <div class="aviso">
                 <div>
                     <h3>Comunicados da instituição</h3>
-                    <p>Os avisos recentes serão exibidos aqui.</p>
+                    {% for aviso in avisos_recentes %}
+                      <p>{{ aviso.titulo }} — {{ aviso.criado_em|date:'d/m/Y' }}</p>
+                    {% empty %}
+                      <p>Nenhum comunicado recente.</p>
+                    {% endfor %}
                 </div>
                 <span class="status">Avisos</span>
             </div>
@@ -148,7 +155,7 @@
                     <h3>Registros de auditoria</h3>
                     <p>Consulte as ações registradas no sistema.</p>
                 </div>
-                <a href="#">Consultar ›</a>
+                <a href="{% url 'comunicacao_painel' %}">Consultar ›</a>
             </div>
         </section>
 
@@ -159,4 +166,3 @@
 
 </body>
 </html>
-```

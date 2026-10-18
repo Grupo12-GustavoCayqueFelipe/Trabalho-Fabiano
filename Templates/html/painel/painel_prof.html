@@ -1,11 +1,11 @@
-```html
+{% load static %}
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel do Professor - EduControll</title>
-    <link rel="stylesheet" href="/static/css/painel/painel_prof.css">
+    <link rel="stylesheet" href="{% static 'css/painel/painel_prof.css' %}">
 </head>
 <body>
 
@@ -14,17 +14,20 @@
         <p class="perfil">Portal do Professor</p>
 
         <nav>
-            <a href="#" class="ativo">Início</a>
-            <a href="#">Minhas Turmas</a>
-            <a href="#">Disciplinas</a>
-            <a href="#">Registro de Aula</a>
-            <a href="#">Notas</a>
-            <a href="#">Frequência</a>
-            <a href="#">Atividades</a>
-            <a href="#">Comunicação</a>
+            <a href="{% url 'dashboard' %}" class="ativo">Início</a>
+            <a href="{% url 'registrar_aula_view' %}">Minhas Turmas</a>
+            <a href="{% url 'registrar_aula_view' %}">Disciplinas</a>
+            <a href="{% url 'registrar_aula_view' %}">Registro de Aula</a>
+            <a href="{% url 'avaliacoes_painel' %}">Notas</a>
+            <a href="{% url 'frequencia_painel' %}">Frequência</a>
+            <a href="{% url 'atividades_lista' %}">Atividades</a>
+            <a href="{% url 'comunicacao_painel' %}">Comunicação</a>
         </nav>
 
-        <a href="#" class="sair">Sair do sistema</a>
+        <form action="{% url 'logout' %}" method="POST">
+          {% csrf_token %}
+          <button type="submit" class="sair">Sair do sistema</button>
+        </form>
     </aside>
 
     <main class="conteudo">
@@ -33,7 +36,7 @@
                 <h1>Painel do Professor</h1>
                 <p>Acompanhe suas turmas e atividades acadêmicas.</p>
             </div>
-            <div class="usuario">Professor</div>
+            <div class="usuario">{{ request.user.nome }}</div>
         </header>
 
         <section class="boas-vindas">
@@ -44,25 +47,25 @@
         <section class="indicadores">
             <div class="card">
                 <span>Minhas turmas</span>
-                <h2>--</h2>
+                <h2>{{ total_turmas }}</h2>
                 <p>Turmas vinculadas ao seu perfil</p>
             </div>
 
             <div class="card">
                 <span>Disciplinas</span>
-                <h2>--</h2>
+                <h2>{{ total_disciplinas }}</h2>
                 <p>Disciplinas sob sua responsabilidade</p>
             </div>
 
             <div class="card">
                 <span>Aulas registradas</span>
-                <h2>--</h2>
+                <h2>{{ total_aulas }}</h2>
                 <p>Registros de aula realizados</p>
             </div>
 
             <div class="card destaque">
                 <span>Entregas para corrigir</span>
-                <h2>--</h2>
+                <h2>{{ entregas_pendentes }}</h2>
                 <p>Atividades aguardando avaliação</p>
             </div>
         </section>
@@ -71,7 +74,7 @@
             <h2>Meus acessos rápidos</h2>
 
             <div class="atalhos">
-                <a href="#" class="atalho">
+                <a href="{% url 'registrar_aula_view' %}" class="atalho">
                     <span class="icone">▤</span>
                     <div>
                         <h3>Minhas turmas</h3>
@@ -80,7 +83,7 @@
                     <span class="seta">›</span>
                 </a>
 
-                <a href="#" class="atalho">
+                <a href="{% url 'registrar_aula_view' %}" class="atalho">
                     <span class="icone">▧</span>
                     <div>
                         <h3>Registro de aula</h3>
@@ -89,7 +92,7 @@
                     <span class="seta">›</span>
                 </a>
 
-                <a href="#" class="atalho">
+                <a href="{% url 'avaliacoes_painel' %}" class="atalho">
                     <span class="icone">✓</span>
                     <div>
                         <h3>Lançamento de notas</h3>
@@ -98,7 +101,7 @@
                     <span class="seta">›</span>
                 </a>
 
-                <a href="#" class="atalho">
+                <a href="{% url 'frequencia_painel' %}" class="atalho">
                     <span class="icone">◷</span>
                     <div>
                         <h3>Frequência</h3>
@@ -107,7 +110,7 @@
                     <span class="seta">›</span>
                 </a>
 
-                <a href="#" class="atalho">
+                <a href="{% url 'atividades_lista' %}" class="atalho">
                     <span class="icone">▣</span>
                     <div>
                         <h3>Atividades</h3>
@@ -116,7 +119,7 @@
                     <span class="seta">›</span>
                 </a>
 
-                <a href="#" class="atalho">
+                <a href="{% url 'comunicacao_painel' %}" class="atalho">
                     <span class="icone">✉</span>
                     <div>
                         <h3>Comunicação</h3>
@@ -141,11 +144,22 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {% for turma in turmas_professor %}
                         <tr>
-                            <td colspan="4" class="vazio">
-                                As turmas vinculadas ao professor serão exibidas aqui.
+                            <td>{{ turma.nome }}</td>
+                            <td>
+                              {% for disciplina in turma.disciplina_set.all %}
+                                {% if request.user.professor in disciplina.professores.all %}
+                                  {{ disciplina.nome }}{% if not forloop.last %}, {% endif %}
+                                {% endif %}
+                              {% endfor %}
                             </td>
+                            <td>{{ turma.get_turno_display }}</td>
+                            <td><a href="{% url 'registrar_aula_view' %}">Registrar aula</a></td>
                         </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="vazio">Nenhuma turma vinculada.</td></tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
@@ -157,10 +171,14 @@
             <div class="entrega">
                 <div class="entrega-icone">✓</div>
                 <div>
-                    <h3>Atividades dos alunos</h3>
-                    <p>As entregas pendentes de avaliação serão exibidas aqui.</p>
+                    <h3>Entregas aguardando avaliação</h3>
+                    {% for entrega in entregas_recentes %}
+                      <p>{{ entrega.atividade.titulo }} — {{ entrega.aluno.usuario.nome }}</p>
+                    {% empty %}
+                      <p>Nenhuma entrega pendente.</p>
+                    {% endfor %}
                 </div>
-                <a href="#">Ver entregas ›</a>
+                <a href="{% url 'atividades_lista' %}">Ver entregas ›</a>
             </div>
         </section>
 
@@ -171,4 +189,3 @@
 
 </body>
 </html>
-```
