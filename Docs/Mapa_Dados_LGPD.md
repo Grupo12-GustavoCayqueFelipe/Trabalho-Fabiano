@@ -27,3 +27,24 @@
 **Migration 0010:** o script `scripts/verificar_criptografia_legada.py` apenas conta os valores que ainda não estão criptografados; não revela conteúdo. Não execute `--corrigir` antes de confirmar backup, restaurar uma cópia para testes e usar a mesma `FIELD_ENCRYPTION_KEY` do banco original. Um valor com chave incompatível interrompe a correção.
 
 **Retenção:** manter a guarda de registros acadêmicos e consentimentos somente pelo prazo institucional/obrigação legal aplicável. Um usuário desidentificado mantém históricos necessários, mas não deve manter telefone, endereço ou tokens ativos. O prazo efetivo de retenção ainda precisa ser acordado com a instituição.
+
+## Integração de avaliações e frequência — outubro/2026
+
+| Dado                             | Modelo                  | Finalidade e proteção                                            | Retenção e exportação                                                                 |
+| -------------------------------- | ----------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| Período letivo                  | `PeriodoLetivo`       | Organizar turmas por período e datas válidas                     | Metadado escolar, sujeito à política acadêmica                                         |
+| Avaliação, nome e peso         | `Avaliacao`           | Organização de provas, seminários e pontuações                | Histórico escolar vinculado à disciplina/turma                                          |
+| Nota e observação              | `Nota`                | Medir desempenho; `observacao` com Fernet                        | Exportável pelo titular; preservar conforme obrigação acadêmica                       |
+| Revisões de nota                | `HistoricoNota`       | Provar autor e valores de correções                              | Somente leitura e preservação por `PROTECT`                                           |
+| Presença, falta e justificativa | `RegistroFrequencia`  | Acompanhamento e cálculo da frequência; justificativa com Fernet | Exportável pelo titular ou representante habilitado                                      |
+| Revisões de frequência         | `HistoricoFrequencia` | Demonstrar correções, inclusive de justificativas                | Campos pessoais criptografados; acesso RBAC                                               |
+| Arquivo de entrega               | `Entrega.arquivo`     | Comprovar entrega de atividade em PDF                              | Bucket privado; rota de download autenticada; prazo de retenção institucional a definir |
+| Aviso fixado                     | `Aviso.fixado`        | Priorizar comunicados institucionais                               | Campo booleano sem novo dado pessoal                                                      |
+
+**Migração de observações e justificativas:** as migrations `avaliacoes/0002_criptografia_historico.py` e `frequencia/0002_criptografia_historico.py` adicionam primeiro colunas Fernet temporárias, copiam os dados usando o ORM histórico e só então removem a coluna antiga. Nunca trocar `FIELD_ENCRYPTION_KEY` durante esta operação. Executar primeiro em backup restaurado e conferir os registros lidos pelo ORM.
+
+**Dados legados e tabelas antigas do Supabase:** tabelas terminadas em `_antiga` foram renomeadas pela equipe e não são alteradas por esta remediação. O responsável pelo banco deve confirmar quem as criou, a retenção aplicável e a existência de dados antes de considerar sua exclusão.
+
+**Desidentificação e retenção:** a rotina de encerramento de conta preserva registros acadêmicos necessários, mas a política institucional precisa definir quando arquivos e observações deixam de ter finalidade legítima e podem ser expurgados por um processo próprio, com backup, registro e conferência do armazenamento. Não foi implementada exclusão automática irreversível de arquivos sem essa política.
+
+**Direitos do titular:** `exportar_dados_view` agora inclui avaliações e frequências do aluno, revisões e a referência aos PDFs entregues. O conteúdo físico do PDF é acessível apenas pela rota autenticada e autorizada. O responsável só pode consultar registros dos alunos que lhe estão vinculados.
