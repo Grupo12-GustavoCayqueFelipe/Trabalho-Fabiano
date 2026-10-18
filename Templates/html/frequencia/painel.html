@@ -1,0 +1,19 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Frequência - EduControll</title><link rel="stylesheet" href="{% static 'css/modulos.css' %}"></head>
+<body><header><h1>Frequência escolar</h1><nav><a href="{% url 'dashboard' %}">Painel</a> | <a href="{% url 'avaliacoes_painel' %}">Avaliações</a></nav></header><main>
+{% for message in messages %}<p>{{ message }}</p>{% endfor %}
+{% if user.perfil == 'PROF' %}<section class="card"><h2>Realizar chamada</h2>
+{% for aula in aulas %}<article><h3>{{ aula.disciplina.nome }} — {{ aula.turma.nome }} — {{ aula.data|date:'d/m/Y' }}</h3>
+<form method="post" action="{% url 'frequencia_salvar' aula.pk %}">{% csrf_token %}
+<label>Aluno <select name="matricula">{% for matricula in matriculas %}{% if matricula.turma_id == aula.turma_id %}<option value="{{ matricula.pk }}">{{ matricula.aluno.usuario.nome }}</option>{% endif %}{% endfor %}</select></label>
+<label>Status <select name="status"><option value="P">Presente</option><option value="F">Falta</option><option value="J">Falta justificada</option></select></label>
+<label>Justificativa (se aplicável) <input name="justificativa" maxlength="200"></label>
+<button type="submit">Salvar chamada</button></form></article>
+{% empty %}<p>Sem aulas cadastradas para chamada.</p>{% endfor %}</section>{% endif %}
+<section class="card"><h2>Histórico de frequência</h2>
+{% for registro in registros %}<article><strong>{{ registro.matricula.aluno.usuario.nome }}</strong> — {{ registro.aula.disciplina.nome }} — {{ registro.aula.data|date:'d/m/Y' }}: {{ registro.get_status_display }}{% if registro.justificativa %}<p>{{ registro.justificativa }}</p>{% endif %}</article>
+{% empty %}<p>Não existem registros de frequência para seu perfil.</p>{% endfor %}</section>
+<section class="card"><h2>Histórico de alterações</h2>
+{% for item in historico_frequencia %}<article>{{ item.registro.aula }} — {{ item.status_anterior|default:'Primeiro lançamento' }} → {{ item.status_novo }} — {{ item.alterado_em|date:'d/m/Y H:i' }}</article>{% empty %}<p>Sem alterações registradas.</p>{% endfor %}</section>
+</main></body></html>

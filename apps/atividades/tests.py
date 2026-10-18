@@ -115,3 +115,30 @@ class AtividadesSegurancaTest(TestCase):
         })
         self.assertEqual(resposta.status_code, 302)
         self.assertEqual(Atividade.objects.count(), 1)
+
+
+# Upload e download precisam passar pelo mesmo RBAC das entregas.
+class ArquivosEntregaSegurancaTest(AtividadesSegurancaTest):
+    # A resposta aceita somente arquivos PDF pequenos com assinatura correta.
+    def test_rejeita_arquivo_com_extensao_falsa(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        self.client.force_login(self.aluno_user)
+        arquivo = SimpleUploadedFile('tarefa.pdf', b'nao e pdf', content_type='application/pdf')
+        self.client.post(reverse('entrega_salvar', args=[self.atividade.pk]), {'resposta': '', 'arquivo': arquivo})
+        self.assertFalse(Entrega.objects.exists())
+
+    # Aluno de outra turma não pode baixar arquivo privado por ID.
+    def test_outro_aluno_nao_baixa_pdf(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as pasta:
+            with override_settings(MEDIA_ROOT=pasta):
+                self.client.force_login(self.aluno_user)
+                arquivo = SimpleUploadedFile('tarefa.pdf', b'%PDF-1.7\nteste', content_type='application/pdf')
+                self.client.post(reverse('entrega_salvar', args=[self.atividade.pk]), {'resposta': '', 'arquivo': arquivo})
+                entrega = Entrega.objects.get()
+                self.client.force_login(self.outro_aluno_user)
+                resposta = self.client.get(reverse('entrega_arquivo', args=[entrega.pk]))
+                self.assertEqual(resposta.status_code, 404)

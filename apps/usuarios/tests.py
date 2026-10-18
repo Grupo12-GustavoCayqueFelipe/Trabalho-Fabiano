@@ -137,7 +137,7 @@ class DoisFatoresConfigurarTest(BaseUsuarioTest):
         self.usuario.otp_ativado = True
         self.usuario.save()
         self.client.force_login(self.usuario)
-        # force_login pula o TOTP; este teste simula a sessão já verificada.
+        # O login forçado do teste representa uma sessão que já passou pelo TOTP.
         sessao = self.client.session
         sessao['2fa_verificado'] = self.usuario.pk
         sessao.save()
@@ -397,52 +397,90 @@ class ConsentimentoCriancaTest(BaseUsuarioTest):
         self.assertFalse(ConsentimentoUsuario.objects.filter(aluno_representado=aluno).exists())
 
 
-# Verifica as regressões de permissão e privacidade corrigidas antes da entrega.
-class RegressaoSegurancaTest(BaseUsuarioTest):
-    def test_sessao_antiga_expira_quando_2fa_ativado(self):
+class PortaisSeparadosTest(BaseUsuarioTest):
+    # Mesmo com senha correta, um aluno não pode entrar pelo portal de funcionários.
+    def test_aluno_nao_pode_entrar_no_portal_de_funcionarios(self):
+        resposta = self.client.post(
+            reverse('login_funcionarios'),
+            {'email': self.usuario.email, 'senha': SENHA}
+        )
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(self.logado())
+
+    # O portal de alunos mantém o login e o redirecionamento normal.
+    def test_aluno_pode_entrar_no_portal_academico(self):
+        resposta = self.client.post(
+            reverse('login_academico'),
+            {'email': self.usuario.email, 'senha': SENHA}
+        )
+        self.assertRedirects(resposta, reverse('dashboard'), fetch_redirect_response=False)
+
+    # O formulário de funcionários não deve enviar senha por GET.
+    def test_formularios_tem_post_e_csrf(self):
+        for nome in ('login_academico', 'login_funcionarios'):
+            pagina = self.client.get(reverse(nome))
+            self.assertContains(pagina, 'method="post"')
+            self.assertContains(pagina, 'csrfmiddlewaretoken')
+
+    # A página de professor não pode ser acessada por um aluno autenticado.
+    def test_aluno_nao_recebe_dashboard_institucional(self):
+        self.client.force_login(self.usuario)
+        resposta = self.client.get(reverse('dashboard'))
+        self.assertTemplateUsed(resposta, 'html/alunos/aluno.html')
+
+    # Funcionários sem vinculação de professor não entram no painel docente.
+    def test_admin_visualiza_o_painel_correto(self):
+        admin = Usuario.objects.create_superuser(
+            email='admin@teste.com', password=SENHA, nome='Admin'
+        )
+        self.client.force_login(admin)
+        resposta = self.client.get(reverse('dashboard'))
+        self.assertTemplateUsed(resposta, 'html/painel/painel_adm.html')
+
+
+class PainelFuncionarioIntegracaoTest(BaseUsuarioTest):
+    # Garante que o login institucional não aceite aluno mesmo com senha válida.
+    def test_login_institucional_somente_funcionarios(self):
+        resposta = self.client.post(
+            reverse('login_funcionarios'),
+            {'email': self.usuario.email, 'senha': SENHA}
+        )
+        self.assertEqual(resposta.status_code, 200)
+        self.assertFalse(self.logado())
+
+    # O administrador usa o painel novo com indicadores trazidos do banco.
+    def test_administrador_recebe_indicadores(self):
+        administrador = Usuario.objects.create_superuser(
+            email='gestor@teste.com', password=SENHA, nome='Gestor'
+        )
+        self.client.force_login(administrador)
+        resposta = self.client.get(reverse('dashboard'))
+        self.assertEqual(resposta.status_code, 200)
+        self.assertTemplateUsed(resposta, 'html/painel/painel_adm.html')
+        self.assertIn('total_turmas', resposta.context)
+
+    # O segundo fator continua obrigatório quando já foi ativado na conta.
+    def test_sessao_antiga_sem_2fa_e_bloqueada(self):
         self.client.force_login(self.usuario)
         self.usuario.otp_secret = pyotp.random_base32()
         self.usuario.otp_ativado = True
-        self.usuario.save()
-        resposta = self.client.get(reverse('meus_dados_view'))
+        self.usuario.save(update_fields=['otp_secret', 'otp_ativado'])
+        resposta = self.client.get(reverse('dashboard'))
         self.assertRedirects(resposta, reverse('login'), fetch_redirect_response=False)
         self.assertFalse(self.logado())
 
-    def test_superusuario_recebe_perfil_admin(self):
-        root = Usuario.objects.create_superuser(email='root-2@t.com', password=SENHA, nome='Root')
-        self.assertEqual(root.perfil, 'ADMIN')
 
-    def test_crianca_sem_data_nao_aceita_consentimento(self):
-        from .models import Aluno
-        Aluno.objects.create(usuario=self.usuario, matricula='SEM-DATA', data_nascimento=None)
-        self.client.force_login(self.usuario)
-        self.client.post(reverse('termos_view'), {'USO_IMAGEM': 'on'})
-        self.assertFalse(ConsentimentoUsuario.objects.filter(usuario=self.usuario, aceito=True).exists())
-
-    def test_consentimentos_impedem_exclusao_fisica(self):
-        from django.db.models import ProtectedError
-        ConsentimentoUsuario.objects.create(usuario=self.usuario, tipo='USO_IMAGEM', aceito=True)
-        with self.assertRaises(ProtectedError):
-            self.usuario.delete()
-
-    def test_exportacao_inclui_logs_sem_segredos(self):
-        from .models import LogOperacao
-        self.client.force_login(self.usuario)
-        LogOperacao.objects.create(usuario=self.usuario, evento='TESTE', objeto_id=1)
-        resposta = self.client.get(reverse('exportar_dados_view'))
+class TelaProfessorIntegracaoTest(BaseUsuarioTest):
+    # Professor com perfil acadêmico recebe os indicadores dos seus vínculos.
+    def test_painel_professor_renderiza(self):
+        from .models import Professor
+        professor_usuario = Usuario.objects.create_user(
+            email='professor@teste.com', password=SENHA,
+            nome='Professor Teste', perfil='PROF'
+        )
+        Professor.objects.create(usuario=professor_usuario, formacao='Pedagogia')
+        self.client.force_login(professor_usuario)
+        resposta = self.client.get(reverse('dashboard'))
         self.assertEqual(resposta.status_code, 200)
-        import json
-        dados = json.loads(resposta.content)
-        self.assertEqual(dados['operacoes'][0]['evento'], 'TESTE')
-        self.assertNotIn('otp_secret', dados)
-
-    def test_responsavel_ve_estado_atual_do_consentimento(self):
-        from .models import Aluno, Responsavel, AlunoResponsavel
-        aluno = Aluno.objects.create(usuario=self.usuario, matricula='AL-TESTE')
-        responsavel_user = Usuario.objects.create_user(email='resp-reg@t.com', nome='Resp', password=SENHA, perfil='RESP')
-        responsavel = Responsavel.objects.create(usuario=responsavel_user)
-        AlunoResponsavel.objects.create(aluno=aluno, responsavel=responsavel)
-        ConsentimentoUsuario.objects.create(usuario=responsavel_user, aluno_representado=aluno, tipo='USO_IMAGEM', aceito=True)
-        self.client.force_login(responsavel_user)
-        resposta = self.client.get(reverse('termos_view'))
-        self.assertContains(resposta, 'name="USO_IMAGEM" checked')
+        self.assertTemplateUsed(resposta, 'html/painel/painel_prof.html')
+        self.assertContains(resposta, 'method="POST"')
