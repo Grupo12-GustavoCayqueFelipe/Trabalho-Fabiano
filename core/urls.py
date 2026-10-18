@@ -22,9 +22,14 @@ from apps.usuarios import views as usuarios_views
 from apps.academico import views as academico_views
 from apps.atividades import views as atividades_views
 from apps.comunicacao import views as comunicacao_views
+from apps.avaliacoes import views as avaliacoes_views
+from apps.frequencia import views as frequencia_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    # Portais separados com o mesmo mecanismo de senha e 2FA.
+    path('login/', usuarios_views.login_academico_view, name='login_academico'),
+    path('funcionarios/login/', usuarios_views.login_funcionarios_view, name='login_funcionarios'),
     # Rota raiz para a aplicação de login
     path('', usuarios_views.login_view, name='login'),
     # Rota para a página principal
@@ -51,6 +56,8 @@ urlpatterns = [
     path('meus-dados/excluir/', usuarios_views.excluir_dados_view, name='excluir_dados_view'),
     # rota para o painel principal do módulo acadêmico
     path('academico/', academico_views.academico_painel_view, name='academico_painel_view'),
+    # Cadastro de período letivo pelo administrador.
+    path('academico/periodo/criar/', academico_views.periodo_criar_view, name='periodo_criar'),
     # rota para a página de criação e edição de turmas
     path('academico/turma/salvar/', academico_views.salvar_turma_view, name='salvar_turma_view'),
     # rota para a página de criação e edição de disciplinas
@@ -71,6 +78,15 @@ urlpatterns = [
     path('atividades/<int:atividade_id>/entregar/', atividades_views.entrega_salvar_view, name='entrega_salvar'),
     # rota para a página de correção de entregas, onde o professor pode corrigir as respostas enviadas pelos alunos
     path('atividades/<int:atividade_id>/corrigir/<int:entrega_id>/', atividades_views.entrega_corrigir_view, name='entrega_corrigir'),
+    # Download autenticado do anexo da entrega (sem URL pública).
+    path('atividades/entregas/<int:entrega_id>/arquivo/', atividades_views.entrega_arquivo_view, name='entrega_arquivo'),
+    # Avaliações e notas: consulta por perfil, criação e lançamento auditado.
+    path('avaliacoes/', avaliacoes_views.avaliacoes_painel_view, name='avaliacoes_painel'),
+    path('avaliacoes/criar/', avaliacoes_views.avaliacao_criar_view, name='avaliacao_criar'),
+    path('avaliacoes/<int:avaliacao_id>/nota/', avaliacoes_views.nota_salvar_view, name='nota_salvar'),
+    # Frequência: consultas por vínculo e lançamento auditado pelo professor.
+    path('frequencia/', frequencia_views.frequencia_painel_view, name='frequencia_painel'),
+    path('frequencia/aula/<int:aula_id>/salvar/', frequencia_views.frequencia_salvar_view, name='frequencia_salvar'),
     # Comunicação: mural por turma e mensagens internas restritas.
     path('comunicacao/', comunicacao_views.comunicacao_painel_view, name='comunicacao_painel'),
     # rota para a página de criação de avisos, onde o professor pode criar novos avisos para os alunos
