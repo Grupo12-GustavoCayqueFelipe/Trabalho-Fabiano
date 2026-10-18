@@ -7,6 +7,7 @@ class EduAdminSite(AdminSite):
         # Mesmo um funcionário com senha válida não entra sem o segundo fator.
         return (
             super().has_permission(request)
+            and request.user.perfil == 'ADMIN'
             and request.user.otp_ativado
             and request.session.get('2fa_verificado') == request.user.pk
         )

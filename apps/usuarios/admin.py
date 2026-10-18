@@ -1,11 +1,12 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from core.admin_auditoria import AdminComAuditoria
-from .models import Usuario, Aluno, Professor, Responsavel, AlunoResponsavel, LogRecuperacaoSenha, TokenRecuperacaoSenha, ConsentimentoUsuario, LogAcesso, LogOperacao
+from .models import Usuario, Aluno, Professor, Responsavel, AlunoResponsavel, LogRecuperacaoSenha, ConsentimentoUsuario, LogAcesso, LogOperacao
 # Register your models here.
 
 # Classe para garantir que o formulário use o hash de senha
-class UsuarioAdmin(UserAdmin):
+# Preserva os formularios do UserAdmin e adiciona LogOperacao a alteracoes privilegiadas.
+class UsuarioAdmin(AdminComAuditoria, UserAdmin):
   
   # Qual tabela será protegida
   model = Usuario
@@ -91,7 +92,8 @@ class LogAcessoAdmin(SomenteLeituraAdmin):
 admin.site.register(Usuario, UsuarioAdmin)
 
 # Perfis também não podem ser apagados fisicamente por fora do fluxo institucional.
-class PerfilProtegidoAdmin(admin.ModelAdmin):
+# Preserva a proibicao de exclusao e registra alteracoes de perfis no LogOperacao.
+class PerfilProtegidoAdmin(AdminComAuditoria):
   def has_delete_permission(self, request, obj=None):
     return False
 
@@ -106,7 +108,7 @@ class AlunoResponsavelAdmin(AdminComAuditoria):
 admin.site.register(LogRecuperacaoSenha, LogRecuperacaoSenhaAdmin)
 admin.site.register(ConsentimentoUsuario, ConsentimentoUsuarioAdmin)
 admin.site.register(LogAcesso, LogAcessoAdmin)
-admin.site.register(TokenRecuperacaoSenha)
+# Tokens de recuperacao nao devem ser criados, editados ou consultados via Admin.
 
 # A trilha de operações pode ser consultada, mas nunca editada pelo Admin.
 class LogOperacaoAdmin(SomenteLeituraAdmin):
