@@ -144,11 +144,11 @@ Na mesma tela, o usuário pode exportar seus dados em formato JSON através de /
 
 ### 9.7 Exclusão
 
-O usuário pode solicitar a exclusão da própria conta em /meus-dados/excluir/, mediante confirmação de senha e de uma checkbox de ciência sobre a irreversibilidade da ação. A exclusão remove o Usuario e, em cascata, todos os registros de perfil associados (Aluno, Professor ou Responsavel).
+O usuário pode solicitar a exclusão da própria conta em /meus-dados/excluir/, mediante confirmação de senha e de uma checkbox de ciência sobre a irreversibilidade da ação. A rotina atual desativa o Usuario, inutiliza a senha, remove identificadores cadastrais e preserva as referencias academicas sujeitas a retencao. Nao executa exclusao fisica em cascata. Conteudos historicos (mensagens, entregas, PDFs e observacoes) dependem de politica institucional de retencao e expurgo, ainda pendente.
 
 ### 9.8 Fluxo de atendimento aos direitos
 
-Todos os direitos do titular (consulta, exportação, exclusão e gestão de consentimento) são exercidos diretamente pelo próprio usuário, de forma self-service, sem necessidade de solicitação manual a um administrador. Isso reduz o tempo de resposta a zero e elimina a dependência de terceiros para o exercício desses direitos.
+Consulta, exportacao do proprio cadastro, gestao de consentimentos e encerramento com desidentificacao estao disponiveis no portal. A exportacao completa dos dados do aluno representado e o expurgo de conteudos historicos ainda exigem procedimentos institucionais; nao se declara atendimento automatico integral desses casos.
 
 ## 10. Justificativas Técnicas das Decisões do Projeto
 
@@ -184,7 +184,7 @@ Durante o desenvolvimento, o arquivo .env foi commitado acidentalmente por um in
 
 ### 10.8 Exclusão de conta (LGPD)
 
-A exclusão de conta pede confirmação de senha antes de apagar os dados, pra evitar que uma sessão aberta sem supervisão resulte em exclusão acidental ou maliciosa. A exclusão do Usuario propaga em cascata pros models de perfil (Aluno, Professor, Responsavel), via on_delete=models.CASCADE.
+A exclusão de conta pede confirmação de senha antes de apagar os dados, pra evitar que uma sessão aberta sem supervisão resulte em exclusão acidental ou maliciosa. No fluxo atual, a conta e desativada e desidentificada de forma transacional, sem excluir fisicamente Usuario nem os perfis. Registros academicos e auditorias protegidas continuam sujeitos a retencao institucional.
 
 ### 10.9 Modelagem do consentimento como histórico, não como estado único
 
