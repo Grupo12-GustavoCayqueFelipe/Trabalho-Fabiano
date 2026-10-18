@@ -733,3 +733,30 @@ def logout_view(request):
   # Desloga o usuário e redireciona para a página de login
   logout(request)
   return redirect('login')
+
+
+# Consulta paginada de usuários e auditoria para a gestão institucional.
+# Não concede permissões de staff e não altera contas.
+@login_required(login_url='login')
+def gestao_usuarios_view(request):
+  from django.core.paginator import Paginator
+  from django.db.models import Q
+  from django.http import HttpResponseForbidden
+  from apps.usuarios.models import Usuario, LogOperacao
+
+  if request.user.perfil != 'ADMIN' or not request.user.is_active:
+    return HttpResponseForbidden('Acesso restrito ao administrador.')
+
+  busca = (request.GET.get('q') or '').strip()[:80]
+  usuarios = Usuario.objects.all().order_by('nome', 'pk')
+  if busca:
+    usuarios = usuarios.filter(Q(nome__icontains=busca) | Q(email__icontains=busca))
+
+  pagina = Paginator(usuarios, 25).get_page(request.GET.get('pagina'))
+  auditoria = LogOperacao.objects.select_related('usuario').order_by('-criado_em', '-pk')[:15]
+  return render(request, 'html/usuarios/gestao.html', {
+    'pagina_usuarios': pagina,
+    'total_usuarios': usuarios.count(),
+    'busca': busca,
+    'auditoria_recente': auditoria,
+  })

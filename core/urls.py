@@ -34,6 +34,7 @@ urlpatterns = [
     path('', usuarios_views.login_view, name='login'),
     # Rota para a página principal
     path('dashboard/', usuarios_views.dashboard_view, name='dashboard'),
+    path('usuarios/gestao/', usuarios_views.gestao_usuarios_view, name='gestao_usuarios'),
     #rota para a página de logout
     path('logout/', usuarios_views.logout_view, name='logout'),
     # segundo passo do login, pede o código de 6 dígitos de quem tem 2FA ligado

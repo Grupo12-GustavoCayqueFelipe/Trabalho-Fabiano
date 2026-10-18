@@ -15,13 +15,13 @@
 
         <nav>
             <a href="{% url 'dashboard' %}" class="ativo">Início</a>
-            <a href="/admin/">Usuários</a>
+            <a href="{% url 'gestao_usuarios' %}">Usuários</a>
             <a href="{% url 'academico_painel_view' %}#turmas">Turmas</a>
             <a href="{% url 'academico_painel_view' %}#disciplinas">Disciplinas</a>
             <a href="{% url 'academico_painel_view' %}#historico">Matrículas</a>
-            <a href="{% url 'academico_painel_view' %}#periodos">Períodos Letivos</a>
+            <a href="{% url 'academico_painel_view' %}#periodos-letivos">Períodos Letivos</a>
             <a href="{% url 'comunicacao_painel' %}">Comunicação</a>
-            <a href="/admin/usuarios/logoperacao/">Auditoria</a>
+            <a href="{% url 'gestao_usuarios' %}#auditoria">Auditoria</a>
         </nav>
 
         <form action="{% url 'logout' %}" method="POST">
@@ -80,7 +80,7 @@
             <h2>Acessos rápidos</h2>
 
             <div class="atalhos">
-                <a href="/admin/" class="atalho">
+                <a href="{% url 'gestao_usuarios' %}" class="atalho">
                     <span class="icone">♙</span>
                     <div>
                         <h3>Gestão de usuários</h3>
@@ -107,7 +107,7 @@
                     <span class="seta">›</span>
                 </a>
 
-                <a href="{% url 'academico_painel_view' %}#historico" class="atalho">
+                <a href="{% url 'academico_painel_view' %}#matricula" class="atalho">
                     <span class="icone">▣</span>
                     <div>
                         <h3>Matrículas</h3>
@@ -116,7 +116,7 @@
                     <span class="seta">›</span>
                 </a>
 
-                <a href="{% url 'academico_painel_view' %}#periodos" class="atalho">
+                <a href="{% url 'academico_painel_view' %}#periodos-letivos" class="atalho">
                     <span class="icone">▦</span>
                     <div>
                         <h3>Períodos letivos</h3>
@@ -155,7 +155,7 @@
                     <h3>Registros de auditoria</h3>
                     <p>Consulte as ações registradas no sistema.</p>
                 </div>
-                <a href="{% url 'comunicacao_painel' %}">Consultar ›</a>
+                <a href="{% url 'gestao_usuarios' %}#auditoria">Consultar ›</a>
             </div>
         </section>
 

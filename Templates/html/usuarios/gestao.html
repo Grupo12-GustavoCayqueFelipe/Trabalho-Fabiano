@@ -1,0 +1,45 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gestão de usuários — EduControll</title>
+    <link rel="stylesheet" href="{% static 'css/modulos.css' %}">
+</head>
+<body>
+    {% include "html/componentes/menu_modulos.html" %}
+    <header><h1>Gestão de usuários</h1><nav><a href="{% url 'dashboard' %}">Voltar ao painel</a> <a href="#auditoria">Auditoria</a></nav></header>
+    <main>
+        <section class="card">
+            <h2>Usuários cadastrados <span class="modulo-tag">{{ total_usuarios }} encontrados</span></h2>
+            <p>Consulta de contas por administradores. Edição de permissões permanece reservada aos usuários com acesso ao Django Admin.</p>
+            <form method="get">
+                <label for="buscar">Buscar por nome ou e-mail</label>
+                <input id="buscar" name="q" maxlength="80" value="{{ busca }}" placeholder="Nome ou e-mail">
+                <button type="submit">Pesquisar</button>
+            </form>
+            <div style="overflow-x:auto">
+                <table>
+                    <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Situação</th></tr></thead>
+                    <tbody>
+                        {% for conta in pagina_usuarios %}
+                        <tr><td>{{ conta.nome }}</td><td>{{ conta.email }}</td><td>{{ conta.get_perfil_display }}</td><td>{% if conta.is_active %}Ativa{% else %}Inativa{% endif %}</td></tr>
+                        {% empty %}<tr><td colspan="4">Nenhuma conta encontrada.</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if pagina_usuarios.has_previous %}<a href="?q={{ busca|urlencode }}&amp;pagina={{ pagina_usuarios.previous_page_number }}">Anterior</a>{% endif %}
+            <span>Página {{ pagina_usuarios.number }} de {{ pagina_usuarios.paginator.num_pages }}</span>
+            {% if pagina_usuarios.has_next %}<a href="?q={{ busca|urlencode }}&amp;pagina={{ pagina_usuarios.next_page_number }}">Próxima</a>{% endif %}
+            {% if user.is_staff %}<p><a href="/admin/usuarios/usuario/">Abrir gerenciamento avançado no Django Admin</a></p>{% endif %}
+        </section>
+        <section id="auditoria" class="card">
+            <h2>Últimas operações auditadas</h2>
+            {% for evento in auditoria_recente %}
+            <article><strong>{{ evento.evento }}</strong> <span class="modulo-tag">{{ evento.criado_em|date:'d/m/Y H:i' }}</span><p>{{ evento.usuario.nome|default:'Conta removida' }} {% if evento.objeto_id %}· Registro #{{ evento.objeto_id }}{% endif %}</p></article>
+            {% empty %}<p>Não há operações auditadas.</p>{% endfor %}
+        </section>
+    </main>
+</body>
+</html>
