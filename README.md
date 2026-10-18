@@ -102,21 +102,84 @@ O sistema fica disponível em `http://127.0.0.1:8000`, e o Django Admin em `http
 docker-compose up --build
 ```
 
-## Estrutura
+## Estrutura do Projeto
 
+```text
 educontroll/
-├── core/ # Configurações globais do Django (settings, urls, wsgi)
-├── apps/
-│ ├── usuarios/ # Autenticação, 2FA, recuperação de senha, LGPD, logs, perfis
-│ └── academico/ # Turmas, Disciplinas, Matriculas e Aulas
-├── static/ # Arquivos estáticos (CSS, JS)
-├── Templates/ # Templates HTML
-├── Docs/ # Documentação técnica, escopo, evidências, guias
-├── .github/workflows/ # Pipeline de CI (testes automatizados)
-├── .env.example # Exemplo de variáveis de ambiente
-├── requirements.txt
-├── Checklist.md # Status detalhado por item de requisito
-└── manage.py
+│
+├── core/                          # Configurações centrais do Django
+│   ├── settings.py                # Configurações de produção e desenvolvimento
+│   ├── settings_test.py           # Configurações isoladas para testes
+│   ├── urls.py                    # Rotas principais
+│   ├── middleware.py              # Middlewares de segurança e autenticação
+│   ├── admin_site.py              # Controle de acesso ao Django Admin
+│   ├── admin_auditoria.py         # Auditoria das operações administrativas
+│   ├── apps.py                    # Configuração do Django Admin
+│   ├── asgi.py                    # Interface ASGI
+│   └── wsgi.py                    # Interface WSGI
+│
+├── apps/                          # Módulos do sistema
+│   ├── usuarios/                  # Autenticação, 2FA, LGPD, perfis e auditoria
+│   ├── academico/                 # Turmas, disciplinas, matrículas e aulas
+│   ├── atividades/                # Atividades, entregas e correções
+│   ├── avaliacoes/                # Avaliações, notas e históricos
+│   ├── frequencia/                # Presenças, faltas e justificativas
+│   └── comunicacao/               # Avisos e mensagens institucionais
+│
+├── Templates/                     # Interfaces HTML organizadas por módulo
+│   ├── html/
+│   │   ├── academico/             # Gestão acadêmica
+│   │   ├── alunos/                # Portal do aluno
+│   │   ├── atividades/            # Telas de atividades
+│   │   ├── avaliacoes/            # Boletim e notas
+│   │   ├── componentes/           # Componentes HTML compartilhados
+│   │   ├── comunicacao/           # Avisos e mensagens
+│   │   ├── frequencia/            # Controle de frequência
+│   │   ├── login/                 # Formulários de autenticação
+│   │   ├── meus_dados/            # Dados pessoais e direitos LGPD
+│   │   ├── painel/                # Dashboards administrativos e docentes
+│   │   ├── responsaveis/          # Portal do responsável
+│   │   ├── senha/                 # Recuperação e alteração de senha
+│   │   └── usuarios/              # Gestão e consulta de usuários
+│   └── usuarios/                  # Página inicial e entrada dos portais
+│
+├── static/                        # Arquivos estáticos
+│   ├── css/                       # Estilos dos portais e módulos
+│   └── js/                        # Scripts JavaScript
+│
+├── scripts/                       # Diagnósticos e verificações técnicas
+│   ├── diagnosticar_totp_legado.py
+│   ├── testar_migracoes_dados.py
+│   ├── verificar_criptografia_legada.py
+│   └── verificar_integracao_estatica.py
+│
+├── Docs/                          # Documentação do projeto
+│   ├── Documentacoes_Tecnicas/    # Documentação técnica detalhada
+│   ├── Evidencias_de_Funcionamento/
+│   ├── Checklist.md               # Checklist dos requisitos
+│   ├── Escopo.md                   # Escopo do sistema
+│   ├── Mapa_Dados_LGPD.md          # Mapeamento e proteção de dados
+│   └── Requisito.md                # Requisitos do projeto
+│
+├── supabase/                      # Diretório reservado à integração Supabase
+├── .vscode/                       # Configurações do VS Code
+├── .dockerignore                  # Exclusões do contexto Docker
+├── .env.example                   # Exemplo das variáveis de ambiente
+├── .gitignore                     # Arquivos ignorados pelo Git
+├── Dockerfile                     # Imagem Docker da aplicação
+├── docker-compose.yml             # Orquestração dos serviços locais
+├── requirements.txt               # Dependências Python
+├── README.md                      # Documentação principal
+└── manage.py                      # Gerenciamento do Django
+```
+
+### Organização dos módulos
+
+Cada aplicação em `apps/` possui seus próprios arquivos de modelos, views, administração e testes, além das migrations necessárias ao banco de dados.
+
+O sistema utiliza **Django 6.0**, **PostgreSQL via Supabase** e **Render.com** para hospedagem, com autenticação por sessão, 2FA (TOTP), controle de acesso por perfil, criptografia de dados pessoais e registros de auditoria.
+
+Os quatro perfis disponíveis são: **Administrador, Professor, Aluno e Responsável**.
 
 ## Documentação
 
