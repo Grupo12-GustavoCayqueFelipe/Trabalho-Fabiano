@@ -139,13 +139,29 @@ def salvar_disciplina_view(request):
     messages.error(request, 'Disciplina não encontrada.')
     return _voltar_painel('disciplinas')
 
-  # A disciplina, seus vínculos e o log pertencem à mesma transação.
+  # Rejeita IDs malformados ou inexistentes antes de alterar nome e vínculos.
+  turmas_brutas = request.POST.getlist('turmas')
+  professores_brutos = request.POST.getlist('professores')
+  turmas_ids = _ids_validos(turmas_brutas)
+  professores_ids = _ids_validos(professores_brutos)
+  turmas_validas = Turma.objects.filter(pk__in=turmas_ids)
+  professores_validos = Professor.objects.filter(pk__in=professores_ids)
+  if (
+    len(turmas_ids) != len(turmas_brutas)
+    or len(professores_ids) != len(professores_brutos)
+    or turmas_validas.count() != len(set(turmas_ids))
+    or professores_validos.count() != len(set(professores_ids))
+  ):
+    messages.error(request, 'Uma ou mais turmas ou professores são inválidos.')
+    return _voltar_painel('cadastro-disciplina')
+
+  # A disciplina, os vínculos e o log permanecem na mesma transação.
   with transaction.atomic():
     disciplina.nome = nome
     disciplina.save()
-    # Só aceita ids que existem de verdade, e substitui a seleção anterior pela nova.
-    disciplina.turmas.set(Turma.objects.filter(pk__in=_ids_validos(request.POST.getlist('turmas'))))
-    disciplina.professores.set(Professor.objects.filter(pk__in=_ids_validos(request.POST.getlist('professores'))))
+    # Seleção vazia continua válida; seleção com ID inexistente não altera vínculos.
+    disciplina.turmas.set(turmas_validas)
+    disciplina.professores.set(professores_validos)
     registrar_operacao(request.user, 'DISCIPLINA_SALVA', disciplina.pk)
 
   messages.success(request, 'Disciplina salva com sucesso.')
@@ -254,7 +270,8 @@ def periodo_criar_view(request):
   fim_texto = (request.POST.get('data_fim') or '').strip()
 
   # Não converte números inválidos diretamente para inteiro.
-  if not ano_texto.isascii() or not ano_texto.isdecimal() or not semestre_texto in ('1', '2'):
+  if (len(ano_texto) != 4 or not ano_texto.isascii()
+      or not ano_texto.isdecimal() or semestre_texto not in ('1', '2')):
     messages.error(request, 'Ano ou semestre inválido.')
     return _voltar_painel('cadastro-turma')
   if not 2000 <= int(ano_texto) <= 2100:

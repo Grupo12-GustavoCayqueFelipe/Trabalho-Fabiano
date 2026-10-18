@@ -122,12 +122,39 @@ class SalvarDisciplinaTest(BaseAcademicoTest):
     self.assertEqual(disciplina.turmas.count(), 2)
     self.assertEqual(list(disciplina.professores.all()), [self.professor])
 
-  # Ids que não existem são ignorados em vez de quebrar
-  def test_ids_inexistentes_sao_ignorados(self):
+  # IDs invalidos nao criam disciplina nem apagam vinculos ja cadastrados.
+  def test_ids_inexistentes_nao_criam_disciplina(self):
     self.client.force_login(self.admin)
     resposta = self.client.post(reverse('salvar_disciplina_view'), {'nome': 'Química', 'turmas': ['99999', 'abc']})
     self.assertEqual(resposta.status_code, 302)
-    self.assertEqual(Disciplina.objects.get(nome='Química').turmas.count(), 0)
+    self.assertFalse(Disciplina.objects.filter(nome='Química').exists())
+
+  def test_ids_invalidos_preservam_vinculos_existentes(self):
+    disciplina = Disciplina.objects.create(nome='Matematica')
+    disciplina.turmas.add(self.turma)
+    disciplina.professores.add(self.professor)
+    self.client.force_login(self.admin)
+    resposta = self.client.post(reverse('salvar_disciplina_view'), {
+      'pk': disciplina.pk, 'nome': 'Nome nao deve mudar',
+      'turmas': ['99999'], 'professores': [self.professor.pk],
+    })
+    self.assertEqual(resposta.status_code, 302)
+    disciplina.refresh_from_db()
+    self.assertEqual(disciplina.nome, 'Matematica')
+    self.assertEqual(list(disciplina.turmas.all()), [self.turma])
+    self.assertEqual(list(disciplina.professores.all()), [self.professor])
+
+  def test_selecao_vazia_intencional_pode_limpar_vinculos(self):
+    disciplina = Disciplina.objects.create(nome='Matematica')
+    disciplina.turmas.add(self.turma)
+    disciplina.professores.add(self.professor)
+    self.client.force_login(self.admin)
+    resposta = self.client.post(reverse('salvar_disciplina_view'), {
+      'pk': disciplina.pk, 'nome': 'Matematica', 'turmas': [], 'professores': [],
+    })
+    self.assertEqual(resposta.status_code, 302)
+    self.assertFalse(disciplina.turmas.exists())
+    self.assertFalse(disciplina.professores.exists())
 
 
 class MatriculaTest(BaseAcademicoTest):
