@@ -22,6 +22,7 @@
                 <label>Turma <select name="turma" required><option value="">Selecione</option>{% for turma in turmas %}<option value="{{ turma.pk }}">{{ turma }}</option>{% endfor %}</select></label>
                 <label>Disciplina <select name="disciplina" required><option value="">Selecione</option>{% for disciplina in disciplinas %}<option value="{{ disciplina.pk }}">{{ disciplina }}</option>{% endfor %}</select></label>
                 <label>Prazo <input type="datetime-local" name="prazo" required></label>
+                <label>Valor máximo <input type="number" name="valor_nota" min="0.01" max="10" step="0.01" value="10" required></label>
                 <button type="submit">Publicar</button>
             </form>
         </section>

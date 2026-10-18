@@ -87,6 +87,15 @@
         </section>
 
         <!-- CADASTRO DE TURMA -->
+        <section class="card" id="periodos-letivos"><h2>Cadastrar período letivo</h2>
+            <form method="POST" action="{% url 'periodo_criar' %}">{% csrf_token %}
+                <label>Ano <input type="number" name="ano" min="2000" max="2100" required></label>
+                <label>Semestre <select name="semestre"><option value="1">1</option><option value="2">2</option></select></label>
+                <label>Início <input type="date" name="data_inicio" required></label>
+                <label>Fim <input type="date" name="data_fim" required></label>
+                <button type="submit">Cadastrar período</button>
+            </form>
+        </section>
         <section id="cadastro-turma" class="card">
             <div class="title">
                 <div>
@@ -113,6 +122,16 @@
                             <option value="TARDE" {% if turma_editando.turno == 'TARDE' %}selected{% endif %}>Tarde</option>
                             <option value="NOITE" {% if turma_editando.turno == 'NOITE' %}selected{% endif %}>Noite</option>
                         </select>
+                    </div>
+                    <div>
+                        <label>Período letivo
+                            <select name="periodo_letivo">
+                                <option value="">Não definido</option>
+                                {% for periodo in periodos_letivos %}
+                                <option value="{{ periodo.pk }}" {% if turma_editando.periodo_letivo_id == periodo.pk %}selected{% endif %}>{{ periodo }}</option>
+                                {% endfor %}
+                            </select>
+                        </label>
                     </div>
                     <div>
                         <label>Professor regente</label>

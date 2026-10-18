@@ -1,0 +1,11 @@
+/* Estilo mínimo comum aos módulos, sem alterar os painéis existentes. */
+body { font-family: Arial, sans-serif; background: #f5f6fa; color: #202733; margin: 0; }
+header { background: #273b5b; color: white; padding: 18px 26px; }
+header a { color: white; }
+main { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
+.card { background: white; margin: 16px 0; padding: 18px; border: 1px solid #d6dce6; border-radius: 8px; }
+article { margin: 12px 0; padding: 12px; border-bottom: 1px solid #e4e8ef; }
+label { display: block; margin: 12px 0; }
+input, select, textarea { display: block; max-width: 100%; padding: 7px; margin: 4px 0; }
+button { background: #273b5b; border: 0; border-radius: 5px; color: white; padding: 10px 16px; cursor: pointer; }
+.texto { white-space: pre-wrap; }

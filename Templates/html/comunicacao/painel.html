@@ -12,6 +12,7 @@
                 <label>Título <input name="titulo" maxlength="120" required></label>
                 <label>Texto <textarea name="texto" maxlength="3000" rows="5" required></textarea></label>
                 <label>Turma <select name="turma"><option value="">{% if user.perfil == 'ADMIN' %}Aviso geral{% else %}Selecione a turma{% endif %}</option>{% for turma in turmas %}<option value="{{ turma.pk }}">{{ turma }}</option>{% endfor %}</select></label>
+                {% if user.perfil == 'ADMIN' %}<label><input type="checkbox" name="fixado"> Fixar aviso no mural</label>{% endif %}
                 <button type="submit">Publicar aviso</button>
             </form>
         </section>
@@ -25,7 +26,7 @@
         </section>
         {% endif %}
         <section class="card"><h2>Mural de avisos</h2>
-            {% for aviso in avisos %}<article><h3>{{ aviso.titulo }}</h3><p>{{ aviso.turma|default:'Aviso geral' }} • {{ aviso.criado_em|date:'d/m/Y H:i' }}</p><p class="texto">{{ aviso.texto|linebreaksbr }}</p></article>
+            {% for aviso in avisos %}<article><h3>{% if aviso.fixado %}[Fixado] {% endif %}{{ aviso.titulo }}</h3><p>{{ aviso.turma|default:'Aviso geral' }} • {{ aviso.autor.nome }} • {{ aviso.criado_em|date:'d/m/Y H:i' }}</p><p class="texto">{{ aviso.texto|linebreaksbr }}</p></article>
             {% empty %}<p>Não existem avisos para seu perfil.</p>{% endfor %}
         </section>
         <section class="card"><h2>Mensagens recebidas</h2>

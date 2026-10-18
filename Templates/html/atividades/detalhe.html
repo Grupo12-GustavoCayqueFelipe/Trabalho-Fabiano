@@ -8,6 +8,7 @@
         {% for message in messages %}<p class="mensagem">{{ message }}</p>{% endfor %}
         <h1>{{ atividade.titulo }}</h1>
         <p>{{ atividade.turma }} — {{ atividade.disciplina }} — {{ atividade.professor.usuario.nome }}</p>
+        <p><strong>Valor máximo:</strong> {{ atividade.valor_nota }} ponto(s)</p>
         <p><strong>Prazo:</strong> {{ atividade.prazo|date:'d/m/Y H:i' }}</p>
         <p>Respostas após o prazo são aceitas e identificadas como atrasadas.</p>
         <p class="texto">{{ atividade.descricao|linebreaksbr }}</p>
@@ -15,19 +16,20 @@
     {% if pode_entregar %}<section class="card">
         <h2>Minha entrega</h2>
         {% if minha_entrega.corrigida_em %}<p>Já corrigida. Alterações encerradas.</p>{% else %}
-        <form method="POST" action="{% url 'entrega_salvar' atividade.pk %}">{% csrf_token %}
-            <label>Resposta <textarea name="resposta" maxlength="5000" rows="8" required>{{ minha_entrega.resposta|default:'' }}</textarea></label>
+        <form method="POST" enctype="multipart/form-data" action="{% url 'entrega_salvar' atividade.pk %}">{% csrf_token %}
+            <label>Resposta <textarea name="resposta" maxlength="5000" rows="8">{{ minha_entrega.resposta|default:'' }}</textarea></label>
+            <label>PDF até 5 MB <input type="file" name="arquivo" accept="application/pdf,.pdf"></label>
             <button type="submit">Salvar entrega</button>
         </form>{% endif %}
     </section>{% endif %}
-    {% if minha_entrega %}<section class="card"><h2>Sua resposta e correção</h2><p class="texto">{{ minha_entrega.resposta|linebreaksbr }}</p>{% if minha_entrega.atrasada %}<p><strong>Entrega atrasada</strong></p>{% endif %}
+    {% if minha_entrega %}<section class="card"><h2>Sua resposta e correção</h2>{% if minha_entrega.arquivo %}<p><a href="{% url 'entrega_arquivo' minha_entrega.pk %}">Baixar PDF enviado</a></p>{% endif %}<p class="texto">{{ minha_entrega.resposta|linebreaksbr }}</p>{% if minha_entrega.atrasada %}<p><strong>Entrega atrasada</strong></p>{% endif %}
         {% if minha_entrega.corrigida_em %}<p>Nota: {{ minha_entrega.nota|default_if_none:'Sem nota' }}</p><p>{{ minha_entrega.comentario_professor|linebreaksbr }}</p>{% endif %}
     </section>{% endif %}
     {% if entregas %}<section class="card"><h2>Entregas</h2>
-        {% for entrega in entregas %}<article><h3>{{ entrega.aluno.usuario.nome }}</h3><p class="texto">{{ entrega.resposta|linebreaksbr }}</p>{% if entrega.atrasada %}<p><strong>Entrega atrasada</strong></p>{% endif %}
+        {% for entrega in entregas %}<article><h3>{{ entrega.aluno.usuario.nome }}</h3>{% if entrega.arquivo %}<a href="{% url 'entrega_arquivo' entrega.pk %}">Baixar PDF</a>{% endif %}<p class="texto">{{ entrega.resposta|linebreaksbr }}</p>{% if entrega.atrasada %}<p><strong>Entrega atrasada</strong></p>{% endif %}
             {% if user.perfil == 'PROF' and user.pk == atividade.professor.usuario_id %}
             <form method="POST" action="{% url 'entrega_corrigir' atividade.pk entrega.pk %}">{% csrf_token %}
-                <label>Nota (0 a 10) <input type="number" name="nota" min="0" max="10" step="0.01" value="{{ entrega.nota|default_if_none:'' }}"></label>
+                <label>Nota (0 a {{ atividade.valor_nota }}) <input type="number" name="nota" min="0" max="{{ atividade.valor_nota }}" step="0.01" value="{{ entrega.nota|default_if_none:'' }}"></label>
                 <label>Comentário <textarea name="comentario" maxlength="2000">{{ entrega.comentario_professor }}</textarea></label>
                 <button type="submit">Registrar correção</button>
             </form>{% else %}<p>Nota: {{ entrega.nota|default_if_none:'Sem nota' }}</p><p>{{ entrega.comentario_professor }}</p>{% endif %}
