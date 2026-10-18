@@ -40,12 +40,12 @@ A conexão com o banco é lida da variável DATABASE_URL, com ssl_require=True, 
 
 ## 4. Fluxo de autentificação
 
-1. Usuário acessa a pagina principal e envia email e senha pelo formulário de Templates/usuarios/index.html.
-2. login_view chama authenticate (request, email=email, password=senha).
+1. Usuário acessa `/` e seleciona o portal acadêmico (`/login/`) ou de funcionários (`/funcionarios/login/`). As credenciais são enviadas pelo formulário específico do portal, via POST e CSRF.
+2. As views de portal invocam `_processar_login`, que autentica e restringe os perfis aceitos em cada rota; a raiz conserva POST legado por compatibilidade (a retirar em versão futura).
 3. Se for válido, login (request, usuario) cria a sessão e redireciona para /dashboard/
 4. Se for inválido, exibe mensagem genérica de erro, "Email ou senha inválidos.", sem indicar se o email existe.
 5. dashboard_view bloqueia acesso de quem não está autentificado e escolhe o template conforme o "perfil" do usuário logado.
-6. logout_view que é protegida por @login_required, encerra a sessão e volta para o login.
+6. O logout usa POST e CSRF, encerra a sessão e encaminha à seleção de portais.
 
 ## 5. Organização no repositório
 
@@ -327,3 +327,38 @@ M'RAIHI, D. et al. RFC 6238: TOTP: Time-Based One-Time Password Algorithm. Inter
 DJANGO SOFTWARE FOUNDATION. Django Security Documentation. Disponível em: https://docs.djangoproject.com/en/stable/topics/security/. Acesso em: set. 2026.
 
 NIST  NATIONAL INSTITUTE OF STANDARDS AND TECHNOLOGY. SP 800-63B: Digital Identity Guidelines  Authentication and Lifecycle Management. Gaithersburg, 2017.
+
+
+## 20. Atualização de escopo — preparação da versão 1.0.0 (18/10/2026)
+
+Esta seção prevalece sobre descrições históricas de telas e módulos nas seções anteriores.
+
+### Módulos adicionados após a documentação inicial
+
+- **Acadêmico:** períodos letivos, turmas, disciplinas, matrícula e autoria das aulas.
+- **Atividades:** publicação pelo docente autorizado, entrega e correção com histórico, prazo e anexo protegido.
+- **Avaliações:** cadastro de avaliações, lançamento de notas e histórico de correção.
+- **Frequência:** presença, ausência, falta justificada e histórico auditável de alterações.
+- **Comunicação:** avisos por turma ou gerais e mensagens internas individuais, com controle por perfil e vínculo.
+
+### Controle de acesso, interfaces e segurança
+
+- Página inicial pública serve como **seleção de portal**, não como formulário de autenticação.
+- O portal acadêmico aceita somente `ALUNO`/`RESP`; o de funcionários, somente `PROF`/`ADMIN`. O POST legado da raiz continua em código por compatibilidade e deve ser eliminado em uma revisão de segurança posterior.
+- Painéis de aluno e responsável fazem consultas de matrículas, notas, frequência, atividades e comunicados conforme o vínculo autenticado, sem métricas de demonstração hardcoded.
+- Views usam permissões no servidor, autenticação obrigatória em módulos privados, POST/CSRF para escrita, limitação de requisições e trilhas de auditoria onde implementadas.
+- Campos sensíveis usam Fernet via `django-encrypted-model-fields`. As chaves de produção são segredos de ambiente e devem ser preservadas; migrations que convertem texto legível não podem ser ignoradas indiscriminadamente.
+- Deploy no Render depende de `EMAIL_HOST`, `REDIS_URL` e biblioteca cliente Redis; o cache compartilhado é requerido para o rate limit em produção.
+
+### Migrações e evidências de validação
+
+As migrations no banco compartilhado apresentaram divergências entre o registro de `django_migrations` e o esquema PostgreSQL real. Parte delas foi conciliada após inspeção do SQL/constraints, outras aplicadas normalmente. A informação definitiva sobre pendências deve ser obtida com `python manage.py migrate --plan` no ambiente de produção. Nunca executar migração de reestruturação sem backup recuperável.
+
+**Evidências registradas antes das alterações de interface:** 113 testes Django aprovados em SQLite isolado, `check` sem problemas e `makemigrations --check` sem diferença. Este pacote de interfaces inclui testes adicionais **não comprovados como aprovados no Render**. Capturas do ambiente publicado em 18/10/2026 mostraram erros HTTP 500 em Registro de Aula e Frequência. A versão só deve ser considerada homologada depois da análise dos tracebacks do Render e de testes reais por perfil.
+
+### Limitações a documentar na entrega
+
+- Dados de médias exibidos no resumo são médias das notas lançadas, não cálculo oficial de boletim com pesos por disciplina.
+- O percentual de presença considera somente registros com estado `P`; faltas justificadas são exibidas como estado próprio nas telas de frequência.
+- O sistema de mensagens dos responsáveis é consultivo no painel atual; envio deve respeitar as permissões do backend, não se deve oferecer um falso campo de chat interativo.
+- A certificação completa de conformidade LGPD requer avaliações organizacionais além dos controles técnicos do projeto.

@@ -82,28 +82,26 @@ Marcar um X na coluna certa.
 | Testes de segurança documentados             |   X   |        |            |
 | Referências normalizadas                     |   X   |        |            |
 
-## Módulo Acadêmico (fora do checklist oficial, adiantamento do grupo)
 
-| O que fazer                                  | Feito | Parcial | Não feito |
-| -------------------------------------------- | :---: | :-----: | :--------: |
-| Models (Turma, Disciplina, Matrícula, Aula) |   X   |        |            |
-| Views de cadastro/listagem/matrícula/aula   |   X   |        |            |
-| Migration da Aula aplicada                   |      |        |     X     |
-| Testado no front-end                         |      |        |     X     |
+## Situação integrada — revisão para v1.0.0 (18/10/2026)
 
-*Não implantado ainda  bloqueado pela mesma instabilidade do Supabase. Views e models já escritos, só falta rodar migration e testar assim que o banco voltar.*
+Legenda: **Implementado** = código presente; **Testado local** = evidência de suíte anterior; **Homologação pendente** = exige confirmação na versão de produção.
 
-## Geral
+| Requisito | Implementação | Situação em produção |
+|---|---|---|
+| Portais separados com senha e 2FA | Implementado | Confirmar autenticação em todos os perfis |
+| Landing page sem formulário redundante | Correção preparada | Validar após deploy |
+| Dashboard aluno com notas/frequência reais | Correção preparada | Validar matrícula e vínculos no Supabase |
+| Dashboard responsável sem mural/chat fictícios | Correção preparada | Validar avisos/mensagens reais vinculados |
+| Turmas, disciplinas, matrícula, períodos | Implementado | Fluxos vistos em capturas; testar operações |
+| Registro de aula | Implementado | **Erro HTTP 500 visto em produção; bloqueante** |
+| Atividades e correção de entregas | Implementado | Tela abre; fluxos completos ainda não homologados |
+| Comunicação por avisos e mensagens | Implementado | Tela abre; testar publicação e envio em conta de teste |
+| Avaliações e notas | Implementado | Validar consulta e gravação com usuário autorizado |
+| Frequência e histórico | Implementado | **Erro HTTP 500 visto em produção; bloqueante** |
+| Criptografia LGPD, autorização, logs e rate limiting | Implementado | Confirmar verificações e integrações em produção |
+| Layout unificado com CSS por módulo | Correção preparada | Validar responsividade e contraste após deploy |
+| 113 testes (antes da correção de interface) | Testado localmente | Reexecutar suíte ampliada; não confundir com prova de homologação |
+| Release GitHub v1.0.0 | Preparação concluída no pacote | **Ainda não publicado** |
 
-| O que fazer                             | Feito | Parcial | Não feito |
-| --------------------------------------- | :---: | :-----: | :--------: |
-| Documentação técnica no repositório |   X   |        |            |
-| Prints/evidência de funcionamento      |   X   |        |            |
-| Kanban                                  |   X   |        |            |
-| Release no GitHub                       |   X   |        |            |
-| Checklist publicado no repositório     |   X   |        |            |
-
----
-
-Revisado por: Felipe Matta
-Data: 27/09/2026
+A documentação e as capturas de setembro são evidências históricas, **não** comprovam automaticamente a versão de outubro. Somente assinalar a release como entregue após executar `check`, `makemigrations --check`, testes, `migrate --plan` e roteiro manual por papel no Render.
