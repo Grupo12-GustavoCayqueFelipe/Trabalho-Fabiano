@@ -9,3 +9,19 @@ label { display: block; margin: 12px 0; }
 input, select, textarea { display: block; max-width: 100%; padding: 7px; margin: 4px 0; }
 button { background: #273b5b; border: 0; border-radius: 5px; color: white; padding: 10px 16px; cursor: pointer; }
 .texto { white-space: pre-wrap; }
+
+/* Ajustes locais de acessibilidade e layout; sem regras globais de login. */
+*, *::before, *::after { box-sizing: border-box; }
+body { min-height: 100vh; line-height: 1.5; }
+header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+header nav { display: flex; flex-wrap: wrap; gap: 10px; }
+header nav a { color: #fff; text-underline-offset: 3px; }
+main { width: min(100%, 1050px); }
+.card { box-shadow: 0 3px 14px #273b5b12; }
+input, select, textarea { width: 100%; border: 1px solid #abb6c6; border-radius: 5px; background: #fff; color: #202733; font: inherit; }
+input[type="checkbox"], input[type="radio"] { display: inline; width: auto; }
+textarea { min-height: 100px; resize: vertical; }
+button:hover { background: #38577f; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid #6f9ddd; outline-offset: 2px; }
+.mensagem { padding: 9px 12px; border-left: 3px solid #38577f; background: #edf3fa; }
+@media (max-width: 600px) { header { padding: 16px; } main { margin: 12px auto; padding: 0 12px; } .card { padding: 14px; } }

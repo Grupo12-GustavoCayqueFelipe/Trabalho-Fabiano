@@ -457,3 +457,12 @@ body {
 .campo-mensagem button:hover {
     background: black;
 }
+/* Ajustes responsivos sem reconstruir o tema dos portais. */
+@media (max-width: 780px) {
+    .sidebar { position: relative; width: 100%; height: auto; padding: 15px; }
+    .menu { flex-direction: row; flex-wrap: wrap; }
+    .menu-item { width: auto; }
+    .conteudo { margin-left: 0; padding: 20px; }
+    .cabecalho, .cards, .area-inferior { display: flex; flex-wrap: wrap; gap: 15px; }
+    .card, .painel { min-width: min(100%, 240px); flex: 1; }
+}
