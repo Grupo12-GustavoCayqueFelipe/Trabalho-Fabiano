@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django_ratelimit.decorators import ratelimit
 
 from apps.academico.models import Matricula, Turma
 from apps.usuarios.models import Usuario, registrar_operacao
@@ -74,6 +75,7 @@ def comunicacao_painel_view(request):
 # Publica aviso somente na turma autorizada; aviso geral é exclusivo do admin.
 @login_required(login_url='login')
 @require_POST
+@ratelimit(key='user', rate='20/m', block=True, method='POST')
 def aviso_criar_view(request):
   usuario = request.user
   if usuario.perfil != 'ADMIN' and not hasattr(usuario, 'professor'):
@@ -110,6 +112,7 @@ def aviso_criar_view(request):
 # Envia mensagem interna sem expor destinatários de outras turmas.
 @login_required(login_url='login')
 @require_POST
+@ratelimit(key='user', rate='20/m', block=True, method='POST')
 def mensagem_enviar_view(request):
   usuario = request.user
   if usuario.perfil != 'ADMIN' and not hasattr(usuario, 'professor'):

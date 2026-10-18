@@ -48,3 +48,20 @@
 **Desidentificação e retenção:** a rotina de encerramento de conta preserva registros acadêmicos necessários, mas a política institucional precisa definir quando arquivos e observações deixam de ter finalidade legítima e podem ser expurgados por um processo próprio, com backup, registro e conferência do armazenamento. Não foi implementada exclusão automática irreversível de arquivos sem essa política.
 
 **Direitos do titular:** `exportar_dados_view` agora inclui avaliações e frequências do aluno, revisões e a referência aos PDFs entregues. O conteúdo físico do PDF é acessível apenas pela rota autenticada e autorizada. O responsável só pode consultar registros dos alunos que lhe estão vinculados.
+
+
+## Política de retenção e apagamento — pendência de governança
+
+A rotina `excluir_dados_view` encerra acesso, desidentifica cadastro e elimina os tokens, mas NÃO garante anonimização absoluta: textos livres em `Mensagem.assunto`, `Mensagem.texto`, `Entrega.resposta`, anexos PDF e registros de terceiros podem continuar contendo identificadores.
+
+**Matriz de decisão obrigatória (responsável pela instituição):**
+
+| Categoria | Medida técnica existente | Decisão pendente para expurgo |
+|---|---|---|
+| Cadastro e credenciais | Desidentificação, inutilização da senha e remoção de TOTP | Prazo de conservação de logs de autenticação |
+| Mensagens pessoais | Assunto e corpo criptografados, RBAC e trilha de envio | Classificar mensagens administrativas que têm dever de guarda; após o prazo, neutralizar conteúdo, incluindo mensagens recebidas |
+| Respostas e PDFs | Conteúdo criptografado e arquivo acessível somente por rota autenticada | Definir prazo de retenção e rotina de exclusão do objeto remoto e referência no banco |
+| Notas, histórico e frequência | Trilha de alterações, integridade e controle de acesso | Prazo conforme regra acadêmica antes de apagar ou anonimizar |
+| Consentimento e logs | `PROTECT`/somente leitura, rastreabilidade | Base legal e prazo de guarda após desligamento |
+
+**O que NÃO executar automaticamente:** exclusão generalizada de mensagens ou arquivos com finalidade escolar, alteração da chave Fernet ou apagamento físico de usuários. O controlador de dados deve aprovar a classificação e os prazos; então o procedimento deve ser testado num backup restaurado, com registro e controle de acesso. A documentação não equivale a uma política institucional já aprovada.

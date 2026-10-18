@@ -7,3 +7,9 @@ __pycache__/
 *.pyc
 db.sqlite3
 Login_Teste.md
+.venv/
+.test-media/
+media/
+*.zip
+*.rar
+*.log

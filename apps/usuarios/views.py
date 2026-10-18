@@ -21,6 +21,7 @@ from django_ratelimit.decorators import ratelimit
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.views.decorators.http import require_POST
+from django.views.decorators.cache import never_cache
 
 from django.core.mail import send_mail
 from django.urls import reverse
@@ -420,6 +421,7 @@ def meus_dados_view(request):
 
 
 @login_required(login_url='login')
+@never_cache
 # Tela onde o usuário logado pode exportar seus dados pessoais em formato JSON
 def exportar_dados_view(request):
   # Pega o usuário logado e monta um dicionário com os dados pessoais, dependendo do perfil (aluno, professor ou responsável)
@@ -573,16 +575,22 @@ def atualizar_telefone_view(request):
       return redirect('meus_dados_view')
     novo_telefone = digitos
 
-    # Atualiza o telefone do usuário, dependendo do perfil (aluno, professor ou responsável)
+    # A gravação do telefone e sua evidência de auditoria são atômicas.
+    perfil_obj = None
     if hasattr(usuario, 'aluno'):
-      usuario.aluno.telefone = novo_telefone
-      usuario.aluno.save()
+      perfil_obj = usuario.aluno
     elif hasattr(usuario, 'professor'):
-      usuario.professor.telefone = novo_telefone
-      usuario.professor.save()
+      perfil_obj = usuario.professor
     elif hasattr(usuario, 'responsavel'):
-      usuario.responsavel.telefone = novo_telefone
-      usuario.responsavel.save()
+      perfil_obj = usuario.responsavel
+
+    if perfil_obj is None:
+      messages.error(request, 'Nenhum perfil cadastral disponível para atualização.')
+      return redirect('meus_dados_view')
+    with transaction.atomic():
+      perfil_obj.telefone = novo_telefone
+      perfil_obj.save(update_fields=['telefone'])
+      registrar_operacao(usuario, 'TELEFONE_ATUALIZADO', usuario.pk)
 
     messages.success(request, 'Informações atualizadas com sucesso.')
 

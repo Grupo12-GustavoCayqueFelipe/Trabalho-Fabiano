@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
+from core.admin_auditoria import AdminComAuditoria
 from .models import Usuario, Aluno, Professor, Responsavel, AlunoResponsavel, LogRecuperacaoSenha, TokenRecuperacaoSenha, ConsentimentoUsuario, LogAcesso, LogOperacao
 # Register your models here.
 
@@ -28,6 +29,10 @@ class UsuarioAdmin(UserAdmin):
   )
   
   # Define os campos que serão exibidos no formulário de criação de usuários
+  # Exclusão física de contas viola o fluxo de desidentificação e retenção.
+  def has_delete_permission(self, request, obj=None):
+    return False
+
   add_fieldsets = (
     (None, {
       'classes': ('wide',),
@@ -85,10 +90,19 @@ class LogAcessoAdmin(SomenteLeituraAdmin):
 # Registra o modelo Usuario com a classe UsuarioAdmin
 admin.site.register(Usuario, UsuarioAdmin)
 
-admin.site.register(Aluno)
-admin.site.register(Professor)
-admin.site.register(Responsavel)
-admin.site.register(AlunoResponsavel)
+# Perfis também não podem ser apagados fisicamente por fora do fluxo institucional.
+class PerfilProtegidoAdmin(admin.ModelAdmin):
+  def has_delete_permission(self, request, obj=None):
+    return False
+
+
+admin.site.register(Aluno, PerfilProtegidoAdmin)
+admin.site.register(Professor, PerfilProtegidoAdmin)
+admin.site.register(Responsavel, PerfilProtegidoAdmin)
+# O vínculo aluno/responsável altera as permissões de leitura de dados pessoais.
+@admin.register(AlunoResponsavel)
+class AlunoResponsavelAdmin(AdminComAuditoria):
+  list_display = ('aluno', 'responsavel', 'parentesco')
 admin.site.register(LogRecuperacaoSenha, LogRecuperacaoSenhaAdmin)
 admin.site.register(ConsentimentoUsuario, ConsentimentoUsuarioAdmin)
 admin.site.register(LogAcesso, LogAcessoAdmin)

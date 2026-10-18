@@ -1,9 +1,10 @@
 from django.contrib import admin
+from core.admin_auditoria import AdminComAuditoria
 from .models import Aviso, Mensagem
 
-# Exibe os registros sem permitir alterar mensagens já enviadas.
+# Avisos institucionais podem ser editados, mas cada alteração deve ser auditada.
 @admin.register(Aviso)
-class AvisoAdmin(admin.ModelAdmin):
+class AvisoAdmin(AdminComAuditoria):
     list_display = ('titulo', 'autor', 'turma', 'criado_em', 'ativo')
 
 

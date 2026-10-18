@@ -203,7 +203,26 @@ STATICFILES_DIRS = [
     BASE_DIR / 'static',
 ]
 
-USE_SUPABASE_STORAGE = bool(os.getenv('SUPABASE_S3_ACCESS_KEY'))
+# Compatível com nomes antigos do .env da equipe, sem trocar as credenciais.
+SUPABASE_BUCKET = os.getenv('SUPABASE_S3_BUCKET_NAME') or os.getenv('SUPABASE_STORAGE_BUCKET_NAME')
+SUPABASE_REGION = os.getenv('SUPABASE_S3_REGION_NAME') or os.getenv('SUPABASE_S3_REGION')
+SUPABASE_STORAGE_CONFIG = {
+    'access_key': os.getenv('SUPABASE_S3_ACCESS_KEY'),
+    'secret_key': os.getenv('SUPABASE_S3_SECRET_KEY'),
+    'endpoint_url': os.getenv('SUPABASE_S3_ENDPOINT_URL'),
+    'bucket_name': SUPABASE_BUCKET,
+    'region_name': SUPABASE_REGION,
+}
+_USE_TEST_SETTINGS = os.getenv('DJANGO_SETTINGS_MODULE') == 'core.settings_test'
+# Se houver parte das credenciais, não deixar um backend quebrado oculto.
+if any(SUPABASE_STORAGE_CONFIG.values()) and not all(SUPABASE_STORAGE_CONFIG.values()) and not _USE_TEST_SETTINGS:
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured('Supabase Storage incompleto: configure acesso, segredo, endpoint, bucket e região.')
+
+USE_SUPABASE_STORAGE = all(SUPABASE_STORAGE_CONFIG.values())
+if not DEBUG and not USE_SUPABASE_STORAGE and not _USE_TEST_SETTINGS:
+    from django.core.exceptions import ImproperlyConfigured
+    raise ImproperlyConfigured('Supabase Storage é obrigatório em produção para persistir os anexos.')
     
 if USE_SUPABASE_STORAGE:
     STORAGES = {
@@ -212,9 +231,9 @@ if USE_SUPABASE_STORAGE:
             'OPTIONS': {
                 'access_key': os.getenv('SUPABASE_S3_ACCESS_KEY'),
                 'secret_key': os.getenv('SUPABASE_S3_SECRET_KEY'),
-                'bucket_name': os.getenv('SUPABASE_S3_BUCKET_NAME'),
+                'bucket_name': SUPABASE_BUCKET,
                 'endpoint_url': os.getenv('SUPABASE_S3_ENDPOINT_URL'),
-                'region_name': os.getenv('SUPABASE_S3_REGION_NAME'),
+                'region_name': SUPABASE_REGION,
                 'default_acl': 'private',
                 'querystring_auth': True,
                 'querystring_expire': 300,

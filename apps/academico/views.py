@@ -226,6 +226,10 @@ def registrar_aula_view(request):
       messages.error(request, 'Preencha turma, disciplina, data e conteúdo corretamente.')
     elif not disciplina.turmas.filter(pk=turma.pk).exists():
       messages.error(request, 'Essa disciplina não é oferecida nessa turma.')
+    elif turma.periodo_letivo_id and not (
+      turma.periodo_letivo.data_inicio <= data <= turma.periodo_letivo.data_fim
+    ):
+      messages.error(request, 'Data fora do período letivo da turma.')
     else:
       # Evita registrar uma aula sem a evidência da operação.
       with transaction.atomic():

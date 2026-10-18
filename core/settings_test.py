@@ -33,3 +33,6 @@ CACHES = {
     },
 }
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+
+# Chave descartável somente para o banco SQLite de testes; não alterar a chave de produção.
+FIELD_ENCRYPTION_KEY = "57vY0aaCcctYeBSWVLooNpKxnOQL9rWOQFYWDOLU1w0="
