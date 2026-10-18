@@ -4,17 +4,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#170a2b">
     <title>EduControll — Escolha seu portal</title>
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <link rel="stylesheet" href="{% static 'css/portal-entrada.css' %}">
 </head>
 <body>
-    <main class="login-box">
-        <div class="logo"><h2>EduControll</h2></div>
-        <p>Selecione o portal de acesso correspondente ao seu perfil.</p>
-        {% for message in messages %}<p class="mensagem {{ message.tags }}">{{ message }}</p>{% endfor %}
-        <p><a href="{% url 'login_academico' %}">Entrar como aluno ou responsável</a></p>
-        <p><a href="{% url 'login_funcionarios' %}">Entrar como professor ou administrador</a></p>
-        <p class="prototipo">Projeto Integrador — ambiente acadêmico</p>
+    <main class="entrada" aria-labelledby="titulo-entrada">
+        <div class="marca"><span class="marca-simbolo" aria-hidden="true">E</span> EduControll</div>
+        <div class="destaque">SISTEMA DE GESTÃO ESCOLAR</div>
+        <h1 id="titulo-entrada">Bem-vindo ao EduControll</h1>
+        <p class="introducao">Acompanhe a vida acadêmica e organize as atividades da instituição em um só lugar. Escolha a área de acesso correspondente ao seu perfil.</p>
+        {% if messages %}
+        <div class="mensagens" role="status">
+            {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+        </div>
+        {% endif %}
+        <div class="portais">
+            <a class="portal" href="{% url 'login_academico' %}">
+                <span class="portal-icone" aria-hidden="true">🎓</span>
+                <span class="portal-conteudo"><strong>Aluno e responsável</strong><span>Acompanhe avaliações, frequência, atividades e comunicados.</span><span class="portal-acao">Entrar no portal <span aria-hidden="true">→</span></span></span>
+            </a>
+            <a class="portal" href="{% url 'login_funcionarios' %}">
+                <span class="portal-icone" aria-hidden="true">▦</span>
+                <span class="portal-conteudo"><strong>Professor e administrador</strong><span>Gerencie turmas, aulas, avaliações e a comunicação escolar.</span><span class="portal-acao">Acessar área institucional <span aria-hidden="true">→</span></span></span>
+            </a>
+        </div>
+        <footer>Projeto Integrador · Ambiente acadêmico · 2026</footer>
     </main>
 </body>
 </html>
