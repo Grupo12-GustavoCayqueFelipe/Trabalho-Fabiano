@@ -8,6 +8,24 @@ O projeto está publicado em produção, com HTTPS automático:
 
 **https://educontroll.onrender.com**
 
+### Entrar nos portais
+
+- [Escolha do portal](https://educontroll.onrender.com/) — a página inicial não é um formulário de login.
+- [Aluno e responsável](https://educontroll.onrender.com/login/) — formulário acadêmico.
+- [Professor e administrador](https://educontroll.onrender.com/funcionarios/login/) — formulário institucional.
+
+Uma página protegida aberta sem sessão envia para a escolha de portal com
+`?next=...`. Após entrar pelo portal correspondente (e concluir o 2FA, quando
+ativado), o sistema retorna ao **caminho interno solicitado**. A autorização
+pela view continua obrigatória; o retorno não libera páginas de outro perfil.
+
+**Atenção ao testar:** não realizar cinco tentativas erradas nem confirmar
+exclusão de conta usando os quatro acessos compartilhados para avaliação.
+Esses testes devem utilizar contas descartáveis ou o banco SQLite de testes,
+pois o bloqueio pode interromper a avaliação e a exclusão desidentifica a conta.
+O comando `seed_demonstracao` **não restaura** credenciais de contas excluídas.
+Veja o [roteiro de testes seguros](Docs/Roteiro_Testes_Seguros.md).
+
 > ⚠ O plano gratuito do Render "dorme" após 15 minutos sem acesso  o primeiro carregamento após um tempo parado pode levar de 30 a 60 segundos. Dê um refresh e aguarde.
 
 ## Funcionalidades
