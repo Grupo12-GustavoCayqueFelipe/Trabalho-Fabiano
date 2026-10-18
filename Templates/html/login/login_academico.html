@@ -29,6 +29,7 @@
 
             <form method="post" action="{% url 'login_academico' %}">
                 {% csrf_token %}
+                {% if proximo %}<input type="hidden" name="next" value="{{ proximo }}">{% endif %}
 
                 <div class="campo">
                     <label for="email">E-mail</label>

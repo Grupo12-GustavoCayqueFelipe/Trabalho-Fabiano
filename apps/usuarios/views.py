@@ -26,12 +26,25 @@ from django.views.decorators.cache import never_cache
 from django.core.mail import send_mail
 from django.urls import reverse
 from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode, url_has_allowed_host_and_scheme
 from django.utils.encoding import force_bytes, force_str
 
 # Create your views here.
 TENTATIVAS_MAX = 5
 TEMPO_BLOQUEIO_MINUTOS = 15
+# Aceita apenas caminhos internos: nunca redireciona para outro domínio.
+# Django confere host/protocolo e rejeita também caminhos iniciados com barras duplas.
+def _destino_login(request, valor):
+  destino = (valor or '').strip()
+  if not destino.startswith('/') or destino.startswith('//') or '\\' in destino:
+    return ''
+  if not url_has_allowed_host_and_scheme(
+    destino, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+  ):
+    return ''
+  return destino
+
+
 # Centraliza o login para os portais sem duplicar senha, bloqueio ou TOTP.
 def _processar_login(request, portal=None):
   # Escolhe a tela conforme o portal solicitado.
@@ -39,13 +52,17 @@ def _processar_login(request, portal=None):
     'academico': 'html/login/login_academico.html',
     'funcionarios': 'html/login/login_funcionarios.html',
   }.get(portal, 'usuarios/index.html')
+  # Preserva o destino validado mesmo após um formulário com senha incorreta.
+  origem = request.POST if request.method == 'POST' else request.GET
+  proximo = _destino_login(request, origem.get('next'))
+  contexto_login = {'proximo': proximo}
   if getattr(request, 'limited', False):
     messages.error(request, 'Muitas tentativas de login. Tente novamente mais tarde.')
-    return render(request, template)
+    return render(request, template, contexto_login)
   
   # Se o usuario estiver logado, redireciona para a página principal
   if request.user.is_authenticated:
-    return redirect('dashboard') 
+    return redirect(proximo or 'dashboard')
   
   # Para o botão entrar
   if request.method == 'POST':
@@ -61,7 +78,7 @@ def _processar_login(request, portal=None):
     if usuario_existente and usuario_existente.bloqueado_ate:
       if timezone.now() < usuario_existente.bloqueado_ate:
         messages.error(request, 'Conta temporariamente por excesso de tentativas. Tente novamente mais tarde.')
-        return render(request, template)
+        return render(request, template, contexto_login)
       else:
         # Depois que passou o tempo libera e zera o contador
         usuario_existente.bloqueado_ate = None
@@ -87,12 +104,14 @@ def _processar_login(request, portal=None):
       if usuario.otp_ativado:
         # A confirmação de 2FA deve manter o portal de origem da tentativa.
         request.session['pre_2fa_portal'] = portal
+        request.session['pre_2fa_next'] = proximo
         request.session['pre_2fa_user_id'] = usuario.pk
         request.session['pre_2fa_iniciado'] = timezone.now().timestamp()
         return redirect('2fa_verificar')
       login(request, usuario)
+      request.session.pop('pre_2fa_next', None)
       registrar_log_acesso(usuario, evento='LOGIN_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
-      return redirect('dashboard')
+      return redirect(proximo or 'dashboard')
     else:
       if usuario_existente and usuario is None:
         usuario_existente.tentativas_login += 1
@@ -109,7 +128,7 @@ def _processar_login(request, portal=None):
       messages.error(request, 'Email ou senha inválidos.')
 
   # Se acessou o site sem estar logado, renderiza a página de login
-  return render(request, template)
+  return render(request, template, contexto_login)
 
 
 # Mantém a rota antiga para que os testes e links existentes não sejam quebrados.
@@ -117,9 +136,10 @@ def _processar_login(request, portal=None):
 def login_view(request):
   # A rota legada continua recebendo POST dos clientes existentes.
   if request.method == 'GET':
+    proximo = _destino_login(request, request.GET.get('next'))
     if request.user.is_authenticated:
-      return redirect('dashboard')
-    return render(request, 'usuarios/index.html')
+      return redirect(proximo or 'dashboard')
+    return render(request, 'usuarios/index.html', {'proximo': proximo})
   return _processar_login(request)
 
 
@@ -157,6 +177,8 @@ def dois_fatores_verificar_view(request):
   if timezone.now().timestamp() - inicio > 300:
     request.session.pop('pre_2fa_user_id', None)
     request.session.pop('pre_2fa_iniciado', None)
+    request.session.pop('pre_2fa_portal', None)
+    request.session.pop('pre_2fa_next', None)
     messages.error(request, 'Verificação expirada. Entre novamente.')
     return redirect('login')
   usuario = Usuario.objects.filter(pk=usuario_id, is_active=True, otp_ativado=True).first()
@@ -170,6 +192,7 @@ def dois_fatores_verificar_view(request):
     request.session.pop('pre_2fa_user_id', None)
     request.session.pop('pre_2fa_iniciado', None)
     request.session.pop('pre_2fa_portal', None)
+    request.session.pop('pre_2fa_next', None)
     return redirect('login')
   if request.method == 'POST':
     codigo = (request.POST.get('codigo') or '').strip()
@@ -181,10 +204,12 @@ def dois_fatores_verificar_view(request):
       request.session.pop('pre_2fa_user_id', None)
       request.session.pop('pre_2fa_iniciado', None)
       request.session.pop('pre_2fa_portal', None)
+      # O destino só é recuperado da sessão e validado novamente após o 2FA.
+      proximo = _destino_login(request, request.session.pop('pre_2fa_next', ''))
       login(request, usuario)
       request.session['2fa_verificado'] = usuario.pk
       registrar_log_acesso(usuario, evento='LOGIN_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
-      return redirect('dashboard')
+      return redirect(proximo or 'dashboard')
     else:
       registrar_log_acesso(usuario, evento='2FA_FALHA', ip=request.META.get('REMOTE_ADDR'))
       messages.error(request, 'Código de verificação inválido ou expirado.')

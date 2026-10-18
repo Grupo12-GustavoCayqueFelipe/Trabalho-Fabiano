@@ -20,11 +20,11 @@
         </div>
         {% endif %}
         <div class="portais">
-            <a class="portal" href="{% url 'login_academico' %}">
+            <a class="portal" href="{% url 'login_academico' %}{% if proximo %}?next={{ proximo|urlencode }}{% endif %}">
                 <span class="portal-icone" aria-hidden="true">🎓</span>
                 <span class="portal-conteudo"><strong>Aluno e responsável</strong><span>Acompanhe avaliações, frequência, atividades e comunicados.</span><span class="portal-acao">Entrar no portal <span aria-hidden="true">→</span></span></span>
             </a>
-            <a class="portal" href="{% url 'login_funcionarios' %}">
+            <a class="portal" href="{% url 'login_funcionarios' %}{% if proximo %}?next={{ proximo|urlencode }}{% endif %}">
                 <span class="portal-icone" aria-hidden="true">▦</span>
                 <span class="portal-conteudo"><strong>Professor e administrador</strong><span>Gerencie turmas, aulas, avaliações e a comunicação escolar.</span><span class="portal-acao">Acessar área institucional <span aria-hidden="true">→</span></span></span>
             </a>

@@ -31,6 +31,7 @@
 
             <form method="post" action="{% url 'login_funcionarios' %}">
                 {% csrf_token %}
+                {% if proximo %}<input type="hidden" name="next" value="{{ proximo }}">{% endif %}
 
                 <div class="campo">
                     <label for="email">E-mail institucional</label>
