@@ -1,13 +1,16 @@
 from decimal import Decimal, InvalidOperation
+import secrets
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.http import FileResponse, Http404
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from django.views.decorators.http import require_POST
+from django_ratelimit.decorators import ratelimit
 
 from apps.academico.models import Turma, Disciplina, Matricula
 from apps.usuarios.models import registrar_operacao
@@ -92,6 +95,12 @@ def atividade_criar_view(request):
   turma_id = request.POST.get('turma')
   disciplina_id = request.POST.get('disciplina')
   prazo = parse_datetime(request.POST.get('prazo') or '')
+  # Define o valor da atividade antes de permitir a publicação.
+  valor_texto = (request.POST.get('valor_nota') or '10').strip()
+  try:
+    valor_nota = Decimal(valor_texto)
+  except (InvalidOperation, ValueError):
+    valor_nota = None
 
   # Recusa dados malformados, comprimento excessivo e prazo no passado.
   if not titulo or len(titulo) > 120 or not descricao or len(descricao) > 4000 or prazo is None:
@@ -99,6 +108,9 @@ def atividade_criar_view(request):
     return redirect('atividades_lista')
   if timezone.is_naive(prazo):
     prazo = timezone.make_aware(prazo, timezone.get_current_timezone())
+  if valor_nota is None or not valor_nota.is_finite() or valor_nota <= 0 or valor_nota > 10 or valor_nota.as_tuple().exponent < -2:
+    messages.error(request, 'Valor da atividade precisa estar entre 0,01 e 10.')
+    return redirect('atividades_lista')
   if prazo <= timezone.now():
     messages.error(request, 'O prazo precisa estar no futuro.')
     return redirect('atividades_lista')
@@ -111,7 +123,7 @@ def atividade_criar_view(request):
     return redirect('atividades_lista')
 
   with transaction.atomic():
-    atividade = Atividade.objects.create(titulo=titulo, descricao=descricao, turma=turma, disciplina=disciplina, professor=professor, prazo=prazo)
+    atividade = Atividade.objects.create(titulo=titulo, descricao=descricao, turma=turma, disciplina=disciplina, professor=professor, prazo=prazo, valor_nota=valor_nota)
     registrar_operacao(request.user, 'ATIVIDADE_CRIADA', atividade.pk)
   messages.success(request, 'Atividade publicada.')
   return redirect('atividade_detalhe', atividade_id=atividade.pk)
@@ -148,34 +160,90 @@ def atividade_detalhe_view(request, atividade_id):
 # Entrega ou atualiza a resposta do próprio aluno antes da data-limite.
 @login_required(login_url='login')
 @require_POST
+@ratelimit(key='user', rate='20/m', block=False, method='POST')
 def entrega_salvar_view(request, atividade_id):
+  # Limita gravações repetidas sem impedir consultas da tela.
+  if getattr(request, 'limited', False):
+    messages.error(request, 'Muitas operações seguidas. Tente novamente mais tarde.')
+    return redirect('atividades_lista')
   atividade = get_object_or_404(Atividade, pk=atividade_id, ativa=True)
   if not _aluno_pode_entregar(request.user, atividade):
     return redirect('atividades_lista')
 
+  # Permite texto, PDF ou os dois, mantendo o limite do campo criptografado.
   resposta = (request.POST.get('resposta') or '').strip()
-  if not resposta or len(resposta) > 5000:
-    messages.error(request, 'A resposta deve conter de 1 a 5000 caracteres.')
+  arquivo = request.FILES.get('arquivo')
+  if (not resposta and arquivo is None) or len(resposta) > 5000:
+    messages.error(request, 'Envie uma resposta ou um arquivo PDF válido.')
     return redirect('atividade_detalhe', atividade_id=atividade.pk)
+
+  # Limita tamanho e conteúdo do anexo; não confia somente na extensão.
+  if arquivo:
+    if arquivo.size > 5 * 1024 * 1024 or not arquivo.name.lower().endswith('.pdf'):
+      messages.error(request, 'Somente PDF de até 5 MB é permitido.')
+      return redirect('atividade_detalhe', atividade_id=atividade.pk)
+    if arquivo.read(5) != b'%PDF-':
+      messages.error(request, 'O arquivo informado não é um PDF válido.')
+      return redirect('atividade_detalhe', atividade_id=atividade.pk)
+    arquivo.seek(0)
+    # Nome aleatório evita colisão e exposição do nome original do aluno.
+    arquivo.name = f'entrega-{secrets.token_hex(16)}.pdf'
 
   # Mesmo após o prazo, a resposta é armazenada com a marca de atraso.
   atrasada = timezone.now() > atividade.prazo
   with transaction.atomic():
-    # Não é permitido sobrescrever entrega já corrigida.
+    # Não permite modificar uma entrega já corrigida.
     entrega, criada = Entrega.objects.select_for_update().get_or_create(
       atividade=atividade, aluno=request.user.aluno,
       defaults={'resposta': resposta, 'atrasada': atrasada}
     )
-    if not criada:
-      if entrega.corrigida_em is not None:
-        messages.error(request, 'Essa entrega já foi corrigida.')
-        return redirect('atividade_detalhe', atividade_id=atividade.pk)
-      entrega.resposta = resposta
-      entrega.atrasada = atrasada
-      entrega.save(update_fields=['resposta', 'atrasada', 'atualizada_em'])
+    if not criada and entrega.corrigida_em is not None:
+      messages.error(request, 'Essa entrega já foi corrigida.')
+      return redirect('atividade_detalhe', atividade_id=atividade.pk)
+
+    # Preserva o arquivo atual quando o aluno envia apenas uma nova resposta.
+    antigo = entrega.arquivo.name if entrega.arquivo else None
+    entrega.resposta = resposta
+    entrega.atrasada = atrasada
+    if arquivo:
+      entrega.arquivo = arquivo
+    entrega.save()
     registrar_operacao(request.user, 'ENTREGA_SALVA', entrega.pk)
+    # Só remove o arquivo anterior depois que o banco confirmar a substituição.
+    if arquivo and antigo:
+      armazenamento = entrega.arquivo.storage
+      transaction.on_commit(lambda: armazenamento.delete(antigo), robust=True)
+
   messages.success(request, 'Resposta enviada com sucesso.')
   return redirect('atividade_detalhe', atividade_id=atividade.pk)
+
+
+# Download autorizado sem devolver URL pública de S3 ao usuário.
+@login_required(login_url='login')
+@ratelimit(key='user', rate='30/m', block=True, method='GET')
+def entrega_arquivo_view(request, entrega_id):
+  entrega = get_object_or_404(Entrega.objects.select_related('atividade', 'aluno'), pk=entrega_id)
+  atividade = entrega.atividade
+  usuario = request.user
+
+  # Administrador pode consultar, professor só da própria disciplina/turma.
+  autorizado = usuario.perfil == 'ADMIN' or _professor_da_atividade(usuario, atividade)
+  if hasattr(usuario, 'aluno'):
+    autorizado = autorizado or entrega.aluno_id == usuario.aluno.pk
+  if hasattr(usuario, 'responsavel'):
+    autorizado = autorizado or usuario.responsavel.alunos_vinculados.filter(
+      pk=entrega.aluno_id
+    ).exists()
+
+  # Não revela existência do arquivo para usuários não autorizados.
+  if not autorizado or not entrega.arquivo:
+    raise Http404('Arquivo não encontrado.')
+
+  # Serve o arquivo após RBAC, sem depender do acesso público ao bucket.
+  try:
+    return FileResponse(entrega.arquivo.open('rb'), as_attachment=True, filename='entrega.pdf', content_type='application/pdf')
+  except (OSError, FileNotFoundError):
+    raise Http404('Arquivo indisponível.')
 
 
 # Professor autor faz correção manual com nota opcional de zero a dez.
@@ -193,8 +261,8 @@ def entrega_corrigir_view(request, atividade_id, entrega_id):
   except (InvalidOperation, ValueError):
     nota = None
     nota_texto = 'invalida'
-  if len(comentario) > 2000 or (nota_texto and (nota is None or not nota.is_finite() or nota < 0 or nota > 10 or nota.as_tuple().exponent < -2)):
-    messages.error(request, 'Informe nota entre 0 e 10 (até duas casas) e comentário válido.')
+  if len(comentario) > 2000 or (nota_texto and (nota is None or not nota.is_finite() or nota < 0 or nota > atividade.valor_nota or nota.as_tuple().exponent < -2)):
+    messages.error(request, 'Informe nota até o valor máximo da atividade (duas casas) e comentário válido.')
     return redirect('atividade_detalhe', atividade_id=atividade.pk)
   if not comentario and nota is None:
     messages.error(request, 'Informe uma nota ou comentário para corrigir.')
