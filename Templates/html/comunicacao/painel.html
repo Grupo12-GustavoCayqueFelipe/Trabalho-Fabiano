@@ -3,6 +3,8 @@
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Comunicação - EduControll</title><link rel="stylesheet" href="{% static 'css/modulos.css' %}"></head>
 <body>
+{% include "html/componentes/menu_modulos.html" %}
+
     <header><h1>Comunicação escolar</h1><nav><a href="{% url 'dashboard' %}">Painel</a> | <a href="{% url 'atividades_lista' %}">Atividades</a></nav></header>
     <main>
         {% for message in messages %}<p class="mensagem {{ message.tags }}">{{ message }}</p>{% endfor %}

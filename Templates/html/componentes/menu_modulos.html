@@ -1,0 +1,23 @@
+{% load static %}
+<aside class="modulo-sidebar" aria-label="Navegação do EduControll">
+    <div class="modulo-marca">EduControll</div>
+    <div class="modulo-perfil">{{ user.nome }}<small>{{ user.get_perfil_display }}</small></div>
+    <nav class="modulo-menu" aria-label="Módulos disponíveis">
+        <a href="{% url 'dashboard' %}">⌂ <span>Meu painel</span></a>
+        {% if user.perfil == 'ADMIN' %}
+        <a href="{% url 'gestao_usuarios' %}">♙ <span>Usuários</span></a>
+        <a href="{% url 'academico_painel_view' %}#turmas">▤ <span>Turmas</span></a>
+        <a href="{% url 'academico_painel_view' %}#disciplinas">▧ <span>Disciplinas</span></a>
+        <a href="{% url 'academico_painel_view' %}#matricula">▣ <span>Matrículas</span></a>
+        {% elif user.perfil == 'PROF' %}
+        <a href="{% url 'registrar_aula_view' %}">▤ <span>Registrar aula</span></a>
+        {% endif %}
+        <a href="{% url 'atividades_lista' %}" {% if request.resolver_match.url_name == 'atividades_lista' %}class="ativo" aria-current="page"{% endif %}>☑ <span>Atividades</span></a>
+        <a href="{% url 'avaliacoes_painel' %}" {% if request.resolver_match.url_name == 'avaliacoes_painel' %}class="ativo" aria-current="page"{% endif %}>★ <span>Notas e avaliações</span></a>
+        <a href="{% url 'frequencia_painel' %}" {% if request.resolver_match.url_name == 'frequencia_painel' %}class="ativo" aria-current="page"{% endif %}>◷ <span>Frequência</span></a>
+        <a href="{% url 'comunicacao_painel' %}" {% if request.resolver_match.url_name == 'comunicacao_painel' %}class="ativo" aria-current="page"{% endif %}>✉ <span>Comunicação</span></a>
+    </nav>
+    <form action="{% url 'logout' %}" method="POST" class="modulo-logout">
+        {% csrf_token %}<button type="submit">⇥ <span>Sair do sistema</span></button>
+    </form>
+</aside>

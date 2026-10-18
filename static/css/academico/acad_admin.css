@@ -231,3 +231,6 @@ textarea {
     background: #e8eefc;
     color: #3857a5;
 }
+/* Alvos dos atalhos preservados na mesma página acadêmica. */
+html { scroll-behavior: smooth; }
+.card[id] { scroll-margin-top: 20px; }

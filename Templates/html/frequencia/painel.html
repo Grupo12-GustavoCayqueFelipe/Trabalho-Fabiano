@@ -1,7 +1,9 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Frequência - EduControll</title><link rel="stylesheet" href="{% static 'css/modulos.css' %}"></head>
-<body><header><h1>Frequência escolar</h1><nav><a href="{% url 'dashboard' %}">Painel</a> | <a href="{% url 'avaliacoes_painel' %}">Avaliações</a></nav></header><main>
+<body>
+{% include "html/componentes/menu_modulos.html" %}
+<header><h1>Frequência escolar</h1><nav><a href="{% url 'dashboard' %}">Painel</a> | <a href="{% url 'avaliacoes_painel' %}">Avaliações</a></nav></header><main>
 {% for message in messages %}<p>{{ message }}</p>{% endfor %}
 {% if user.perfil == 'PROF' %}<section class="card"><h2>Realizar chamada</h2>
 {% for aula in aulas %}<article><h3>{{ aula.disciplina.nome }} — {{ aula.turma.nome }} — {{ aula.data|date:'d/m/Y' }}</h3>

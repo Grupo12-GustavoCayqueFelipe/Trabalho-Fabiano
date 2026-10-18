@@ -15,10 +15,12 @@
             <p>Gestão Acadêmica</p>
         </div>
         <nav>
+            <a href="{% url 'dashboard' %}">⌂ Meu painel</a>
             <a href="#turmas" class="active">📚 Turmas</a>
             <a href="#disciplinas">📖 Disciplinas</a>
             <a href="#matricula">🎓 Matrícula</a>
             <a href="#historico">📋 Histórico</a>
+            <a href="#periodos-letivos">▦ Períodos letivos</a>
         <!-- Novos módulos mantêm o menu existente e respeitam o perfil no servidor. -->
 <a href="{% url 'atividades_lista' %}">Atividades</a>
 <a href="{% url 'comunicacao_painel' %}">Comunicação</a>

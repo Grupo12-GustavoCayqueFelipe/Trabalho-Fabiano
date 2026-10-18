@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="{% static 'css/modulos.css' %}">
 </head>
 <body>
+{% include "html/componentes/menu_modulos.html" %}
+
     <header><h1>Atividades</h1><nav><a href="{% url 'dashboard' %}">Painel</a> | <a href="{% url 'comunicacao_painel' %}">Comunicação</a></nav></header>
     <main>
         {% for message in messages %}<p class="mensagem {{ message.tags }}">{{ message }}</p>{% endfor %}

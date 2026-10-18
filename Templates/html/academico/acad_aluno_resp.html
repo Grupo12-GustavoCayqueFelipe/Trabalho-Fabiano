@@ -15,7 +15,8 @@
             <h2>EduControll</h2>
         </div>
         <nav>
-            <a href="#" class="ativo">Histórico de Matrículas</a>
+            <a href="{% url 'dashboard' %}">⌂ Meu painel</a>
+            <a href="{% url 'historico_matriculas_view' %}" class="ativo">Histórico de Matrículas</a>
         </nav>
         <div class="sidebar-bottom">
             <form action="{% url 'logout' %}" method="POST">

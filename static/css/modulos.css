@@ -1,27 +1,55 @@
-/* Estilo mínimo comum aos módulos, sem alterar os painéis existentes. */
-body { font-family: Arial, sans-serif; background: #f5f6fa; color: #202733; margin: 0; }
-header { background: #273b5b; color: white; padding: 18px 26px; }
-header a { color: white; }
-main { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
-.card { background: white; margin: 16px 0; padding: 18px; border: 1px solid #d6dce6; border-radius: 8px; }
-article { margin: 12px 0; padding: 12px; border-bottom: 1px solid #e4e8ef; }
-label { display: block; margin: 12px 0; }
-input, select, textarea { display: block; max-width: 100%; padding: 7px; margin: 4px 0; }
-button { background: #273b5b; border: 0; border-radius: 5px; color: white; padding: 10px 16px; cursor: pointer; }
-.texto { white-space: pre-wrap; }
-
-/* Ajustes locais de acessibilidade e layout; sem regras globais de login. */
+/* Identidade compartilhada dos módulos. Escopo apenas nas páginas que carregam modulos.css. */
+:root { color-scheme: dark; --bg: #1c1824; --sidebar: #1a1721; --violeta: #21063b; --card: #201a2c; --borda: #484051; --texto: #f6f3fb; --suave: #c6bcce; --destaque: #c7a4fb; }
 *, *::before, *::after { box-sizing: border-box; }
-body { min-height: 100vh; line-height: 1.5; }
-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-header nav { display: flex; flex-wrap: wrap; gap: 10px; }
-header nav a { color: #fff; text-underline-offset: 3px; }
-main { width: min(100%, 1050px); }
-.card { box-shadow: 0 3px 14px #273b5b12; }
-input, select, textarea { width: 100%; border: 1px solid #abb6c6; border-radius: 5px; background: #fff; color: #202733; font: inherit; }
-input[type="checkbox"], input[type="radio"] { display: inline; width: auto; }
-textarea { min-height: 100px; resize: vertical; }
-button:hover { background: #38577f; }
-button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid #6f9ddd; outline-offset: 2px; }
-.mensagem { padding: 9px 12px; border-left: 3px solid #38577f; background: #edf3fa; }
-@media (max-width: 600px) { header { padding: 16px; } main { margin: 12px auto; padding: 0 12px; } .card { padding: 14px; } }
+html { scroll-behavior: smooth; }
+body { margin: 0; min-height: 100vh; padding-left: 246px; color: var(--texto); font: 15px/1.55 Arial, Helvetica, sans-serif; background: linear-gradient(115deg, #201d27 3%, #200c37 100%); }
+a { color: #d4b6ff; text-underline-offset: 3px; }
+a:hover { color: #f0deff; }
+.modulo-sidebar { position: fixed; inset: 0 auto 0 0; z-index: 10; display: flex; flex-direction: column; width: 246px; padding: 25px 16px 16px; background: #1c1924; border-right: 1px solid #3b304a; }
+.modulo-marca { font-size: 22px; font-weight: 800; letter-spacing: -.6px; margin: 0 9px 25px; }
+.modulo-perfil { margin: 0 9px 18px; padding: 14px 0; font-weight: 700; border-bottom: 1px solid #43364e; word-break: break-word; }
+.modulo-perfil small { display: block; margin-top: 4px; color: var(--suave); font-size: 12px; font-weight: 400; }
+.modulo-menu { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+.modulo-menu a { display: flex; align-items: center; gap: 11px; padding: 11px 12px; border-radius: 9px; text-decoration: none; color: #f2e9ff; font-weight: 600; }
+.modulo-menu a:hover, .modulo-menu a.ativo { background: #330b5b; color: #fff; }
+.modulo-logout { margin-top: auto; padding-top: 18px; }
+.modulo-logout button { width: 100%; text-align: left; background: #2b2138; border: 1px solid #63487c; }
+body > header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin: 0; padding: 31px 36px 16px; background: transparent; }
+body > header h1 { font-size: clamp(23px, 3vw, 30px); margin: 0; line-height: 1.2; }
+body > header nav { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; color: var(--suave); }
+body > header a { color: #d5b6ff; font-weight: 600; }
+body > main { width: min(100%, 1180px); margin: 0 auto 60px; padding: 0 36px; }
+.card { margin: 18px 0; padding: 24px; background: linear-gradient(130deg, #241d30, #21132f); border: 1px solid var(--borda); border-radius: 14px; box-shadow: 0 8px 28px #10061c26; }
+.card h1, .card h2 { margin-top: 0; font-size: 20px; }
+.card h2 { padding-bottom: 12px; border-bottom: 1px solid #45394d; }
+.card article, article { margin: 14px 0; padding: 14px; background: #ffffff05; border: 1px solid #453b50; border-radius: 10px; }
+article h3 { margin: 0 0 8px; color: #f9f2ff; font-size: 16px; }
+article p { margin: 8px 0; color: var(--suave); }
+label { display: block; margin: 16px 0; color: #f4ecfc; font-weight: 600; }
+input, select, textarea { display: block; width: 100%; max-width: 100%; margin: 6px 0; padding: 11px 13px; border: 1px solid #746284; border-radius: 8px; background: #322b3b; color: #fff; font: inherit; font-weight: 400; }
+input::placeholder, textarea::placeholder { color: #afa1bc; }
+select option { background: #322b3b; color: #fff; }
+input[type=checkbox], input[type=radio] { display: inline-block; width: auto; margin-right: 7px; }
+textarea { min-height: 105px; resize: vertical; }
+button { border: 1px solid #744aa9; border-radius: 9px; padding: 10px 17px; background: #350e60; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+button:hover { background: #512181; }
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 3px solid #d5b6ff; outline-offset: 3px; }
+.mensagem { padding: 12px 15px; background: #37234e; border-left: 3px solid #c7a4fb; color: #fff; border-radius: 6px; }
+.texto { white-space: pre-wrap; overflow-wrap: anywhere; }
+.card table { width: 100%; border-collapse: collapse; }
+.card th, .card td { padding: 12px; border-bottom: 1px solid #4e405c; text-align: left; }
+.modulo-tag { display: inline-block; padding: 4px 9px; border-radius: 999px; color: #e1c4ff; background: #402355; font-size: 12px; }
+@media (max-width: 850px) {
+  body { padding-left: 0; }
+  .modulo-sidebar { position: relative; inset: auto; width: auto; padding: 16px; border-right: 0; border-bottom: 1px solid #4a355b; }
+  .modulo-marca { margin: 0 0 8px; }
+  .modulo-perfil { margin: 0 0 8px; padding: 5px 0; }
+  .modulo-menu { flex-direction: row; flex-wrap: wrap; gap: 5px; overflow: visible; }
+  .modulo-menu a { font-size: 13px; padding: 8px 10px; }
+  .modulo-logout { margin-top: 10px; padding: 0; }
+  .modulo-logout button { width: auto; }
+  body > header { padding: 25px 18px 12px; }
+  body > main { padding: 0 16px 25px; }
+}
+@media (max-width: 520px) { .card { padding: 16px; } article { padding: 12px; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

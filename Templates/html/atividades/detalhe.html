@@ -3,6 +3,8 @@
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ atividade.titulo }} - EduControll</title><link rel="stylesheet" href="{% static 'css/modulos.css' %}"></head>
 <body>
+{% include "html/componentes/menu_modulos.html" %}
+
     <header><a href="{% url 'atividades_lista' %}">Voltar às atividades</a></header>
     <main><section class="card">
         {% for message in messages %}<p class="mensagem">{{ message }}</p>{% endfor %}
