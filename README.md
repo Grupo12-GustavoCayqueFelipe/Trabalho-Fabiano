@@ -109,3 +109,23 @@ educontroll/
 ## Licença
 
 Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+
+## Validação da entrega (outubro de 2026)
+
+As páginas de aluno e responsável usam dados de matrículas e vínculos autorizados;
+quando não houver dados, exibem estados vazios em vez de indicadores fictícios.
+O acesso inicial separa os portais acadêmico e institucional, mantendo POST legado.
+Erros HTTP 500 são registrados em `django.request` no console do Render.
+
+Antes de publicar, execute em ambiente local com banco SQLite de testes:
+
+```powershell
+python manage.py check --settings=core.settings_test
+python manage.py test --settings=core.settings_test --noinput
+python manage.py makemigrations --check --dry-run --settings=core.settings_test
+```
+
+**Importante:** passar nos testes SQLite não comprova que a base PostgreSQL do
+Render tem todas as migrações aplicadas. Em caso de HTTP 500, consultar os logs
+do Render e validar o esquema com segurança, sem apagar nem recriar tabelas.
