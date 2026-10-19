@@ -187,6 +187,15 @@ Os quatro perfis disponíveis são: **Administrador, Professor, Aluno e Respons�
 - [Checklist do projeto](Docs/Checklist.md)
 - [Evidências de Funcionamento](Docs/Evidencias_de_Funcionamento/)
 
+### Publicações Científicas — UMC Summit 2026
+
+O EduControll foi desenvolvido como Projeto Integrador do curso de Engenharia de Software da Universidade de Mogi das Cruzes (UMC).
+
+Os materiais científicos apresentam o sistema, sua arquitetura, funcionalidades, integração dos módulos e os mecanismos de proteção de dados adotados.
+
+- [Pôster Científico — EduControll](Docs/Poster_e_Resumo/Poster_EduControll_UMC_Summit.pdf)
+- [Resumo Simples — EduControll](Docs/Poster_e_Resumo/Resumo_Simples_EduControll_UMC_Summit.pdf)
+
 ## Licença
 
 Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
