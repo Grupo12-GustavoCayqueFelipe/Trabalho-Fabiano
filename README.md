@@ -23,8 +23,7 @@ pela view continua obrigatória; o retorno não libera páginas de outro perfil.
 exclusão de conta usando os quatro acessos compartilhados para avaliação.
 Esses testes devem utilizar contas descartáveis ou o banco SQLite de testes,
 pois o bloqueio pode interromper a avaliação e a exclusão desidentifica a conta.
-O comando `seed_demonstracao` **não restaura** credenciais de contas excluídas.
-Veja o [roteiro de testes seguros](Docs/Roteiro_Testes_Seguros.md).
+Deixe esses testes para serem feitos por ultimo
 
 > ⚠ O plano gratuito do Render "dorme" após 15 minutos sem acesso  o primeiro carregamento após um tempo parado pode levar de 30 a 60 segundos. Dê um refresh e aguarde.
 
