@@ -1,0 +1,222 @@
+name: DevSecOps Avancado - ZAP Bearer Trivy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: devsecops-avancado-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zap_dast:
+    name: '01 - OWASP ZAP DAST'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preparar Docker e segredos descartaveis
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p security-artifacts/zap
+          chmod 777 security-artifacts/zap
+          # Nenhum segredo ou URL de producao entra no container.
+          {
+            printf 'SECRET_KEY=%s\n' "$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
+            printf 'FIELD_ENCRYPTION_KEY=%s\n' "$(python3 -c 'import base64,secrets; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())')"
+            printf 'DJANGO_SETTINGS_MODULE=core.settings_ci_dast\n'
+            printf 'DEBUG=True\n'
+            printf 'DATABASE_URL=sqlite:////tmp/edudast-inicial.sqlite3\n'
+            printf 'ALLOWED_HOSTS=127.0.0.1,localhost\n'
+          } > "$RUNNER_TEMP/educontroll-dast.env"
+          chmod 600 "$RUNNER_TEMP/educontroll-dast.env"
+
+      - name: Construir imagem e iniciar Django descartavel
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --tag educontroll-devsecops:ci .
+          docker run --detach \
+            --name educontroll-dast-ci \
+            --network host \
+            --env-file "$RUNNER_TEMP/educontroll-dast.env" \
+            educontroll-devsecops:ci \
+            sh -c 'python manage.py migrate --noinput && python manage.py collectstatic --noinput && exec python manage.py runserver 127.0.0.1:8000 --noreload'
+          # Falha imediatamente se a aplicacao nao subir. Nao varre URL externa.
+          pronto=0
+          for tentativa in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:8000/ >/dev/null 2>&1; then
+              pronto=1
+              break
+            fi
+            if ! docker inspect -f '{{.State.Running}}' educontroll-dast-ci 2>/dev/null | grep -qx true; then
+              docker logs educontroll-dast-ci
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$pronto" -ne 1 ]; then
+            docker logs educontroll-dast-ci
+            echo 'Django nao ficou disponivel no localhost.' >&2
+            exit 1
+          fi
+          echo 'Django descartavel acessivel em 127.0.0.1:8000.'
+
+      - name: Testar a regra de bloqueio do ZAP
+        shell: bash
+        run: python3 -m unittest discover -s scripts/ci -p 'test_zap_gate.py' -v
+
+      - name: OWASP ZAP Full Scan (Action oficial)
+        uses: zaproxy/action-full-scan@v0.13.0
+        with:
+          target: http://127.0.0.1:8000
+          # fail_action explicito, conforme o enunciado.
+          # -I evita falhar apenas por avisos WARN; o gate abaixo BLOQUEIA HIGH.
+          fail_action: true
+          allow_issue_writing: false
+          artifact_name: relatorio-zap-dast
+          cmd_options: '-m 2 -T 5 -I'
+
+      - name: Bloquear a esteira para alertas ZAP HIGH (exit-code 1)
+        shell: bash
+        run: python3 scripts/ci/zap_gate.py report_json.json
+
+      - name: Encerrar container de teste
+        if: always()
+        shell: bash
+        run: |
+          docker logs --tail 80 educontroll-dast-ci || true
+          docker rm -f educontroll-dast-ci || true
+          rm -f "$RUNNER_TEMP/educontroll-dast.env"
+
+  bearer_privacidade:
+    name: '02 - Bearer Privacidade e Segredos'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Criar pasta de evidencias
+        run: |
+          mkdir -p security-artifacts/bearer
+          chmod 777 security-artifacts/bearer
+
+      - name: Bearer SAST e segredos - falha para CRITICAL e HIGH
+        id: bearer_security
+        shell: bash
+        run: |
+          set -uo pipefail
+          # O codigo de saida fica registrado; o relatorio de privacidade roda mesmo se houver achado.
+          docker run --rm \
+            --volume "$PWD:/tmp/scan:ro" \
+            --volume "$PWD/security-artifacts/bearer:/output:rw" \
+            bearer/bearer:2.1.1-amd64 \
+            scan /tmp/scan \
+              --scanner sast,secrets \
+              --report security \
+              --severity critical,high \
+              --fail-on-severity critical,high \
+              --exit-code 1 \
+              --no-extract \
+              --format json \
+              --output /output/security.json
+          codigo=$?
+          echo "BEARER_SECURITY_STATUS=$codigo" >> "$GITHUB_ENV"
+          echo "O Bearer terminou o scan de seguranca com codigo $codigo."
+          exit 0
+
+      - name: Bearer Privacy Report - mapeamento de dados
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$PWD:/tmp/scan:ro" \
+            --volume "$PWD/security-artifacts/bearer:/output:rw" \
+            bearer/bearer:2.1.1-amd64 \
+            scan /tmp/scan \
+              --report privacy \
+              --format json \
+              --output /output/privacy.json \
+              --exit-code 0
+
+      - name: Guardar relatorios do Bearer
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-bearer-privacidade
+          path: security-artifacts/bearer/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Gate - negar falhas CRITICAL/HIGH e erros de scanner
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s security-artifacts/bearer/security.json
+          test -s security-artifacts/bearer/privacy.json
+          if [ "${BEARER_SECURITY_STATUS:-99}" -ne 0 ]; then
+            echo 'Bearer identificou risco CRITICAL/HIGH ou falha de execucao.' >&2
+            exit 1
+          fi
+
+  trivy_sbom:
+    name: '03 - Trivy CycloneDX SBOM'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Construir a imagem real do projeto
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p security-artifacts/sbom
+          docker build --tag educontroll-devsecops:ci .
+
+      - name: Gerar SBOM CycloneDX da imagem via Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: educontroll-devsecops:ci
+          format: cyclonedx
+          output: security-artifacts/sbom/sbom.json
+          exit-code: '0'
+
+      - name: Validar a integridade do artefato SBOM
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('security-artifacts/sbom/sbom.json')
+          if not p.is_file():
+              raise SystemExit('ERRO: sbom.json nao foi gerado')
+          sbom = json.loads(p.read_text(encoding='utf-8'))
+          componentes = sbom.get('components', [])
+          if sbom.get('bomFormat') != 'CycloneDX' or not componentes:
+              raise SystemExit('ERRO: SBOM invalido ou sem dependencias')
+          nomes = {str(c.get('name', '')).lower() for c in componentes}
+          if 'django' not in nomes:
+              raise SystemExit('ERRO: pacote Django ausente do SBOM da imagem')
+          print(f'SBOM CycloneDX valido: {len(componentes)} componentes. Django encontrado.')
+          PY
+
+      - name: Publicar artefato SBOM para download
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx-educontroll
+          path: security-artifacts/sbom/sbom.json
+          if-no-files-found: error
+          retention-days: 30
