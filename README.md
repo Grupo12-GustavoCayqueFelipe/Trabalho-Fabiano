@@ -2,6 +2,18 @@
 
 Sistema web de gestão escolar desenvolvido em Django, com foco em autenticação segura, conformidade com a LGPD e arquitetura modular.
 
+Integrantes — Grupo 12
+
+Projeto Integrador desenvolvido pelos alunos do curso de Engenharia de Software da Universidade de Mogi das Cruzes (UMC), na disciplina de Políticas de Segurança da Informação.
+
+Membros do Grupo 12:
+
+Felipe Oliveira Bueno da Matta RGM 11252400482
+
+Gustavo Eiji Eguchi de Oliveira  RGM 11252402724
+
+Cayque Luan Motta Ferreira RGM 11232101807
+
 ## 🔗 Acesse sem instalar nada
 
 O projeto está publicado em produção, com HTTPS automático:
