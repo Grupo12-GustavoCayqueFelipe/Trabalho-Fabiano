@@ -34,9 +34,6 @@ jobs:
         uses: trufflesecurity/trufflehog@f8221ca52ac51bf66228d6ec3691f3ea0782ae15 # SHA fixo da action; versao do scanner definida separadamente abaixo
         with:
           version: 3.99.8
-          # Base vazia faz a verificacao alcancar todo o historico do commit atual.
-          base: ""
-          head: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           # Segredos verificados e resultados ainda nao verificados bloqueiam a esteira.
           extra_args: --results=verified,unknown
 
