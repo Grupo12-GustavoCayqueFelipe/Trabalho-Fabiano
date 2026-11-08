@@ -31,7 +31,7 @@ def _destinatarios_autorizados(usuario):
   destinatarios = Usuario.objects.filter(is_active=True, perfil__in=['ALUNO', 'RESP'])
   if usuario.perfil == 'ADMIN':
     return destinatarios
-  if not hasattr(usuario, 'professor'):
+  if usuario.perfil != 'PROF' or not hasattr(usuario, 'professor'):
     return destinatarios.none()
 
   # Inclui alunos ativos das turmas e responsáveis associados a esses alunos.
@@ -48,13 +48,13 @@ def comunicacao_painel_view(request):
 
   if usuario.perfil == 'ADMIN':
     turmas = Turma.objects.all().order_by('nome')
-  elif hasattr(usuario, 'professor'):
+  elif usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
     turmas = _turmas_professor(usuario.professor)
     avisos = avisos.filter(Q(turma__isnull=True) | Q(turma__in=turmas))
-  elif hasattr(usuario, 'aluno'):
+  elif usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
     ids = Matricula.objects.filter(aluno=usuario.aluno, status='ATIVA').values_list('turma_id', flat=True)
     avisos = avisos.filter(Q(turma__isnull=True) | Q(turma_id__in=ids))
-  elif hasattr(usuario, 'responsavel'):
+  elif usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'):
     ids = Matricula.objects.filter(aluno__in=usuario.responsavel.alunos_vinculados.all(), status='ATIVA').values_list('turma_id', flat=True)
     avisos = avisos.filter(Q(turma__isnull=True) | Q(turma_id__in=ids))
   else:
@@ -78,7 +78,7 @@ def comunicacao_painel_view(request):
 @ratelimit(key='user', rate='20/m', block=True, method='POST')
 def aviso_criar_view(request):
   usuario = request.user
-  if usuario.perfil != 'ADMIN' and not hasattr(usuario, 'professor'):
+  if usuario.perfil != 'ADMIN' and (usuario.perfil != 'PROF' or not hasattr(usuario, 'professor')):
     return redirect('dashboard')
 
   titulo = (request.POST.get('titulo') or '').strip()
@@ -115,7 +115,7 @@ def aviso_criar_view(request):
 @ratelimit(key='user', rate='20/m', block=True, method='POST')
 def mensagem_enviar_view(request):
   usuario = request.user
-  if usuario.perfil != 'ADMIN' and not hasattr(usuario, 'professor'):
+  if usuario.perfil != 'ADMIN' and (usuario.perfil != 'PROF' or not hasattr(usuario, 'professor')):
     return redirect('dashboard')
 
   destinatario_id = (request.POST.get('destinatario') or '').strip()
