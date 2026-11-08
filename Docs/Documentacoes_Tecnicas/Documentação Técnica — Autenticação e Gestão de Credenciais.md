@@ -198,7 +198,7 @@ A aplicação está hospedada no Render.com, que fornece certificado TLS automá
 
 ### 11.2 Criptografia de dados em repouso
 
-Os campos telefone, endereço e data de nascimento são armazenados criptografados no banco de dados usando Fernet, AES-128 em modo CBC com autenticação HMAC, através da biblioteca django-encrypted-model-fields. A chave de criptografia (FIELD_ENCRYPTION_KEY) é mantida apenas em variável de ambiente, nunca commitada no repositório.
+Os models atuais utilizam `django-encrypted-model-fields` (Fernet) em 19 campos. Isso inclui telefone, endereço, data de nascimento, segredo TOTP (`otp_secret`) e textos que podem conter dados pessoais nos módulos de atividades, avaliações, frequência e comunicação. A chave `FIELD_ENCRYPTION_KEY` é carregada por variável de ambiente. **A presença da cifra no model não garante, sozinha, que registros antigos tenham sido convertidos corretamente:** é necessário diagnóstico do banco antes de qualquer migração de dados legados.
 
 ### 11.3 Justificativa da escolha
 
@@ -206,7 +206,7 @@ Optamos por Fernet em vez de implementar AES manualmente porque a biblioteca já
 
 ### 11.4 Critério de seleção dos campos criptografados
 
-Foram criptografados apenas os campos de alto risco em caso de vazamento: telefone, endereço e data de nascimento. Campos como parentesco e especialidade não foram criptografados por não se enquadrarem na definição legal de dado sensível (Art. 5º, II da LGPD), sendo informações funcionais que não revelam origem racial, convicção religiosa, dado de saúde ou orientação sexual. Criptografar esses campos adicionaria complexidade sem ganho de conformidade, além de impedir busca e filtro legítimos por esses valores. O campo matrícula também não foi criptografado, por ser um identificador escolar e não um dado de contato sensível usado ativamente em buscas do sistema.
+A seleção considera a necessidade de consulta e o risco de exposição. Os campos de cadastro e alguns textos acadêmicos são criptografados; os identificadores usados em buscas e relacionamentos, como matrícula, permanecem acessíveis ao ORM. Um campo não ser classificado como dado pessoal **sensível** pela LGPD não significa que ele deixe de ser dado pessoal. A lista exata dos campos criptografados deve ser conferida nos arquivos `apps/*/models.py`. Rotação de chaves, backups e proteção de registros anteriores às migrations continuam exigindo procedimento de homologação.
 
 ## 12. Auditoria e Logs
 
@@ -216,7 +216,7 @@ O sistema registra, na tabela LogAcesso, cada tentativa de login (sucesso ou fal
 
 ### 12.2 Proteção contra alteração dos logs
 
-Assim como o LogRecuperacaoSenha, o LogAcesso é registrado no Django Admin com todos os campos marcados como readonly_fields, impedindo que qualquer usuário, incluindo administradores, edite ou apague um registro de log pela interface administrativa.
+O `LogAcesso`, o `LogRecuperacaoSenha` e o `LogOperacao` utilizam `SomenteLeituraAdmin`: não podem ser criados, alterados ou excluídos **pela interface do Django Admin**. Essa proteção não impede acesso direto por um usuário privilegiado do PostgreSQL. Por isso, não declaramos os logs como imutáveis no banco. A proteção adicional precisa ser planejada junto da política LGPD de retenção e desidentificação.
 
 ### 12.3 Exemplo de análise de logs
 
@@ -238,28 +238,20 @@ O banco de dados é PostgreSQL, hospedado no Supabase, acessado via variável de
 
 ```mermaid
 flowchart TB
-    subgraph Cliente
-        Nav["Navegador"]
+    Navegador["Navegador / quatro perfis"] -->|HTTPS| Render["Render / Django"]
+    subgraph Aplicacao["EduControll - apps Django"]
+      U["usuarios / 2FA / LGPD / logs"]
+      A["academico"]
+      AT["atividades"]
+      AV["avaliacoes"]
+      F["frequencia"]
+      C["comunicacao"]
     end
-
-    subgraph Render["Render.com (HTTPS)"]
-        Django["Aplicação Django"]
-        subgraph Apps["Apps do projeto"]
-            Usuarios["usuarios<br/>(autenticação, 2FA, LGPD, logs)"]
-            Academico["academico<br/>(turmas, disciplinas, matrículas, aulas)"]
-        end
-    end
-
-    subgraph Supabase["Supabase"]
-        DB[("PostgreSQL")]
-    end
-
-    Nav -- HTTPS --> Django
-    Django -- SECURE_PROXY_SSL_HEADER --> Django
-    Django --> Usuarios
-    Django --> Academico
-    Usuarios -- dados criptografados (Fernet) --> DB
-    Academico --> DB
+    Render --> Aplicacao
+    Aplicacao -->|ORM / TLS| Banco[("Supabase PostgreSQL")]
+    Aplicacao -->|cache/rate limit| Redis[("Redis")]
+    Aplicacao -->|anexos privados| S3["Storage S3 compativel"]
+    Aplicacao -->|recuperacao| SMTP["Servidor SMTP"]
 ```
 
 ## 15. Identificação dos Ativos do Sistema
@@ -314,7 +306,7 @@ flowchart TB
 | Acesso via HTTP à URL de produção                       | Redirecionado automaticamente para HTTPS                                |
 | Tentativa de editar um log pelo Django Admin               | Campos bloqueados para edição (somente leitura)                       |
 
-As evidências visuais de cada teste estão salvas em Docs/Evidencias_de_Funcionamento/.
+As capturas antigas estão em `Docs/Evidencias_de_Funcionamento/`. Para a rodada nova, os testes devem ser executados com `core.settings_test` e a saída real do terminal anexada. Os casos adicionados ao projeto constam em `apps/usuarios/test_correcao_relatorio.py`; a existência do teste não comprova sua aprovação sem execução. O workflow `.github/workflows/devsecops-avancado.yml` também fornece evidências de ZAP, Bearer e SBOM no GitHub Actions.
 
 ## 19. Referências
 
@@ -358,7 +350,7 @@ As migrations no banco compartilhado apresentaram divergências entre o registro
 
 ### Limitações a documentar na entrega
 
-- Dados de médias exibidos no resumo são médias das notas lançadas, não cálculo oficial de boletim com pesos por disciplina.
+- A média resumida do dashboard foi ajustada para utilizar `peso` e `nota_maxima`, com conversão à escala de zero a dez. O cálculo oficial de boletim por disciplina/período ainda exige regras institucionais específicas.
 - O percentual de presença considera somente registros com estado `P`; faltas justificadas são exibidas como estado próprio nas telas de frequência.
 - O sistema de mensagens dos responsáveis é consultivo no painel atual; envio deve respeitar as permissões do backend, não se deve oferecer um falso campo de chat interativo.
 - A certificação completa de conformidade LGPD requer avaliações organizacionais além dos controles técnicos do projeto.
