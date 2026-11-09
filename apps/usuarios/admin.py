@@ -1,5 +1,9 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
+from django.db import transaction
+from django.utils.decorators import method_decorator
+from django.views.decorators.debug import sensitive_post_parameters
+from apps.usuarios.models import registrar_operacao
 from core.admin_auditoria import AdminComAuditoria
 from .models import Usuario, Aluno, Professor, Responsavel, AlunoResponsavel, LogRecuperacaoSenha, ConsentimentoUsuario, LogAcesso, LogOperacao
 # Register your models here.
@@ -29,6 +33,16 @@ class UsuarioAdmin(AdminComAuditoria, UserAdmin):
     ('Datas Importantes', {'fields': ('last_login', 'date_joined')}),
   )
   
+  # O formulario de troca de senha do UserAdmin nao chama save_model.
+  # A alteracao de senha e o log devem ser gravados juntos.
+  @method_decorator(sensitive_post_parameters())
+  def user_change_password(self, request, id, form_url=''):
+    with transaction.atomic():
+      resposta = super().user_change_password(request, id, form_url)
+      if request.method == 'POST' and resposta.status_code in (301, 302):
+        registrar_operacao(request.user, 'ADMIN_SENHA_USUARIO', int(id))
+    return resposta
+
   # Define os campos que serão exibidos no formulário de criação de usuários
   # Exclusão física de contas viola o fluxo de desidentificação e retenção.
   def has_delete_permission(self, request, obj=None):

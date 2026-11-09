@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from apps.usuarios.models import registrar_operacao
 from django.urls import reverse
 from django.views.decorators.http import require_POST
+from django_ratelimit.decorators import ratelimit
 
 from .models import Turma, Disciplina, Matricula, Aula, PeriodoLetivo, TURNO_CHOICES
 from apps.usuarios.models import Aluno, Professor
@@ -203,11 +204,11 @@ def matricular_aluno_view(request):
 @login_required(login_url='login')
 def historico_matriculas_view(request):
   # Consulta apenas o aluno logado ou os alunos vinculados ao responsável.
-  aluno = request.user.aluno if hasattr(request.user, 'aluno') else None
+  aluno = request.user.aluno if request.user.perfil == 'ALUNO' and hasattr(request.user, 'aluno') else None
   matriculas = Matricula.objects.none()
   if aluno:
     matriculas = Matricula.objects.filter(aluno=aluno)
-  elif hasattr(request.user, 'responsavel'):
+  elif request.user.perfil == 'RESP' and hasattr(request.user, 'responsavel'):
     matriculas = Matricula.objects.filter(aluno__in=request.user.responsavel.alunos_vinculados.all())
   matriculas = matriculas.select_related('aluno__usuario', 'turma__professor_regente__usuario').order_by('-data_matricula', '-pk')
 
@@ -218,8 +219,12 @@ def historico_matriculas_view(request):
 
 # Professor registra o conteúdo dado numa aula
 @login_required(login_url='login')
+@ratelimit(key='user', rate='20/m', block=False, method='POST')
 def registrar_aula_view(request):
-  if not hasattr(request.user, 'professor'):
+  if getattr(request, 'limited', False):
+    messages.error(request, 'Muitas operações seguidas. Tente novamente mais tarde.')
+    return redirect('dashboard')
+  if request.user.perfil != 'PROF' or not hasattr(request.user, 'professor'):
     messages.error(request, 'Apenas professores podem registrar aulas.')
     return redirect('dashboard')
 

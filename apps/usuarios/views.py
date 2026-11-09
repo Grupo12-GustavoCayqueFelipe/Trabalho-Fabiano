@@ -8,6 +8,7 @@ import io
 import datetime
 import secrets
 import hashlib
+from decimal import Decimal
 
 
 from .models import Usuario, consentimentos_atuais, registrar_consentimento, registrar_log_recuperacao_senha, TokenRecuperacaoSenha, TIPO_CONSENTIMENTO, registrar_log_acesso, registrar_operacao, ConsentimentoUsuario, Aluno, AlunoResponsavel, LogAcesso, LogOperacao, LogRecuperacaoSenha
@@ -107,6 +108,7 @@ def _processar_login(request, portal=None):
         request.session['pre_2fa_next'] = proximo
         request.session['pre_2fa_user_id'] = usuario.pk
         request.session['pre_2fa_iniciado'] = timezone.now().timestamp()
+        request.session['pre_2fa_tentativas'] = 0
         return redirect('2fa_verificar')
       login(request, usuario)
       request.session.pop('pre_2fa_next', None)
@@ -157,14 +159,38 @@ def login_funcionarios_view(request):
 def chave_2fa(group, request):
   return str(request.session.get('pre_2fa_user_id') or 'sem-usuario')
 
+# O desafio termina junto com todos os dados temporarios de login.
+def _limpar_desafio_2fa(request):
+  for chave in ('pre_2fa_user_id', 'pre_2fa_iniciado', 'pre_2fa_portal',
+                'pre_2fa_next', 'pre_2fa_tentativas'):
+    request.session.pop(chave, None)
+
+
+# Calcula a media na escala 0 a 10, respeitando peso e nota maxima.
+def _media_avaliacoes_normalizada(notas):
+  soma = Decimal('0')
+  soma_pesos = Decimal('0')
+  for valor, maximo, peso in notas.values_list(
+    'valor', 'avaliacao__nota_maxima', 'avaliacao__peso'
+  ):
+    if valor is None or maximo is None or peso is None:
+      continue
+    if maximo <= 0 or peso <= 0:
+      continue
+    soma += (Decimal(valor) / Decimal(maximo)) * Decimal('10') * Decimal(peso)
+    soma_pesos += Decimal(peso)
+  return (soma / soma_pesos) if soma_pesos else None
+
+
 # Segunda etapa do login pra quem tem 2FA ligado, pede o código de 6 dígitos
 @ratelimit(key=chave_2fa, rate='5/m', block=False, method='POST')
 def dois_fatores_verificar_view(request):
   
   if getattr(request, 'limited', False):
-    # Bloqueia a tentativa se o limite foi atingido
-    messages.error(request, 'Muitas tentativas de verificação. Tente novamente mais tarde.')
-    return render(request, 'usuarios/2fa_verificar.html')
+    # O rate limit nao pode deixar o mesmo desafio ativo para mais tentativas.
+    _limpar_desafio_2fa(request)
+    messages.error(request, 'Muitas tentativas de verificação. Entre novamente.')
+    return redirect('login')
   
   # Confere se veio de um login válido, se não veio manda pro login normal
   usuario_id = request.session.get('pre_2fa_user_id')
@@ -175,10 +201,7 @@ def dois_fatores_verificar_view(request):
   # A etapa intermediária expira após cinco minutos e não substitui uma sessão completa.
   inicio = request.session.get('pre_2fa_iniciado', 0)
   if timezone.now().timestamp() - inicio > 300:
-    request.session.pop('pre_2fa_user_id', None)
-    request.session.pop('pre_2fa_iniciado', None)
-    request.session.pop('pre_2fa_portal', None)
-    request.session.pop('pre_2fa_next', None)
+    _limpar_desafio_2fa(request)
     messages.error(request, 'Verificação expirada. Entre novamente.')
     return redirect('login')
   usuario = Usuario.objects.filter(pk=usuario_id, is_active=True, otp_ativado=True).first()
@@ -189,10 +212,7 @@ def dois_fatores_verificar_view(request):
     or (portal == 'funcionarios' and usuario is not None and usuario.perfil not in ('ADMIN', 'PROF'))
   )
   if usuario is None or not usuario.otp_secret or perfil_invalido:
-    request.session.pop('pre_2fa_user_id', None)
-    request.session.pop('pre_2fa_iniciado', None)
-    request.session.pop('pre_2fa_portal', None)
-    request.session.pop('pre_2fa_next', None)
+    _limpar_desafio_2fa(request)
     return redirect('login')
   if request.method == 'POST':
     codigo = (request.POST.get('codigo') or '').strip()
@@ -201,17 +221,21 @@ def dois_fatores_verificar_view(request):
     # Confere se o código bate com o que o app autenticador devia estar gerando
     if len(codigo) == 6 and codigo.isascii() and codigo.isdecimal() and totp.verify(codigo):
       registrar_log_acesso(usuario, evento='2FA_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
-      request.session.pop('pre_2fa_user_id', None)
-      request.session.pop('pre_2fa_iniciado', None)
-      request.session.pop('pre_2fa_portal', None)
-      # O destino só é recuperado da sessão e validado novamente após o 2FA.
-      proximo = _destino_login(request, request.session.pop('pre_2fa_next', ''))
+      # O destino so e recuperado da sessao e validado novamente apos o 2FA.
+      proximo = _destino_login(request, request.session.get('pre_2fa_next', ''))
+      _limpar_desafio_2fa(request)
       login(request, usuario)
       request.session['2fa_verificado'] = usuario.pk
       registrar_log_acesso(usuario, evento='LOGIN_SUCESSO', ip=request.META.get('REMOTE_ADDR'))
       return redirect(proximo or 'dashboard')
     else:
       registrar_log_acesso(usuario, evento='2FA_FALHA', ip=request.META.get('REMOTE_ADDR'))
+      tentativas = request.session.get('pre_2fa_tentativas', 0) + 1
+      request.session['pre_2fa_tentativas'] = tentativas
+      if tentativas >= TENTATIVAS_MAX:
+        _limpar_desafio_2fa(request)
+        messages.error(request, 'Limite de códigos atingido. Entre novamente.')
+        return redirect('login')
       messages.error(request, 'Código de verificação inválido ou expirado.')
 
   return render(request, 'usuarios/2fa_verificar.html', {'email': usuario.email})
@@ -282,7 +306,7 @@ def dois_fatores_configurar_view(request):
 def dashboard_view(request):
   # Os dados são filtrados pelas matrículas do aluno ou pelos vínculos familiares.
   if request.user.perfil in ('ALUNO', 'RESP'):
-    from django.db.models import Avg, Count, Q
+    from django.db.models import Count, Q
     from django.utils import timezone
     from apps.academico.models import Disciplina, Matricula
     from apps.atividades.models import Atividade
@@ -317,7 +341,7 @@ def dashboard_view(request):
       'total_matriculas': matriculas.count(),
       'total_disciplinas': disciplinas.count(),
       'disciplinas_recentes': disciplinas.order_by('nome')[:6],
-      'media_notas': notas.aggregate(media=Avg('valor'))['media'],
+      'media_notas': _media_avaliacoes_normalizada(notas),
       'percentual_presenca': round(100 * (presencas['presentes'] or 0) / total) if total else None,
       'total_registros_frequencia': total,
       'total_atividades': atividades.count(),
@@ -427,7 +451,12 @@ def solicitacao_recuperacao_senha_view(request):
   return render(request, 'html/senha/senha.html')
 
 # Tela onde o usuário redefine a senha, acessando o link enviado por email
+@ratelimit(key='ip', rate='15/m', block=False, method=['GET', 'POST'])
 def redefinir_senha_view(request, token):
+  # Limita URLs aleatorias para nao gerar uma trilha ilimitada de tentativas.
+  if getattr(request, 'limited', False) or len(token) > 256:
+    messages.error(request, 'Link de recuperação inválido ou expirado.')
+    return redirect('login')
   # Faz o hash do token que veio na URL pra comparar com o que está salvo
   token_hash = hashlib.sha256(token.encode()).hexdigest()
   token_recuperacao = TokenRecuperacaoSenha.objects.filter(token_hash=token_hash).first()
@@ -444,7 +473,10 @@ def redefinir_senha_view(request, token):
     if token_recuperacao:
       evento = 'FALHA_TOKEN_EXPIRADO' if token_recuperacao.expira_em <= timezone.now() else 'FALHA_TOKEN_INVALIDO'
       registrar_log_recuperacao_senha(token_recuperacao.usuario, evento=evento, ip=request.META.get('REMOTE_ADDR'), token=token)
-    # Se o token não existir, registra o log de falha com o evento de token inválido
+    else:
+      # Token inexistente tambem entra na auditoria, sem guardar o valor em claro.
+      registrar_log_recuperacao_senha(None, evento='FALHA_TOKEN_INVALIDO',
+                                     ip=request.META.get('REMOTE_ADDR'), token=token)
     messages.error(request, 'Link de recuperação inválido ou expirado.')
     return redirect('login')
   
@@ -466,6 +498,9 @@ def redefinir_senha_view(request, token):
     with transaction.atomic():
       token_bloqueado = TokenRecuperacaoSenha.objects.select_for_update().get(pk=token_recuperacao.pk)
       if token_bloqueado.usado_em is not None or token_bloqueado.expira_em <= timezone.now():
+        evento = 'FALHA_TOKEN_EXPIRADO' if token_bloqueado.expira_em <= timezone.now() else 'FALHA_TOKEN_INVALIDO'
+        registrar_log_recuperacao_senha(usuario, evento=evento,
+                                       ip=request.META.get('REMOTE_ADDR'), token=token)
         messages.error(request, 'Link de recuperação inválido ou expirado.')
         return redirect('login')
       usuario.set_password(nova_senha)
@@ -518,16 +553,16 @@ def exportar_dados_view(request):
   }
   
   # Pega os dados específicos do perfil do usuário e adiciona ao dicionário
-  if hasattr(usuario, 'aluno'):
+  if usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
     dados['matricula'] = usuario.aluno.matricula
     dados['data_nascimento'] = str(usuario.aluno.data_nascimento)
     dados['telefone'] = usuario.aluno.telefone
     dados['endereco'] = usuario.aluno.endereco
-  elif hasattr(usuario, 'professor'):
+  elif usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
     dados['formacao'] = usuario.professor.formacao
     dados['telefone'] = usuario.professor.telefone
     dados['especialidade'] = usuario.professor.especialidade
-  elif hasattr(usuario, 'responsavel'):
+  elif usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'):
     dados['telefone'] = usuario.responsavel.telefone
     dados['parentesco_principal'] = usuario.responsavel.parentesco_principal
 
@@ -538,7 +573,7 @@ def exportar_dados_view(request):
   from apps.comunicacao.models import Mensagem, Aviso
   from apps.avaliacoes.models import Nota, Avaliacao, HistoricoNota
   from apps.frequencia.models import RegistroFrequencia, HistoricoFrequencia
-  if hasattr(usuario, 'aluno'):
+  if usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
     dados['matriculas'] = list(Matricula.objects.filter(aluno=usuario.aluno).values('turma__nome', 'turma__ano', 'status', 'data_matricula'))
     dados['entregas'] = list(Entrega.objects.filter(aluno=usuario.aluno).values('atividade__titulo', 'resposta', 'nota', 'comentario_professor', 'entregue_em', 'atrasada', 'arquivo'))
     # O aluno pode conferir as alterações das notas de suas entregas.
@@ -549,9 +584,15 @@ def exportar_dados_view(request):
     # Inclui notas e frequência relacionadas exclusivamente às matrículas do aluno.
     dados['notas'] = list(Nota.objects.filter(matricula__aluno=usuario.aluno).values('avaliacao__nome', 'valor', 'observacao', 'avaliacao__nota_maxima'))
     dados['historico_notas'] = list(HistoricoNota.objects.filter(nota__matricula__aluno=usuario.aluno).values('nota__avaliacao__nome', 'valor_anterior', 'valor_novo', 'observacao_anterior', 'observacao_nova', 'alterado_em'))
+    # Inclui apenas consentimentos que realmente foram dados em nome deste aluno.
+    dados['consentimentos_por_responsaveis'] = list(
+      ConsentimentoUsuario.objects.filter(aluno_representado=usuario.aluno).values(
+        'tipo', 'aceito', 'versao_termos', 'registrado_em'
+      )
+    )
     dados['frequencia'] = list(RegistroFrequencia.objects.filter(matricula__aluno=usuario.aluno).values('aula__data', 'aula__disciplina__nome', 'status', 'justificativa'))
     dados['historico_frequencia'] = list(HistoricoFrequencia.objects.filter(registro__matricula__aluno=usuario.aluno).values('status_anterior', 'status_novo', 'justificativa_anterior', 'justificativa_nova', 'alterado_em'))
-  elif hasattr(usuario, 'professor'):
+  elif usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
     dados['aulas_registradas'] = list(Aula.objects.filter(professor=usuario.professor).values('turma__nome', 'data', 'conteudo'))
     dados['atividades_publicadas'] = list(Atividade.objects.filter(professor=usuario.professor).values('titulo', 'descricao', 'prazo'))
     # Registros atribuídos ao professor sem exportar notas de terceiros.
@@ -559,9 +600,32 @@ def exportar_dados_view(request):
     dados['correcoes_realizadas'] = list(HistoricoCorrecao.objects.filter(professor=usuario.professor).values(
       'entrega__atividade__titulo', 'nota_anterior', 'nota_nova', 'alterado_em'
     ))
-  elif hasattr(usuario, 'responsavel'):
-    # O parentesco foi cadastrado pelo próprio vínculo do responsável.
-    dados['alunos_vinculados'] = list(AlunoResponsavel.objects.filter(responsavel=usuario.responsavel).values('aluno__matricula', 'parentesco'))
+  elif usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'):
+    # Usa apenas os vínculos registrados. Um responsável não exporta alunos sem vínculo.
+    vinculos = AlunoResponsavel.objects.filter(responsavel=usuario.responsavel).select_related('aluno')
+    dados['alunos_vinculados'] = list(vinculos.values('aluno__matricula', 'parentesco'))
+    dados['dados_alunos_representados'] = []
+    for vinculo in vinculos:
+      aluno = vinculo.aluno
+      dados['dados_alunos_representados'].append({
+        'matricula': aluno.matricula,
+        'parentesco': vinculo.parentesco,
+        'matriculas': list(Matricula.objects.filter(aluno=aluno).values(
+          'turma__nome', 'turma__ano', 'status', 'data_matricula'
+        )),
+        'notas': list(Nota.objects.filter(matricula__aluno=aluno).values(
+          'avaliacao__nome', 'valor', 'observacao', 'avaliacao__nota_maxima'
+        )),
+        'frequencia': list(RegistroFrequencia.objects.filter(matricula__aluno=aluno).values(
+          'aula__data', 'status', 'justificativa'
+        )),
+        'entregas': list(Entrega.objects.filter(aluno=aluno).values(
+          'atividade__titulo', 'resposta', 'nota', 'entregue_em'
+        )),
+        'consentimentos': list(ConsentimentoUsuario.objects.filter(
+          aluno_representado=aluno
+        ).values('tipo', 'aceito', 'versao_termos', 'registrado_em')),
+      })
   # Não exporta segredos TOTP, hash de tokens ou dados de terceiros sem vínculo.
   dados['avisos_publicados'] = list(Aviso.objects.filter(autor=usuario).values('titulo', 'texto', 'criado_em'))
   dados['logs_acesso'] = list(LogAcesso.objects.filter(usuario=usuario).values('evento', 'ip', 'criado_em'))

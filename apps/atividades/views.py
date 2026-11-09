@@ -34,14 +34,15 @@ def _turmas_do_professor(professor):
 # Decide se o aluno tem matrícula ativa na turma da atividade.
 def _aluno_pode_entregar(usuario, atividade):
   return (
-    hasattr(usuario, 'aluno')
+    usuario.perfil == 'ALUNO'
+    and hasattr(usuario, 'aluno')
     and Matricula.objects.filter(aluno=usuario.aluno, turma=atividade.turma, status='ATIVA').exists()
   )
 
 
 # Um professor só pode corrigir trabalhos das próprias atividades.
 def _professor_da_atividade(usuario, atividade):
-  if not hasattr(usuario, 'professor'):
+  if usuario.perfil != 'PROF' or not hasattr(usuario, 'professor'):
     return False
   professor = usuario.professor
   if atividade.professor_id != professor.pk:
@@ -62,14 +63,14 @@ def atividades_lista_view(request):
 
   if usuario.perfil == 'ADMIN':
     pass
-  elif hasattr(usuario, 'professor'):
+  elif usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
     atividades = atividades.filter(professor=usuario.professor)
     turmas = _turmas_do_professor(usuario.professor)
     disciplinas = Disciplina.objects.filter(professores=usuario.professor).distinct()
-  elif hasattr(usuario, 'aluno'):
+  elif usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
     turmas_aluno = Matricula.objects.filter(aluno=usuario.aluno, status='ATIVA').values_list('turma_id', flat=True)
     atividades = atividades.filter(turma_id__in=turmas_aluno, ativa=True)
-  elif hasattr(usuario, 'responsavel'):
+  elif usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'):
     turmas_filhos = Matricula.objects.filter(aluno__in=usuario.responsavel.alunos_vinculados.all(), status='ATIVA').values_list('turma_id', flat=True)
     atividades = atividades.filter(turma_id__in=turmas_filhos, ativa=True)
   else:
@@ -86,7 +87,7 @@ def atividades_lista_view(request):
 @login_required(login_url='login')
 @require_POST
 def atividade_criar_view(request):
-  if not hasattr(request.user, 'professor'):
+  if request.user.perfil != 'PROF' or not hasattr(request.user, 'professor'):
     return redirect('dashboard')
 
   professor = request.user.professor
@@ -140,7 +141,7 @@ def atividade_detalhe_view(request, atividade_id):
     entregas = atividade.entregas.select_related('aluno__usuario').order_by('aluno__usuario__nome')
   elif atividade.ativa and _aluno_pode_entregar(request.user, atividade):
     minha_entrega = Entrega.objects.filter(atividade=atividade, aluno=request.user.aluno).first()
-  elif atividade.ativa and hasattr(request.user, 'responsavel'):
+  elif atividade.ativa and request.user.perfil == 'RESP' and hasattr(request.user, 'responsavel'):
     alunos = request.user.responsavel.alunos_vinculados.filter(matriculas__turma=atividade.turma, matriculas__status='ATIVA').distinct()
     if not alunos.exists():
       return redirect('atividades_lista')
@@ -228,9 +229,9 @@ def entrega_arquivo_view(request, entrega_id):
 
   # Administrador pode consultar, professor só da própria disciplina/turma.
   autorizado = usuario.perfil == 'ADMIN' or _professor_da_atividade(usuario, atividade)
-  if hasattr(usuario, 'aluno'):
+  if usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
     autorizado = autorizado or entrega.aluno_id == usuario.aluno.pk
-  if hasattr(usuario, 'responsavel'):
+  if usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'):
     autorizado = autorizado or usuario.responsavel.alunos_vinculados.filter(
       pk=entrega.aluno_id
     ).exists()
@@ -249,7 +250,11 @@ def entrega_arquivo_view(request, entrega_id):
 # Professor autor faz correção manual com nota opcional de zero a dez.
 @login_required(login_url='login')
 @require_POST
+@ratelimit(key='user', rate='20/m', block=False, method='POST')
 def entrega_corrigir_view(request, atividade_id, entrega_id):
+  if getattr(request, 'limited', False):
+    messages.error(request, 'Muitas operações seguidas. Tente novamente mais tarde.')
+    return redirect('atividades_lista')
   atividade = get_object_or_404(Atividade, pk=atividade_id)
   if not _professor_da_atividade(request.user, atividade):
     return redirect('atividades_lista')

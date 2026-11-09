@@ -23,7 +23,8 @@ def _pk_seguro(valor):
 # O professor só faz chamadas nas aulas de suas disciplinas e turmas atuais.
 def _professor_da_aula(usuario, aula):
   return (
-    hasattr(usuario, 'professor')
+    usuario.perfil == 'PROF'
+    and hasattr(usuario, 'professor')
     and aula.professor_id == usuario.professor.pk
     and aula.disciplina.turmas.filter(pk=aula.turma_id).exists()
     and aula.disciplina.professores.filter(pk=usuario.professor.pk).exists()
@@ -41,13 +42,13 @@ def frequencia_painel_view(request):
   if usuario.perfil == 'ADMIN':
     aulas = Aula.objects.all().select_related('turma', 'disciplina')
     matriculas = Matricula.objects.filter(status='ATIVA')
-  elif hasattr(usuario, 'professor'):
+  elif usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
     aulas = Aula.objects.filter(professor=usuario.professor, disciplina__professores=usuario.professor, disciplina__turmas=F('turma')).distinct()
     matriculas = Matricula.objects.filter(turma__in=aulas.values('turma_id'), status='ATIVA')
     registros = registros.filter(aula__in=aulas)
-  elif hasattr(usuario, 'aluno'):
+  elif usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
     registros = registros.filter(matricula__aluno=usuario.aluno)
-  elif hasattr(usuario, 'responsavel'):
+  elif usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'):
     registros = registros.filter(matricula__aluno__in=usuario.responsavel.alunos_vinculados.all())
   else:
     registros = registros.none()

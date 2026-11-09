@@ -1,0 +1,207 @@
+name: DevSecOps Pipeline - TruffleHog, Trivy e CodeQL
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: devsecops-pipeline-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets_scan:
+    name: "01 - Secrets Scanning (TruffleHog)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Baixar o historico do Git
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verificar segredos expostos com TruffleHog
+        id: trufflehog_scan
+        continue-on-error: true
+        uses: trufflesecurity/trufflehog@f8221ca52ac51bf66228d6ec3691f3ea0782ae15 # SHA fixo da action; versao do scanner definida separadamente abaixo
+        with:
+          version: 3.99.8
+          # Segredos verificados e resultados ainda nao verificados bloqueiam a esteira.
+          extra_args: --results=verified,unknown
+
+      - name: Bloquear esteira quando TruffleHog falhar (exit-code 1)
+        if: always()
+        shell: bash
+        env:
+          TRUFFLEHOG_OUTCOME: ${{ steps.trufflehog_scan.outcome }}
+        run: |
+          if [ "$TRUFFLEHOG_OUTCOME" != "success" ]; then
+            echo 'FALHA: segredo detectado ou erro durante a varredura do TruffleHog.' >&2
+            exit 1
+          fi
+
+  sca_trivy:
+    name: "02 - Dependency Scanning (Trivy SCA)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - name: Baixar o codigo
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      # A imagem inclui tambem as dependencias transitivas instaladas pelo pip.
+      - name: Construir imagem com as dependencias instaladas do projeto
+        run: docker build --tag educontroll:sca .
+
+      - name: Analisar bibliotecas Python instaladas em busca de CVEs HIGH e CRITICAL
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: educontroll:sca
+          scanners: vuln
+          vuln-type: library
+          severity: HIGH,CRITICAL
+          ignore-unfixed: false
+          format: json
+          output: trivy-dependency-report.json
+          exit-code: '1'
+          version: v0.76.2
+
+      - name: Salvar relatorio da analise SCA
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: relatorio-trivy-sca
+          path: trivy-dependency-report.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  sast_codeql:
+    name: "03 - Static Analysis (CodeQL SAST)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+      security-events: write
+    steps:
+      - name: Baixar o codigo
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Inicializar CodeQL para Python
+        uses: github/codeql-action/init@v4
+        with:
+          languages: python
+          build-mode: none
+          queries: security-extended
+
+      - name: Executar analise CodeQL e publicar resultados
+        id: codeql_analyze
+        uses: github/codeql-action/analyze@v4
+        with:
+          output: codeql-results
+          # PRs de forks não recebem permissão de escrita no GITHUB_TOKEN.
+          # O SARIF continua sendo gerado localmente e passa pelo gate abaixo.
+          upload: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'never' || 'always' }}
+          category: /language:python
+
+      - name: Bloquear resultados CodeQL HIGH ou CRITICAL
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          pasta = Path('codeql-results')
+          arquivos = sorted(pasta.rglob('*.sarif')) if pasta.exists() else []
+          if not arquivos:
+              raise SystemExit('ERRO: o CodeQL nao gerou nenhum arquivo SARIF para validar.')
+
+          encontrados = []
+          sem_classificacao = 0
+          total_resultados = 0
+
+          for arquivo in arquivos:
+              dados = json.loads(arquivo.read_text(encoding='utf-8'))
+              for execucao in dados.get('runs', []):
+                  regras = {}
+                  for regra in execucao.get('tool', {}).get('driver', {}).get('rules', []):
+                      propriedades = regra.get('properties', {})
+                      regras[regra.get('id')] = propriedades.get('security-severity')
+
+                  for resultado in execucao.get('results', []):
+                      total_resultados += 1
+                      regra_id = resultado.get('ruleId', 'regra-desconhecida')
+                      propriedades = resultado.get('properties', {})
+                      severidade = propriedades.get('security-severity')
+                      if severidade is None:
+                          severidade = regras.get(regra_id)
+
+                      if severidade is None:
+                          sem_classificacao += 1
+                          continue
+
+                      try:
+                          pontuacao = float(severidade)
+                      except (TypeError, ValueError):
+                          sem_classificacao += 1
+                          continue
+
+                      if pontuacao >= 9.0:
+                          nivel = 'CRITICAL'
+                      elif pontuacao >= 7.0:
+                          nivel = 'HIGH'
+                      else:
+                          continue
+
+                      locais = resultado.get('locations', [])
+                      local = 'localizacao nao informada'
+                      if locais:
+                          fisico = locais[0].get('physicalLocation', {})
+                          caminho = fisico.get('artifactLocation', {}).get('uri', '')
+                          linha = fisico.get('region', {}).get('startLine')
+                          if caminho:
+                              local = f'{caminho}:{linha}' if linha else caminho
+
+                      encontrados.append((nivel, pontuacao, regra_id, local))
+
+          print(f'Resultados CodeQL analisados: {total_resultados}')
+          if sem_classificacao:
+              print(
+                  f'ATENCAO: {sem_classificacao} resultado(s) sem security-severity numerica. '
+                  'Revise esses itens no SARIF/painel Code Scanning.'
+              )
+
+          for nivel, pontuacao, regra_id, local in encontrados:
+              print(f'{nivel} ({pontuacao:.1f}) - {regra_id} - {local}')
+
+          if encontrados:
+              print('FALHA: foram encontrados alertas HIGH ou CRITICAL no CodeQL.')
+              sys.exit(1)
+
+          print('OK: nenhum alerta CodeQL HIGH ou CRITICAL foi identificado.')
+          PY
+
+      - name: Salvar relatorio SARIF do CodeQL
+        if: always()
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: relatorio-codeql-sast
+          path: codeql-results/
+          if-no-files-found: warn
+          retention-days: 14

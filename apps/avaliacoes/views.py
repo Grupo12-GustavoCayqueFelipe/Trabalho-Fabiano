@@ -38,7 +38,8 @@ def _decimal_seguro(texto, maximo, permite_zero=False):
 # Professor precisa estar vinculado à disciplina e à turma da avaliação.
 def _professor_autorizado(usuario, avaliacao):
   return (
-    hasattr(usuario, 'professor')
+    usuario.perfil == 'PROF'
+    and hasattr(usuario, 'professor')
     and avaliacao.disciplina.turmas.filter(pk=avaliacao.turma_id).exists()
     and avaliacao.disciplina.professores.filter(pk=usuario.professor.pk).exists()
   )
@@ -57,16 +58,16 @@ def avaliacoes_painel_view(request):
   if usuario.perfil == 'ADMIN':
     turmas = Turma.objects.all().order_by('nome')
     disciplinas = Disciplina.objects.all().order_by('nome')
-  elif hasattr(usuario, 'professor'):
+  elif usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
     disciplinas = Disciplina.objects.filter(professores=usuario.professor).distinct()
     turmas = Turma.objects.filter(disciplina__professores=usuario.professor).distinct()
     avaliacoes = avaliacoes.filter(disciplina__professores=usuario.professor, disciplina__turmas=F('turma'), turma__in=turmas)
     notas = notas.filter(avaliacao__in=avaliacoes)
-  elif hasattr(usuario, 'aluno'):
+  elif usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
     matriculas = Matricula.objects.filter(aluno=usuario.aluno)
     avaliacoes = avaliacoes.filter(turma__in=matriculas.values('turma_id'))
     notas = notas.filter(matricula__in=matriculas)
-  elif hasattr(usuario, 'responsavel'):
+  elif usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'):
     matriculas = Matricula.objects.filter(aluno__in=usuario.responsavel.alunos_vinculados.all())
     avaliacoes = avaliacoes.filter(turma__in=matriculas.values('turma_id'))
     notas = notas.filter(matricula__in=matriculas)
@@ -97,7 +98,7 @@ def avaliacao_criar_view(request):
   if getattr(request, 'limited', False):
     messages.error(request, 'Muitas operações seguidas. Tente novamente mais tarde.')
     return redirect('avaliacoes_painel')
-  if not hasattr(request.user, 'professor'):
+  if request.user.perfil != 'PROF' or not hasattr(request.user, 'professor'):
     return redirect('dashboard')
 
   # Normaliza cada entrada do POST sem utilizar ModelForm.
