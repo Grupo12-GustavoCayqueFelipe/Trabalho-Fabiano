@@ -299,6 +299,38 @@ class RecuperacaoSenhaTest(BaseUsuarioTest):
             LogRecuperacaoSenha.objects.filter(evento="FALHA_TOKEN_EXPIRADO").exists()
         )
 
+    # Falha no servidor SMTP não estoura HTTP 500 nem perde o registro de auditoria.
+    def test_falha_smtp_nao_expoe_erro_500_e_mantem_auditoria(self):
+        from unittest.mock import patch
+        with patch("apps.usuarios.views.send_mail", side_effect=OSError("SMTP indisponivel")):
+            resposta = self.pedir()
+        self.assertRedirects(resposta, reverse("login"), fetch_redirect_response=False)
+        self.assertEqual(TokenRecuperacaoSenha.objects.count(), 1)
+        self.assertTrue(
+            LogRecuperacaoSenha.objects.filter(
+                usuario=self.usuario, evento="SOLICITACAO"
+            ).exists()
+        )
+
+    # Divergência em confirmar_senha rejeita a alteração sem queimar o token.
+    def test_confirmacao_de_senha_divergente_nao_consome_token(self):
+        self.pedir()
+        token = self.token_do_email()
+        resposta = self.client.post(
+            reverse("redefinir_senha_view", args=[token]),
+            {"nova_senha": "NovaSenha@98765", "confirmar_senha": "OutraSenha@98765"},
+        )
+        self.assertEqual(resposta.status_code, 200)
+        self.usuario.refresh_from_db()
+        self.assertTrue(self.usuario.check_password(SENHA))
+        self.assertIsNone(TokenRecuperacaoSenha.objects.get().usado_em)
+        self.client.post(
+            reverse("redefinir_senha_view", args=[token]),
+            {"nova_senha": "NovaSenha@98765", "confirmar_senha": "NovaSenha@98765"},
+        )
+        self.usuario.refresh_from_db()
+        self.assertTrue(self.usuario.check_password("NovaSenha@98765"))
+
 
 class LogoutTest(BaseUsuarioTest):
     def test_logout_por_get_nao_e_permitido(self):

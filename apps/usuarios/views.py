@@ -8,7 +8,10 @@ import io
 import datetime
 import secrets
 import hashlib
+import logging
 from decimal import Decimal
+
+logger = logging.getLogger('django.request')
 
 
 from .models import Usuario, consentimentos_atuais, registrar_consentimento, registrar_log_recuperacao_senha, TokenRecuperacaoSenha, TIPO_CONSENTIMENTO, registrar_log_acesso, registrar_operacao, ConsentimentoUsuario, Aluno, AlunoResponsavel, LogAcesso, LogOperacao, LogRecuperacaoSenha
@@ -457,28 +460,33 @@ def solicitacao_recuperacao_senha_view(request):
       # Gera um token aleatório e seguro, guarda só o hash dele no banco
       token = secrets.token_urlsafe(32)
       token_hash = hashlib.sha256(token.encode()).hexdigest()
-      
-      # Define o tempo de expiração do token com base na configuração do Django
-      TokenRecuperacaoSenha.objects.create(
-        usuario=usuario,
-        token_hash=token_hash,
-        expira_em=timezone.now() + datetime.timedelta(seconds=settings.PASSWORD_RESET_TIMEOUT),
-        ip=request.META.get('REMOTE_ADDR'),
-      )
+      agora = timezone.now()
+
+      # Invalida tokens antigos pendentes, grava o novo token e audita na mesma transação.
+      with transaction.atomic():
+        TokenRecuperacaoSenha.objects.filter(usuario=usuario, usado_em__isnull=True).update(usado_em=agora)
+        TokenRecuperacaoSenha.objects.create(
+          usuario=usuario,
+          token_hash=token_hash,
+          expira_em=agora + datetime.timedelta(seconds=settings.PASSWORD_RESET_TIMEOUT),
+          ip=request.META.get('REMOTE_ADDR'),
+        )
+        registrar_log_recuperacao_senha(usuario, evento='SOLICITACAO', ip=request.META.get('REMOTE_ADDR'))
 
       # Monta o link de recuperação de senha com o token em texto puro (só existe aqui, nunca é salvo)
       link = request.build_absolute_uri(reverse('redefinir_senha_view', kwargs={'token': token}))
 
-      # Envia o email com o link de recuperação de senha
-      send_mail(
-        'Recuperação de senha - EduControll',
-        f'Clique no link abaixo para redefinir sua senha:\n{link}\n\nSe você não solicitou a recuperação de senha, ignore este email.',
-        settings.DEFAULT_FROM_EMAIL,
-        [usuario.email],
-        fail_silently=False,
-      )
-      # Registra o log de solicitação de recuperação de senha
-      registrar_log_recuperacao_senha(usuario, evento='SOLICITACAO', ip=request.META.get('REMOTE_ADDR'))
+      # Envia o email sem deixar falha de SMTP estourar HTTP 500 ou revelar a conta
+      try:
+        send_mail(
+          'Recuperação de senha - EduControll',
+          f'Clique no link abaixo para redefinir sua senha:\n{link}\n\nSe você não solicitou a recuperação de senha, ignore este email.',
+          settings.DEFAULT_FROM_EMAIL,
+          [usuario.email],
+          fail_silently=False,
+        )
+      except Exception:
+        logger.exception('Falha ao enviar e-mail de recuperação de senha.')
 
     # Mensagem genérica para não revelar se o email existe ou não no sistema
     messages.success(request, 'Se o email existir em nosso sistema, um link de recuperação de senha foi enviado.')
@@ -522,6 +530,11 @@ def redefinir_senha_view(request, token):
   # Se o usuário enviar o formulário com a nova senha, atualiza a senha do usuário, marca o token como usado e registra o log de sucesso
   if request.method == 'POST':
     nova_senha = request.POST.get('nova_senha')
+    confirmar_senha = request.POST.get('confirmar_senha')
+    # Quando a confirmação de senha é enviada, exige igualdade antes de consumir o token.
+    if confirmar_senha is not None and confirmar_senha != nova_senha:
+      messages.error(request, 'A confirmação de senha não confere com a nova senha.')
+      return render(request, 'html/senha/redefinir_senha.html')
     try:
       # Valida a nova senha com as regras do Django
       validate_password(nova_senha, user=usuario)
