@@ -12,13 +12,7 @@ from django.utils.dateparse import parse_datetime
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
-from apps.academico.models import (
-  Turma,
-  Disciplina,
-  Matricula,
-  professor_leciona_na_turma,
-  turmas_lecionadas_pelo_professor,
-)
+from apps.academico.models import (Turma, Disciplina, Matricula, professor_leciona_na_turma, turmas_lecionadas_pelo_professor)
 from apps.usuarios.models import registrar_operacao
 from .models import Atividade, Entrega, HistoricoCorrecao
 
@@ -32,7 +26,7 @@ def _pk_seguro(valor):
   return numero if 0 < numero <= 9223372036854775807 else None
 
 
-# Consulta só as turmas que o professor tem autorização para lecionar (sem conceder acesso por regência isolada).
+# Consulta só as turmas que o professor tem autorização para lecionar, sem conceder acesso por regência isolada.
 def _turmas_do_professor(professor):
   return turmas_lecionadas_pelo_professor(professor)
 

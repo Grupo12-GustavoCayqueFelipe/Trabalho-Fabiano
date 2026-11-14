@@ -10,13 +10,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
-from apps.academico.models import (
-  Disciplina,
-  Matricula,
-  Turma,
-  professor_leciona_na_turma,
-  turmas_lecionadas_pelo_professor,
-)
+from apps.academico.models import (Disciplina, Matricula, Turma, professor_leciona_na_turma, turmas_lecionadas_pelo_professor)
 from apps.usuarios.models import registrar_operacao
 from .models import Avaliacao, HistoricoNota, Nota
 

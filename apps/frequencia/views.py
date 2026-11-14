@@ -6,12 +6,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
-from apps.academico.models import (
-  Aula,
-  Matricula,
-  professor_leciona_na_turma,
-  turmas_lecionadas_pelo_professor,
-)
+from apps.academico.models import (Aula, Matricula, professor_leciona_na_turma, turmas_lecionadas_pelo_professor)
 from apps.usuarios.models import registrar_operacao
 from .models import HistoricoFrequencia, RegistroFrequencia
 

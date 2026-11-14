@@ -291,7 +291,6 @@ class RegistrarAulaTest(BaseAcademicoTest):
     self.assertEqual(LogOperacao.objects.filter(evento='AULA_REGISTRADA').count(), 20)
     cache.clear()
 
-
 class ProtecaoDeHistoricoTest(BaseAcademicoTest):
   # Turma com matrícula não pode ser apagada
   def test_turma_com_matricula_nao_e_apagada(self):

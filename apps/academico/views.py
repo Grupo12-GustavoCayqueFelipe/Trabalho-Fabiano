@@ -11,17 +11,8 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
-from .models import (
-  Turma,
-  Disciplina,
-  Matricula,
-  Aula,
-  PeriodoLetivo,
-  AlocacaoDocente,
-  TURNO_CHOICES,
-  professor_leciona_na_turma,
-  turmas_lecionadas_pelo_professor,
-)
+from .models import (Turma, Disciplina, Matricula, Aula, PeriodoLetivo, AlocacaoDocente, TURNO_CHOICES, professor_leciona_na_turma, turmas_lecionadas_pelo_professor)
+
 from apps.usuarios.models import Aluno, Professor
 
 # Confere se o usuário logado é administrador, usado em todas as telas e ações de gestão
