@@ -1,4 +1,5 @@
 import datetime
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -115,6 +116,38 @@ class AtividadesSegurancaTest(TestCase):
         })
         self.assertEqual(resposta.status_code, 302)
         self.assertEqual(Atividade.objects.count(), 1)
+
+    # Limita em 20 requisições por minuto a publicação de atividades pelo professor.
+    def test_rate_limit_bloqueia_vigesima_primeira_criacao_de_atividade(self):
+        cache.clear()
+        self.client.force_login(self.prof_user)
+        prazo = (timezone.now() + datetime.timedelta(days=2)).isoformat()
+        for i in range(21):
+            resposta = self.client.post(reverse('atividade_criar'), {
+                'titulo': f'Atividade {i + 1}',
+                'descricao': 'Descrição da atividade',
+                'turma': self.turma.pk,
+                'disciplina': self.disciplina.pk,
+                'prazo': prazo,
+            })
+        self.assertRedirects(resposta, reverse('atividades_lista'), fetch_redirect_response=False)
+        # 1 atividade criada no setUp + 20 criadas antes do bloqueio da 21ª tentativa.
+        self.assertEqual(Atividade.objects.count(), 21)
+        self.assertEqual(LogOperacao.objects.filter(evento='ATIVIDADE_CRIADA').count(), 20)
+        cache.clear()
+
+    # Limita em 20 requisições por minuto a correção de entregas pelo professor.
+    def test_rate_limit_bloqueia_vigesima_primeira_correcao_de_entrega(self):
+        cache.clear()
+        entrega = Entrega.objects.create(atividade=self.atividade, aluno=self.aluno, resposta='Resposta do aluno')
+        self.client.force_login(self.prof_user)
+        rota = reverse('entrega_corrigir', args=[self.atividade.pk, entrega.pk])
+        for i in range(21):
+            resposta = self.client.post(rota, {'nota': '8.00', 'comentario': f'Correção {i + 1}'})
+        self.assertRedirects(resposta, reverse('atividades_lista'), fetch_redirect_response=False)
+        self.assertEqual(HistoricoCorrecao.objects.filter(entrega=entrega).count(), 20)
+        self.assertEqual(LogOperacao.objects.filter(evento='ENTREGA_CORRIGIDA').count(), 20)
+        cache.clear()
 
 
 # Upload e download precisam passar pelo mesmo RBAC das entregas.

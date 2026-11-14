@@ -90,7 +90,11 @@ def atividades_lista_view(request):
 # Cria atividade sem ModelForm, seguindo o padrão manual do projeto.
 @login_required(login_url='login')
 @require_POST
+@ratelimit(key='user', rate='20/m', block=False, method='POST')
 def atividade_criar_view(request):
+  if getattr(request, 'limited', False):
+    messages.error(request, 'Muitas operações seguidas. Tente novamente mais tarde.')
+    return redirect('atividades_lista')
   if request.user.perfil != 'PROF' or not hasattr(request.user, 'professor'):
     return redirect('dashboard')
 

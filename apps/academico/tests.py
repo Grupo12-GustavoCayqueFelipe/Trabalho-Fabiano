@@ -1,11 +1,12 @@
 import datetime
 
+from django.core.cache import cache
 from django.db.models import ProtectedError
 from django.test import TestCase
 from django.urls import reverse
 
 from .models import Turma, Disciplina, Matricula, Aula
-from apps.usuarios.models import Usuario, Aluno, Professor, Responsavel, AlunoResponsavel
+from apps.usuarios.models import Usuario, Aluno, Professor, Responsavel, AlunoResponsavel, LogOperacao
 
 
 # Cria um usuário de cada perfil pra usar nos testes de permissão
@@ -275,6 +276,20 @@ class RegistrarAulaTest(BaseAcademicoTest):
     self.client.force_login(self.usuario_prof)
     resposta = self.client.get(reverse('registrar_aula_view'))
     self.assertContains(resposta, '1A')
+
+  # O rate limit de 20 requisições por minuto bloqueia a 21ª tentativa sem criar aula nem log adicional
+  def test_rate_limit_bloqueia_vigesima_primeira_requisicao(self):
+    cache.clear()
+    self.client.force_login(self.usuario_prof)
+    for i in range(21):
+      resposta = self.client.post(reverse('registrar_aula_view'), {
+        **self.dados,
+        'conteudo': f'Aula {i + 1}',
+      })
+    self.assertRedirects(resposta, reverse('dashboard'), fetch_redirect_response=False)
+    self.assertEqual(Aula.objects.count(), 20)
+    self.assertEqual(LogOperacao.objects.filter(evento='AULA_REGISTRADA').count(), 20)
+    cache.clear()
 
 
 class ProtecaoDeHistoricoTest(BaseAcademicoTest):
