@@ -69,11 +69,11 @@ def _processar_login(request, portal=None):
   if request.method == 'POST':
     # Pegando os dados do formulário
     # Apenas campos POST são aceitos; a senha nunca deve ser enviada por GET.
-    email = (request.POST.get('email') or '').strip()
+    email = (request.POST.get('email') or '').strip().lower()
     senha = request.POST.get('senha') or ''
 
     # Confere se já existe um usuario com esse email para poder checar o bloqueio antes de logar
-    usuario_existente = Usuario.objects.filter(email=email).first()
+    usuario_existente = Usuario.objects.filter(email__iexact=email).first() if email else None
     
     # Se o usuário estiver bloqueado e confere o tempo de bloqueio já passou
     if usuario_existente and usuario_existente.bloqueado_ate:
@@ -81,13 +81,18 @@ def _processar_login(request, portal=None):
         messages.error(request, 'Conta temporariamente por excesso de tentativas. Tente novamente mais tarde.')
         return render(request, template, contexto_login)
       else:
-        # Depois que passou o tempo libera e zera o contador
-        usuario_existente.bloqueado_ate = None
-        usuario_existente.tentativas_login = 0
-        usuario_existente.save()
+        # Depois que passou o tempo libera e zera o contador de forma atômica
+        with transaction.atomic():
+          alvo_desbloqueio = Usuario.objects.select_for_update().filter(pk=usuario_existente.pk).first()
+          if alvo_desbloqueio:
+            alvo_desbloqueio.bloqueado_ate = None
+            alvo_desbloqueio.tentativas_login = 0
+            alvo_desbloqueio.save(update_fields=['bloqueado_ate', 'tentativas_login'])
+            usuario_existente = alvo_desbloqueio
         
     # Pega a senha do usuário faz o hash e compara com a senha do banco de dados
-    usuario = authenticate (request, email=email, password=senha)
+    email_autenticacao = usuario_existente.email if usuario_existente else email
+    usuario = authenticate(request, email=email_autenticacao, password=senha)
     
     # O portal restringe o perfil mesmo quando a senha está correta.
     autorizado = (
@@ -97,9 +102,12 @@ def _processar_login(request, portal=None):
     )
     if usuario is not None and autorizado:
       # Zera o contador de tentativas com o login certo
-      usuario.tentativas_login = 0
-      usuario.bloqueado_ate = None
-      usuario.save()
+      with transaction.atomic():
+        alvo_sucesso = Usuario.objects.select_for_update().filter(pk=usuario.pk).first()
+        if alvo_sucesso:
+          alvo_sucesso.tentativas_login = 0
+          alvo_sucesso.bloqueado_ate = None
+          alvo_sucesso.save(update_fields=['tentativas_login', 'bloqueado_ate'])
       
       # Se o usuário tiver o 2FA ligado, não loga e guarda o id na sessão
       if usuario.otp_ativado:
@@ -116,16 +124,23 @@ def _processar_login(request, portal=None):
       return redirect(proximo or 'dashboard')
     else:
       if usuario_existente and usuario is None:
-        usuario_existente.tentativas_login += 1
-        usuario_existente.ultimo_login_falha = timezone.now()
-        
-        # Bateu o limite de tentativas bloqueando a conta pelo tempo definido
-        if usuario_existente.tentativas_login >= TENTATIVAS_MAX:
-          usuario_existente.bloqueado_ate = timezone.now() + datetime.timedelta(minutes=TEMPO_BLOQUEIO_MINUTOS)
-          registrar_log_acesso(usuario_existente, evento='CONTA_BLOQUEADA', ip=request.META.get('REMOTE_ADDR'))
-        else:
-          registrar_log_acesso(usuario_existente, evento='LOGIN_FALHA', ip=request.META.get('REMOTE_ADDR'))
-        usuario_existente.save()
+        # Atualiza o contador sob bloqueio de linha para evitar perda de incremento concorrente.
+        with transaction.atomic():
+          alvo_falha = Usuario.objects.select_for_update().filter(pk=usuario_existente.pk).first()
+          if alvo_falha:
+            alvo_falha.tentativas_login += 1
+            alvo_falha.ultimo_login_falha = timezone.now()
+            
+            # Bateu o limite de tentativas bloqueando a conta pelo tempo definido
+            if alvo_falha.tentativas_login >= TENTATIVAS_MAX:
+              alvo_falha.bloqueado_ate = timezone.now() + datetime.timedelta(minutes=TEMPO_BLOQUEIO_MINUTOS)
+              registrar_log_acesso(alvo_falha, evento='CONTA_BLOQUEADA', ip=request.META.get('REMOTE_ADDR'))
+            else:
+              registrar_log_acesso(alvo_falha, evento='LOGIN_FALHA', ip=request.META.get('REMOTE_ADDR'))
+            alvo_falha.save(update_fields=['tentativas_login', 'ultimo_login_falha', 'bloqueado_ate'])
+      elif usuario is not None and not autorizado:
+        # Registra tentativa de acesso com credencial válida em portal incompatível com o perfil.
+        registrar_log_acesso(usuario, evento='LOGIN_FALHA', ip=request.META.get('REMOTE_ADDR'))
       # Mensagem de erro genérico
       messages.error(request, 'Email ou senha inválidos.')
 
@@ -158,6 +173,11 @@ def login_funcionarios_view(request):
 
 def chave_2fa(group, request):
   return str(request.session.get('pre_2fa_user_id') or 'sem-usuario')
+
+
+# Normaliza o e-mail usado na chave de rate limit para evitar contorno por maiúsculas ou espaços.
+def chave_email_normalizado(group, request):
+  return (request.POST.get('email') or '').strip().lower() or 'sem-email'
 
 # O desafio termina junto com todos os dados temporarios de login.
 def _limpar_desafio_2fa(request):
@@ -412,7 +432,7 @@ def dashboard_view(request):
 
 # Usuário solicita a recuperação de senha, se o email existir, gera um token e envia o email
 @ratelimit(key='ip', rate='5/m', block=False, method='POST')
-@ratelimit(key='post:email', rate='5/m', block=False, method='POST')
+@ratelimit(key=chave_email_normalizado, rate='5/m', block=False, method='POST')
 def solicitacao_recuperacao_senha_view(request):
   # Resposta idêntica a normal, pra não revelar se o email existe nem se o limite foi atingido
   if getattr(request, 'limited', False):
@@ -421,9 +441,9 @@ def solicitacao_recuperacao_senha_view(request):
   
   # Se o usuário estiver logado, redireciona para a página principal
   if request.method == 'POST':
-    # Pega o email do formulário e procura o usuário no banco de dados
-    email = request.POST.get('email')
-    usuario = Usuario.objects.filter(email=email).first()
+    # Pega o email normalizado do formulário e procura o usuário sem diferenciar maiúsculas
+    email = (request.POST.get('email') or '').strip().lower()
+    usuario = Usuario.objects.filter(email__iexact=email).first() if email else None
 
     # Se o usuário existir, gera um token de recuperação de senha e envia o email
     if usuario:

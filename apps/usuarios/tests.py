@@ -81,6 +81,16 @@ class LoginTest(BaseUsuarioTest):
             resposta, reverse("dashboard"), fetch_redirect_response=False
         )
 
+    # E-mail com letras maiúsculas e espaços nas bordas autentica normalmente.
+    def test_login_aceita_email_com_maiusculas_e_espacos(self):
+        resposta = self.client.post(
+            reverse("login"), {"email": "  USER@T.COM  ", "senha": SENHA}
+        )
+        self.assertRedirects(
+            resposta, reverse("dashboard"), fetch_redirect_response=False
+        )
+        self.assertTrue(self.logado())
+
 
 class DoisFatoresLoginTest(BaseUsuarioTest):
     def setUp(self):
@@ -214,6 +224,29 @@ class RecuperacaoSenhaTest(BaseUsuarioTest):
         self.assertEqual(TokenRecuperacaoSenha.objects.count(), 5)
         # Uma sexta requisição não pode gerar outro token.
         self.pedir()
+        self.assertEqual(TokenRecuperacaoSenha.objects.count(), 5)
+
+    # Variar maiúsculas ou espaços no e-mail não contorna o rate limit por e-mail.
+    def test_rate_limit_por_email_normaliza_maiusculas_e_espacos(self):
+        variantes = [
+            "user@t.com",
+            "USER@t.com",
+            "  User@T.com ",
+            "uSeR@t.COM",
+            " user@t.com  ",
+        ]
+        for idx, variante in enumerate(variantes):
+            self.client.post(
+                reverse("solicitacao_recuperacao_senha_view"),
+                {"email": variante},
+                REMOTE_ADDR=f"10.0.0.{idx + 1}",
+            )
+        self.assertEqual(TokenRecuperacaoSenha.objects.count(), 5)
+        self.client.post(
+            reverse("solicitacao_recuperacao_senha_view"),
+            {"email": "  USER@T.COM "},
+            REMOTE_ADDR="10.0.0.99",
+        )
         self.assertEqual(TokenRecuperacaoSenha.objects.count(), 5)
 
     def test_senha_fraca_e_recusada(self):
@@ -398,7 +431,7 @@ class ConsentimentoCriancaTest(BaseUsuarioTest):
 
 
 class PortaisSeparadosTest(BaseUsuarioTest):
-    # Mesmo com senha correta, um aluno não pode entrar pelo portal de funcionários.
+    # Mesmo com senha correta, um aluno não pode entrar pelo portal de funcionários e gera log de falha.
     def test_aluno_nao_pode_entrar_no_portal_de_funcionarios(self):
         resposta = self.client.post(
             reverse('login_funcionarios'),
@@ -406,6 +439,7 @@ class PortaisSeparadosTest(BaseUsuarioTest):
         )
         self.assertEqual(resposta.status_code, 200)
         self.assertFalse(self.logado())
+        self.assertEqual(self.eventos(), ['LOGIN_FALHA'])
 
     # O portal de alunos mantém o login e o redirecionamento normal.
     def test_aluno_pode_entrar_no_portal_academico(self):

@@ -43,7 +43,8 @@ class UsuarioManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError('O endereço de e-mail deve ser fornecido.')
-        email = self.normalize_email(email)
+        # Normaliza todo o endereço em minúsculas e sem espaços nas bordas.
+        email = self.normalize_email(email).strip().lower()
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
