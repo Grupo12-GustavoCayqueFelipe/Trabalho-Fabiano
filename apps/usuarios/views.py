@@ -332,7 +332,7 @@ def dois_fatores_configurar_view(request):
     uri = pyotp.TOTP(segredo_provisorio).provisioning_uri(name=usuario.email, issuer_name='EduControll')
     imagem = qrcode.make(uri)
     buffer = io.BytesIO()
-    imagem.save(buffer, format='PNG')
+    imagem.save(buffer)
     qr_base64 = base64.b64encode(buffer.getvalue()).decode()
   return render(request, 'usuarios/2fa_configurar.html', {
     'otp_ativado': usuario.otp_ativado,
@@ -519,8 +519,7 @@ def redefinir_senha_view(request, token):
       registrar_log_recuperacao_senha(token_recuperacao.usuario, evento=evento, ip=request.META.get('REMOTE_ADDR'), token=token)
     else:
       # Token inexistente tambem entra na auditoria, sem guardar o valor em claro.
-      registrar_log_recuperacao_senha(None, evento='FALHA_TOKEN_INVALIDO',
-                                    ip=request.META.get('REMOTE_ADDR'), token=token)
+      registrar_log_recuperacao_senha(None, evento='FALHA_TOKEN_INVALIDO', ip=request.META.get('REMOTE_ADDR'), token=token)
     messages.error(request, 'Link de recuperação inválido ou expirado.')
     return redirect('login')
   
@@ -548,8 +547,7 @@ def redefinir_senha_view(request, token):
       token_bloqueado = TokenRecuperacaoSenha.objects.select_for_update().get(pk=token_recuperacao.pk)
       if token_bloqueado.usado_em is not None or token_bloqueado.expira_em <= timezone.now():
         evento = 'FALHA_TOKEN_EXPIRADO' if token_bloqueado.expira_em <= timezone.now() else 'FALHA_TOKEN_INVALIDO'
-        registrar_log_recuperacao_senha(usuario, evento=evento,
-                                      ip=request.META.get('REMOTE_ADDR'), token=token)
+        registrar_log_recuperacao_senha(usuario, evento=evento, ip=request.META.get('REMOTE_ADDR'), token=token)
         messages.error(request, 'Link de recuperação inválido ou expirado.')
         return redirect('login')
       usuario.set_password(nova_senha)
