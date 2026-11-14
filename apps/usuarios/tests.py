@@ -469,6 +469,29 @@ class PainelFuncionarioIntegracaoTest(BaseUsuarioTest):
         self.assertRedirects(resposta, reverse('login'), fetch_redirect_response=False)
         self.assertFalse(self.logado())
 
+    # Uma sessão já autenticada deve ser encerrada se a conta receber bloqueio temporário.
+    def test_sessao_ativa_encerrada_quando_conta_bloqueada(self):
+        self.client.force_login(self.usuario)
+        self.usuario.bloqueado_ate = timezone.now() + datetime.timedelta(minutes=15)
+        self.usuario.save(update_fields=['bloqueado_ate'])
+        resposta = self.client.get(reverse('dashboard'))
+        self.assertRedirects(resposta, reverse('login'), fetch_redirect_response=False)
+        self.assertFalse(self.logado())
+
+    # O segundo fator não pode concluir login se a conta entrou em bloqueio durante o desafio.
+    def test_2fa_verificar_barra_usuario_bloqueado(self):
+        self.usuario.otp_secret = pyotp.random_base32()
+        self.usuario.otp_ativado = True
+        self.usuario.save(update_fields=['otp_secret', 'otp_ativado'])
+        self.client.post(reverse('login'), {'email': self.usuario.email, 'senha': SENHA})
+        self.usuario.bloqueado_ate = timezone.now() + datetime.timedelta(minutes=15)
+        self.usuario.save(update_fields=['bloqueado_ate'])
+        codigo = pyotp.TOTP(self.usuario.otp_secret).now()
+        resposta = self.client.post(reverse('2fa_verificar'), {'codigo': codigo})
+        self.assertRedirects(resposta, reverse('login'), fetch_redirect_response=False)
+        self.assertFalse(self.logado())
+        self.assertNotIn('pre_2fa_user_id', self.client.session)
+
 
 class TelaProfessorIntegracaoTest(BaseUsuarioTest):
     # Professor com perfil acadêmico recebe os indicadores dos seus vínculos.

@@ -204,7 +204,16 @@ def dois_fatores_verificar_view(request):
     _limpar_desafio_2fa(request)
     messages.error(request, 'Verificação expirada. Entre novamente.')
     return redirect('login')
-  usuario = Usuario.objects.filter(pk=usuario_id, is_active=True, otp_ativado=True).first()
+  usuario = Usuario.objects.filter(pk=usuario_id, otp_ativado=True).first()
+  # Impede concluir o 2FA caso a conta tenha sido inativada ou bloqueada temporariamente.
+  if usuario is not None and (
+    not usuario.is_active
+    or (usuario.bloqueado_ate and usuario.bloqueado_ate > timezone.now())
+  ):
+    _limpar_desafio_2fa(request)
+    registrar_log_acesso(usuario, evento='LOGIN_FALHA', ip=request.META.get('REMOTE_ADDR'))
+    messages.error(request, 'Conta temporariamente por excesso de tentativas. Tente novamente mais tarde.')
+    return redirect('login')
   # O perfil ainda precisa corresponder ao portal depois do segundo fator.
   portal = request.session.get('pre_2fa_portal')
   perfil_invalido = (
@@ -476,7 +485,7 @@ def redefinir_senha_view(request, token):
     else:
       # Token inexistente tambem entra na auditoria, sem guardar o valor em claro.
       registrar_log_recuperacao_senha(None, evento='FALHA_TOKEN_INVALIDO',
-                                     ip=request.META.get('REMOTE_ADDR'), token=token)
+                                    ip=request.META.get('REMOTE_ADDR'), token=token)
     messages.error(request, 'Link de recuperação inválido ou expirado.')
     return redirect('login')
   
@@ -500,7 +509,7 @@ def redefinir_senha_view(request, token):
       if token_bloqueado.usado_em is not None or token_bloqueado.expira_em <= timezone.now():
         evento = 'FALHA_TOKEN_EXPIRADO' if token_bloqueado.expira_em <= timezone.now() else 'FALHA_TOKEN_INVALIDO'
         registrar_log_recuperacao_senha(usuario, evento=evento,
-                                       ip=request.META.get('REMOTE_ADDR'), token=token)
+                                      ip=request.META.get('REMOTE_ADDR'), token=token)
         messages.error(request, 'Link de recuperação inválido ou expirado.')
         return redirect('login')
       usuario.set_password(nova_senha)
