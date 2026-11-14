@@ -48,6 +48,17 @@ class UsuarioAdmin(AdminComAuditoria, UserAdmin):
   def has_delete_permission(self, request, obj=None):
     return False
 
+  # Ao alterar o perfil de um ex-professor, remove vínculos docentes ativos.
+  def save_model(self, request, obj, form, change):
+    with transaction.atomic():
+      super().save_model(request, obj, form, change)
+      if obj.perfil != 'PROF' and hasattr(obj, 'professor'):
+        from apps.academico.models import Turma
+        Turma.objects.filter(professor_regente=obj.professor).update(professor_regente=None)
+        obj.professor.disciplina_set.clear()
+        if hasattr(obj.professor, 'alocacoes'):
+          obj.professor.alocacoes.all().delete()
+
   add_fieldsets = (
     (None, {
       'classes': ('wide',),

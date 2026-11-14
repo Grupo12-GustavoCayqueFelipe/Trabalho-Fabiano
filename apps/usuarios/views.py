@@ -568,13 +568,13 @@ def meus_dados_view(request):
   # Pega o usuário logado
   usuario = request.user
 
-  # Pega o telefone do usuário, dependendo do perfil (aluno, professor ou responsável)
+  # Pega o telefone do usuário somente quando o objeto corresponde ao perfil atual
   telefone = None
-  if hasattr(usuario, 'aluno'):
+  if usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
     telefone = usuario.aluno.telefone
-  elif hasattr(usuario, 'professor'):
+  elif usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
     telefone = usuario.professor.telefone
-  elif hasattr(usuario, 'responsavel'):
+  elif usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'):
     telefone = usuario.responsavel.telefone
 
   return render(request, 'html/meus_dados/dados.html', {
@@ -771,13 +771,13 @@ def atualizar_telefone_view(request):
       return redirect('meus_dados_view')
     novo_telefone = digitos
 
-    # A gravação do telefone e sua evidência de auditoria são atômicas.
+    # A gravação do telefone e sua evidência de auditoria são atômicas e exigem perfil ativo compatível.
     perfil_obj = None
-    if hasattr(usuario, 'aluno'):
+    if usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
       perfil_obj = usuario.aluno
-    elif hasattr(usuario, 'professor'):
+    elif usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
       perfil_obj = usuario.professor
-    elif hasattr(usuario, 'responsavel'):
+    elif usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'):
       perfil_obj = usuario.responsavel
 
     if perfil_obj is None:
@@ -804,7 +804,7 @@ def termos_view(request):
     representado = None
     aluno_id = request.POST.get('aluno_representado')
     if aluno_id:
-      if not hasattr(usuario, 'responsavel'):
+      if usuario.perfil != 'RESP' or not hasattr(usuario, 'responsavel'):
         messages.error(request, 'Somente responsáveis autorizados podem representar um aluno.')
         return redirect('termos_view')
       id_valido = aluno_id.isascii() and aluno_id.isdecimal() and len(aluno_id) <= 19 and 0 < int(aluno_id) <= 9223372036854775807
@@ -812,7 +812,7 @@ def termos_view(request):
       if representado is None:
         messages.error(request, 'Aluno não vinculado a este responsável.')
         return redirect('termos_view')
-    elif hasattr(usuario, 'aluno'):
+    elif usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
       # Sem data de nascimento não dá para presumir a maioridade.
       nascimento = usuario.aluno.data_nascimento
       idade = 0
@@ -839,7 +839,7 @@ def termos_view(request):
 
   # Pega o status atual dos consentimentos do usuário para exibir na tela
   status_atual = consentimentos_atuais(usuario)
-  alunos_vinculados = usuario.responsavel.alunos_vinculados.all() if hasattr(usuario, 'responsavel') else Aluno.objects.none()
+  alunos_vinculados = usuario.responsavel.alunos_vinculados.all() if usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel') else Aluno.objects.none()
   consentimentos_alunos = []
   for aluno in alunos_vinculados:
     # Cada aluno tem suas próprias autorizações, sem misturar o histórico.
