@@ -166,6 +166,7 @@ class DoisFatoresConfigurarTest(BaseUsuarioTest):
         self.desativar(senha=SENHA, codigo="000000")
         self.usuario.refresh_from_db()
         self.assertTrue(self.usuario.otp_ativado)
+        self.assertIn("2FA_FALHA", self.eventos())
 
     def test_desativar_com_senha_e_codigo_corretos(self):
         self.desativar(senha=SENHA, codigo=pyotp.TOTP(self.usuario.otp_secret).now())
@@ -354,16 +355,29 @@ class TermosTest(BaseUsuarioTest):
 
 
 class SegurancaComplementarTest(BaseUsuarioTest):
-    # Testa a ativação que antes ficava em um bloco inalcançável.
+    # Testa a ativação sem gravar otp_secret no banco durante o GET inicial.
     def test_ativacao_do_2fa_funciona(self):
         self.client.force_login(self.usuario)
-        self.client.get(reverse('2fa_configurar'))
+        resposta = self.client.get(reverse('2fa_configurar'))
         self.usuario.refresh_from_db()
-        codigo = pyotp.TOTP(self.usuario.otp_secret).now()
+        self.assertIsNone(self.usuario.otp_secret)
+        segredo = self.client.session.get('pre_ativacao_otp_secret') or resposta.context['otp_secret']
+        codigo = pyotp.TOTP(segredo).now()
         self.client.post(reverse('2fa_configurar'), {'acao': 'ativar', 'codigo': codigo})
         self.usuario.refresh_from_db()
         self.assertTrue(self.usuario.otp_ativado)
+        self.assertEqual(self.usuario.otp_secret, segredo)
         self.assertTrue(LogAcesso.objects.filter(evento='2FA_ATIVADO').exists())
+
+    # Senha incorreta na exclusão de conta registra falha na trilha de auditoria.
+    def test_exclusao_com_senha_incorreta_registra_auditoria(self):
+        from .models import LogOperacao
+        self.client.force_login(self.usuario)
+        self.client.post(reverse('excluir_dados_view'), {'senha': 'errada', 'confirmar': 'on'})
+        self.usuario.refresh_from_db()
+        self.assertTrue(self.usuario.is_active)
+        self.assertTrue(LogAcesso.objects.filter(usuario=self.usuario, evento='LOGIN_FALHA').exists())
+        self.assertTrue(LogOperacao.objects.filter(usuario=self.usuario, evento='FALHA_SENHA_EXCLUSAO_CONTA').exists())
 
     # Staff autenticado somente com senha não pode visualizar o admin.
     def test_admin_exige_2fa_confirmado(self):

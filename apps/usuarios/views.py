@@ -279,21 +279,24 @@ def dois_fatores_configurar_view(request):
     messages.error(request, 'Muitas tentativas. Tente novamente mais tarde.')
     return redirect('dashboard')
 
-  # Na primeira visita gera o segredo apenas para uma configuração ainda desativada.
-  if not usuario.otp_secret and not usuario.otp_ativado:
-    usuario.otp_secret = pyotp.random_base32()
-    usuario.save(update_fields=['otp_secret'])
+  # Mantém o segredo provisório na sessão durante o GET sem gravar no banco antes da confirmação.
+  segredo_provisorio = usuario.otp_secret or request.session.get('pre_ativacao_otp_secret')
+  if not segredo_provisorio and not usuario.otp_ativado:
+    segredo_provisorio = pyotp.random_base32()
+    request.session['pre_ativacao_otp_secret'] = segredo_provisorio
 
   if request.method == 'POST':
     acao = request.POST.get('acao', 'ativar')
     codigo = (request.POST.get('codigo') or '').strip()
+    segredo_validacao = usuario.otp_secret if acao == 'desativar' else segredo_provisorio
     codigo_valido = len(codigo) == 6 and codigo.isascii() and codigo.isdecimal()
-    codigo_valido = codigo_valido and bool(usuario.otp_secret) and pyotp.TOTP(usuario.otp_secret).verify(codigo)
+    codigo_valido = codigo_valido and bool(segredo_validacao) and pyotp.TOTP(segredo_validacao).verify(codigo)
 
     # A desativação precisa de senha, além do segundo fator já ativo.
     if acao == 'desativar':
       senha = request.POST.get('senha') or ''
       if not usuario.otp_ativado or not usuario.check_password(senha) or not codigo_valido:
+        registrar_log_acesso(usuario, '2FA_FALHA', request.META.get('REMOTE_ADDR'))
         messages.error(request, 'Senha ou código inválido. O 2FA não foi desativado.')
         return redirect('2fa_configurar')
       with transaction.atomic():
@@ -302,31 +305,35 @@ def dois_fatores_configurar_view(request):
         usuario.save(update_fields=['otp_ativado', 'otp_secret'])
         registrar_log_acesso(usuario, '2FA_DESATIVADO', request.META.get('REMOTE_ADDR'))
       request.session.pop('2fa_verificado', None)
+      request.session.pop('pre_ativacao_otp_secret', None)
       messages.success(request, 'Autenticação de dois fatores desativada.')
       return redirect('2fa_configurar')
 
     # A confirmação deve estar fora do if de desativação para ser alcançável.
     if acao == 'ativar' and not usuario.otp_ativado and codigo_valido:
       with transaction.atomic():
+        usuario.otp_secret = segredo_provisorio
         usuario.otp_ativado = True
-        usuario.save(update_fields=['otp_ativado'])
+        usuario.save(update_fields=['otp_secret', 'otp_ativado'])
         registrar_log_acesso(usuario, '2FA_ATIVADO', request.META.get('REMOTE_ADDR'))
+      request.session.pop('pre_ativacao_otp_secret', None)
       request.session['2fa_verificado'] = usuario.pk
       messages.success(request, 'Autenticação de dois fatores ativada.')
       return redirect('2fa_configurar')
+    registrar_log_acesso(usuario, '2FA_FALHA', request.META.get('REMOTE_ADDR'))
     messages.error(request, 'Código de autenticação inválido ou operação não permitida.')
 
   # Só mostra QR Code na configuração inicial, nunca quando 2FA está ativo.
   qr_base64 = None
   if not usuario.otp_ativado:
-    uri = pyotp.TOTP(usuario.otp_secret).provisioning_uri(name=usuario.email, issuer_name='EduControll')
+    uri = pyotp.TOTP(segredo_provisorio).provisioning_uri(name=usuario.email, issuer_name='EduControll')
     imagem = qrcode.make(uri)
     buffer = io.BytesIO()
     imagem.save(buffer, format='PNG')
     qr_base64 = base64.b64encode(buffer.getvalue()).decode()
   return render(request, 'usuarios/2fa_configurar.html', {
     'otp_ativado': usuario.otp_ativado,
-    'otp_secret': usuario.otp_secret if not usuario.otp_ativado else None,
+    'otp_secret': segredo_provisorio if not usuario.otp_ativado else None,
     'qr_base64': qr_base64,
   })
 
@@ -687,6 +694,9 @@ def excluir_dados_view(request):
       return render(request, 'html/meus_dados/excluir_conta/excluir.html')
 
     if not usuario.check_password(senha):
+      # Registra na auditoria as tentativas falhas de confirmação de senha em operação crítica.
+      registrar_log_acesso(usuario, evento='LOGIN_FALHA', ip=request.META.get('REMOTE_ADDR'))
+      registrar_operacao(usuario, 'FALHA_SENHA_EXCLUSAO_CONTA', usuario.pk)
       messages.error(request, 'Senha incorreta. A conta não foi excluída.')
       return render(request, 'html/meus_dados/excluir_conta/excluir.html')
 
