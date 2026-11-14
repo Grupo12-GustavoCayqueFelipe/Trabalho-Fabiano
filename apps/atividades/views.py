@@ -12,7 +12,13 @@ from django.utils.dateparse import parse_datetime
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
-from apps.academico.models import Turma, Disciplina, Matricula
+from apps.academico.models import (
+  Turma,
+  Disciplina,
+  Matricula,
+  professor_leciona_na_turma,
+  turmas_lecionadas_pelo_professor,
+)
 from apps.usuarios.models import registrar_operacao
 from .models import Atividade, Entrega, HistoricoCorrecao
 
@@ -26,9 +32,9 @@ def _pk_seguro(valor):
   return numero if 0 < numero <= 9223372036854775807 else None
 
 
-# Consulta só as turmas que o professor tem autorização para lecionar.
+# Consulta só as turmas que o professor tem autorização para lecionar (sem conceder acesso por regência isolada).
 def _turmas_do_professor(professor):
-  return Turma.objects.filter(Q(professor_regente=professor) | Q(disciplina__professores=professor)).distinct()
+  return turmas_lecionadas_pelo_professor(professor)
 
 
 # Decide se o aluno tem matrícula ativa na turma da atividade.
@@ -40,7 +46,7 @@ def _aluno_pode_entregar(usuario, atividade):
   )
 
 
-# Um professor só pode corrigir trabalhos das próprias atividades.
+# Um professor só pode corrigir trabalhos das próprias atividades quando autorizado na turma e disciplina.
 def _professor_da_atividade(usuario, atividade):
   if usuario.perfil != 'PROF' or not hasattr(usuario, 'professor'):
     return False
@@ -48,9 +54,7 @@ def _professor_da_atividade(usuario, atividade):
   if atividade.professor_id != professor.pk:
     return False
   # A autoria sozinha não dá permissão depois da saída da turma/disciplina.
-  return Disciplina.objects.filter(
-    pk=atividade.disciplina_id, turmas=atividade.turma, professores=professor
-  ).exists()
+  return professor_leciona_na_turma(professor, atividade.disciplina, atividade.turma)
 
 
 # Lista atividades com RBAC: cada perfil só consulta registros relacionados.
@@ -116,10 +120,10 @@ def atividade_criar_view(request):
     messages.error(request, 'O prazo precisa estar no futuro.')
     return redirect('atividades_lista')
 
-  # Validar dentro do queryset impede publicar para turma de outro professor.
+  # Validar dentro do queryset e da alocação impede publicar para turma de outro professor.
   turma = _turmas_do_professor(professor).filter(pk=_pk_seguro(turma_id)).first() if _pk_seguro(turma_id) else None
   disciplina = Disciplina.objects.filter(pk=_pk_seguro(disciplina_id), professores=professor, turmas=turma).first() if turma and _pk_seguro(disciplina_id) else None
-  if turma is None or disciplina is None:
+  if turma is None or disciplina is None or not professor_leciona_na_turma(professor, disciplina, turma):
     messages.error(request, 'Turma ou disciplina não autorizada para este professor.')
     return redirect('atividades_lista')
 

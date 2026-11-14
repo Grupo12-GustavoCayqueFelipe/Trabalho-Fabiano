@@ -11,7 +11,17 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
-from .models import Turma, Disciplina, Matricula, Aula, PeriodoLetivo, TURNO_CHOICES
+from .models import (
+  Turma,
+  Disciplina,
+  Matricula,
+  Aula,
+  PeriodoLetivo,
+  AlocacaoDocente,
+  TURNO_CHOICES,
+  professor_leciona_na_turma,
+  turmas_lecionadas_pelo_professor,
+)
 from apps.usuarios.models import Aluno, Professor
 
 # Confere se o usuário logado é administrador, usado em todas as telas e ações de gestão
@@ -163,6 +173,20 @@ def salvar_disciplina_view(request):
     # Seleção vazia continua válida; seleção com ID inexistente não altera vínculos.
     disciplina.turmas.set(turmas_validas)
     disciplina.professores.set(professores_validos)
+    # Remove alocações que não pertencem mais às turmas ou professores selecionados.
+    AlocacaoDocente.objects.filter(disciplina=disciplina).exclude(
+      turma__in=turmas_validas, professor__in=professores_validos
+    ).delete()
+    if len(professores_validos) == 1:
+      prof_unico = professores_validos[0]
+      for t in turmas_validas:
+        AlocacaoDocente.objects.get_or_create(professor=prof_unico, disciplina=disciplina, turma=t)
+    else:
+      for t in turmas_validas:
+        if t.professor_regente_id and any(p.pk == t.professor_regente_id for p in professores_validos):
+          AlocacaoDocente.objects.get_or_create(
+            professor_id=t.professor_regente_id, disciplina=disciplina, turma=t
+          )
     registrar_operacao(request.user, 'DISCIPLINA_SALVA', disciplina.pk)
 
   messages.success(request, 'Disciplina salva com sucesso.')
@@ -229,8 +253,8 @@ def registrar_aula_view(request):
     return redirect('dashboard')
 
   professor = request.user.professor
-  # O professor só enxerga as turmas em que é regente ou em que leciona alguma disciplina
-  turmas = Turma.objects.filter(Q(professor_regente=professor) | Q(disciplina__professores=professor)).distinct().order_by('nome')
+  # O professor só enxerga as turmas em que efetivamente leciona alguma disciplina autorizada
+  turmas = turmas_lecionadas_pelo_professor(professor)
   disciplinas = Disciplina.objects.filter(professores=professor).order_by('nome')
 
   if request.method == 'POST':
@@ -245,8 +269,8 @@ def registrar_aula_view(request):
 
     if turma is None or disciplina is None or data is None or not conteudo:
       messages.error(request, 'Preencha turma, disciplina, data e conteúdo corretamente.')
-    elif not disciplina.turmas.filter(pk=turma.pk).exists():
-      messages.error(request, 'Essa disciplina não é oferecida nessa turma.')
+    elif not professor_leciona_na_turma(professor, disciplina, turma):
+      messages.error(request, 'Essa disciplina não é lecionada por você nessa turma.')
     elif turma.periodo_letivo_id and not (
       turma.periodo_letivo.data_inicio <= data <= turma.periodo_letivo.data_fim
     ):

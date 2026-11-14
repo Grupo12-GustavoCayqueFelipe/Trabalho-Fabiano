@@ -10,7 +10,13 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
-from apps.academico.models import Disciplina, Matricula, Turma
+from apps.academico.models import (
+  Disciplina,
+  Matricula,
+  Turma,
+  professor_leciona_na_turma,
+  turmas_lecionadas_pelo_professor,
+)
 from apps.usuarios.models import registrar_operacao
 from .models import Avaliacao, HistoricoNota, Nota
 
@@ -35,13 +41,12 @@ def _decimal_seguro(texto, maximo, permite_zero=False):
   return valor
 
 
-# Professor precisa estar vinculado à disciplina e à turma da avaliação.
+# Professor precisa estar vinculado à combinação específica de disciplina e turma da avaliação.
 def _professor_autorizado(usuario, avaliacao):
   return (
     usuario.perfil == 'PROF'
     and hasattr(usuario, 'professor')
-    and avaliacao.disciplina.turmas.filter(pk=avaliacao.turma_id).exists()
-    and avaliacao.disciplina.professores.filter(pk=usuario.professor.pk).exists()
+    and professor_leciona_na_turma(usuario.professor, avaliacao.disciplina, avaliacao.turma)
   )
 
 
@@ -60,8 +65,13 @@ def avaliacoes_painel_view(request):
     disciplinas = Disciplina.objects.all().order_by('nome')
   elif usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
     disciplinas = Disciplina.objects.filter(professores=usuario.professor).distinct()
-    turmas = Turma.objects.filter(disciplina__professores=usuario.professor).distinct()
-    avaliacoes = avaliacoes.filter(disciplina__professores=usuario.professor, disciplina__turmas=F('turma'), turma__in=turmas)
+    turmas = turmas_lecionadas_pelo_professor(usuario.professor)
+    avaliacoes_candidatas = avaliacoes.filter(disciplina__professores=usuario.professor, disciplina__turmas=F('turma'), turma__in=turmas)
+    ids_autorizados = [
+      av.pk for av in avaliacoes_candidatas
+      if professor_leciona_na_turma(usuario.professor, av.disciplina, av.turma)
+    ]
+    avaliacoes = avaliacoes.filter(pk__in=ids_autorizados)
     notas = notas.filter(avaliacao__in=avaliacoes)
   elif usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
     matriculas = Matricula.objects.filter(aluno=usuario.aluno)
@@ -116,10 +126,18 @@ def avaliacao_criar_view(request):
   except ValueError:
     data_avaliacao = None
 
-  # Identificadores precisam pertencer à disciplina do docente e à turma.
+  # Identificadores precisam pertencer à combinação específica de disciplina e turma do docente.
   disciplina = Disciplina.objects.filter(pk=disciplina_id, professores=request.user.professor).first() if disciplina_id else None
   turma = Turma.objects.filter(pk=turma_id, disciplina=disciplina).first() if turma_id and disciplina else None
-  if not nome or len(nome) > 200 or turma is None or data_avaliacao is None or nota_maxima is None or peso is None:
+  if (
+    not nome
+    or len(nome) > 200
+    or turma is None
+    or not professor_leciona_na_turma(request.user.professor, disciplina, turma)
+    or data_avaliacao is None
+    or nota_maxima is None
+    or peso is None
+  ):
     messages.error(request, 'Dados inválidos ou turma sem autorização.')
     return redirect('avaliacoes_painel')
 

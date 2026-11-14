@@ -6,7 +6,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
-from apps.academico.models import Aula, Matricula
+from apps.academico.models import (
+  Aula,
+  Matricula,
+  professor_leciona_na_turma,
+  turmas_lecionadas_pelo_professor,
+)
 from apps.usuarios.models import registrar_operacao
 from .models import HistoricoFrequencia, RegistroFrequencia
 
@@ -26,8 +31,7 @@ def _professor_da_aula(usuario, aula):
     usuario.perfil == 'PROF'
     and hasattr(usuario, 'professor')
     and aula.professor_id == usuario.professor.pk
-    and aula.disciplina.turmas.filter(pk=aula.turma_id).exists()
-    and aula.disciplina.professores.filter(pk=usuario.professor.pk).exists()
+    and professor_leciona_na_turma(usuario.professor, aula.disciplina, aula.turma)
   )
 
 
@@ -43,7 +47,13 @@ def frequencia_painel_view(request):
     aulas = Aula.objects.all().select_related('turma', 'disciplina')
     matriculas = Matricula.objects.filter(status='ATIVA')
   elif usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
-    aulas = Aula.objects.filter(professor=usuario.professor, disciplina__professores=usuario.professor, disciplina__turmas=F('turma')).distinct()
+    turmas_prof = turmas_lecionadas_pelo_professor(usuario.professor)
+    aulas = Aula.objects.filter(
+      professor=usuario.professor,
+      disciplina__professores=usuario.professor,
+      disciplina__turmas=F('turma'),
+      turma__in=turmas_prof,
+    ).distinct()
     matriculas = Matricula.objects.filter(turma__in=aulas.values('turma_id'), status='ATIVA')
     registros = registros.filter(aula__in=aulas)
   elif usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):

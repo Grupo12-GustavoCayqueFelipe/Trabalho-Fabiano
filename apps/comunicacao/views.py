@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
-from apps.academico.models import Matricula, Turma
+from apps.academico.models import Matricula, Turma, turmas_lecionadas_pelo_professor
 from apps.usuarios.models import Usuario, registrar_operacao
 from .models import Aviso, Mensagem
 
@@ -21,9 +21,9 @@ def _pk_seguro(valor):
   return numero if 0 < numero <= 9223372036854775807 else None
 
 
-# Busca as turmas onde o professor leciona ou é regente.
+# Busca apenas as turmas em que o professor está autorizado a atuar.
 def _turmas_professor(professor):
-  return Turma.objects.filter(Q(professor_regente=professor) | Q(disciplina__professores=professor)).distinct()
+  return turmas_lecionadas_pelo_professor(professor, incluir_regencia_sem_disciplina=True)
 
 
 # Retorna apenas os destinatários permitidos para este usuário.
