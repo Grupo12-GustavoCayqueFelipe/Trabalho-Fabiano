@@ -3,6 +3,7 @@ from decimal import Decimal, InvalidOperation
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Count, Q, F
 from django.shortcuts import get_object_or_404, redirect, render
@@ -129,19 +130,22 @@ def avaliacoes_painel_view(request):
     notas = notas.none()
 
   # Recupera revisões apenas das notas já autorizadas para este perfil.
-  historico_notas = HistoricoNota.objects.filter(nota__in=notas).select_related(
+  notas_distintas = notas.distinct().order_by('-pk')
+  historico_notas = HistoricoNota.objects.filter(nota__in=notas_distintas).select_related(
     'nota__avaliacao', 'nota__matricula__aluno__usuario', 'usuario'
-  )
+  ).order_by('-alterado_em', '-pk')
   # Mostra os lançamentos e a lista de alunos somente aos profissionais autorizados.
   matriculas = Matricula.objects.filter(status='ATIVA', turma__in=turmas).select_related('aluno__usuario', 'turma')
-  resumo_disciplinas = _montar_resumo_disciplinas(matriculas_boletim, notas, professor=professor_filtro)
+  resumo_disciplinas = _montar_resumo_disciplinas(matriculas_boletim, notas_distintas, professor=professor_filtro)
+  # Pagina notas e histórico de revisões para evitar decifrar todo o histórico Fernet em memória.
+  pagina = request.GET.get('page') or request.GET.get('pagina')
   return render(request, 'html/avaliacoes/painel.html', {
-    'avaliacoes': avaliacoes.distinct(),
-    'notas': notas.distinct(),
+    'avaliacoes': avaliacoes.distinct().order_by('-data_avaliacao', '-pk'),
+    'notas': Paginator(notas_distintas, 50).get_page(pagina),
     'turmas': turmas,
     'disciplinas': disciplinas,
     'matriculas': matriculas,
-    'historico_notas': historico_notas,
+    'historico_notas': Paginator(historico_notas, 50).get_page(pagina),
     'resumo_disciplinas': resumo_disciplinas,
   })
 

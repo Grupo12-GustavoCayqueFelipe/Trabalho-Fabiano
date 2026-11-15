@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import redirect, render
@@ -85,14 +86,15 @@ def comunicacao_painel_view(request):
   else:
     avisos = avisos.none()
 
-  # Cada usuário só enxerga suas próprias mensagens, nunca a caixa postal alheia.
-  mensagens_recebidas = Mensagem.objects.filter(destinatario=usuario).select_related('remetente')
-  mensagens_enviadas = Mensagem.objects.filter(remetente=usuario).select_related('destinatario')
+  # Cada usuário só enxerga suas próprias mensagens, nunca a caixa postal alheia, com paginação para campos Fernet.
+  pagina = request.GET.get('page') or request.GET.get('pagina')
+  mensagens_recebidas = Mensagem.objects.filter(destinatario=usuario).select_related('remetente').order_by('-enviada_em', '-pk')
+  mensagens_enviadas = Mensagem.objects.filter(remetente=usuario).select_related('destinatario').order_by('-enviada_em', '-pk')
   return render(request, 'html/comunicacao/painel.html', {
-    'avisos': avisos.distinct(),
+    'avisos': Paginator(avisos.distinct().order_by('-fixado', '-criado_em', '-pk'), 50).get_page(pagina),
     'turmas': turmas,
-    'mensagens_recebidas': mensagens_recebidas,
-    'mensagens_enviadas': mensagens_enviadas,
+    'mensagens_recebidas': Paginator(mensagens_recebidas, 50).get_page(pagina),
+    'mensagens_enviadas': Paginator(mensagens_enviadas, 50).get_page(pagina),
     'destinatarios': _destinatarios_autorizados(usuario),
   })
 

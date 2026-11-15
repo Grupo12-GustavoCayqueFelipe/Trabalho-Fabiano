@@ -3,6 +3,7 @@ import secrets
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.http import FileResponse, Http404
 from django.db.models import Q
@@ -74,8 +75,9 @@ def atividades_lista_view(request):
   else:
     atividades = atividades.none()
 
+  pagina = request.GET.get('page') or request.GET.get('pagina')
   return render(request, 'html/atividades/lista.html', {
-    'atividades': atividades.distinct(),
+    'atividades': Paginator(atividades.distinct().order_by('-prazo', '-pk'), 50).get_page(pagina),
     'turmas': turmas,
     'disciplinas': disciplinas,
   })
@@ -152,9 +154,10 @@ def atividade_detalhe_view(request, atividade_id):
     # Sem autorização, não revela título, conteúdo nem respostas da atividade.
     return redirect('atividades_lista')
 
+  pagina = request.GET.get('page') or request.GET.get('pagina')
   return render(request, 'html/atividades/detalhe.html', {
     'atividade': atividade,
-    'entregas': entregas,
+    'entregas': Paginator(entregas.order_by('aluno__usuario__nome', 'pk'), 50).get_page(pagina),
     'minha_entrega': minha_entrega,
     'pode_entregar': _aluno_pode_entregar(request.user, atividade) and atividade.ativa and (minha_entrega is None or (minha_entrega.corrigida_em is None and minha_entrega.nota is None)),
   })

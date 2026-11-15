@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.db.models import Q
 from django.db import transaction, IntegrityError
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from apps.usuarios.models import registrar_operacao
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -61,12 +62,13 @@ def academico_painel_view(request):
     disciplina_turmas_ids = list(disciplina_editando.turmas.values_list('pk', flat=True))
     disciplina_professores_ids = list(disciplina_editando.professores.values_list('pk', flat=True))
 
+  pagina = request.GET.get('page') or request.GET.get('pagina')
   return render(request, 'html/academico/acad_admin.html', {
     'periodos_letivos': PeriodoLetivo.objects.order_by('-ano', '-semestre'),
-    'turmas': Turma.objects.select_related('professor_regente__usuario').order_by('-ano', 'nome'),
-    'disciplinas': Disciplina.objects.prefetch_related('turmas', 'professores').order_by('nome'),
-    'alunos': Aluno.objects.select_related('usuario').order_by('usuario__nome'),
-    'professores': Professor.objects.select_related('usuario').order_by('usuario__nome'),
+    'turmas': Paginator(Turma.objects.select_related('professor_regente__usuario').order_by('-ano', 'nome'), 50).get_page(pagina),
+    'disciplinas': Paginator(Disciplina.objects.prefetch_related('turmas', 'professores').order_by('nome'), 50).get_page(pagina),
+    'alunos': Paginator(Aluno.objects.select_related('usuario').order_by('usuario__nome'), 50).get_page(pagina),
+    'professores': Paginator(Professor.objects.select_related('usuario').order_by('usuario__nome'), 50).get_page(pagina),
     'matriculas': Matricula.objects.select_related('aluno__usuario', 'turma').order_by('-data_matricula', '-pk')[:10],
     'turma_editando': turma_editando,
     'disciplina_editando': disciplina_editando,
@@ -229,10 +231,11 @@ def historico_matriculas_view(request):
     matriculas = Matricula.objects.filter(aluno__in=alunos_vinculados)
   matriculas = matriculas.select_related('aluno__usuario', 'turma__professor_regente__usuario').order_by('-data_matricula', '-pk')
 
+  pagina = request.GET.get('page') or request.GET.get('pagina')
   return render(request, 'html/academico/acad_aluno_resp.html', {
     'aluno': aluno,
     'alunos_vinculados': alunos_vinculados,
-    'matriculas': matriculas,
+    'matriculas': Paginator(matriculas, 50).get_page(pagina),
   })
 
 # Professor registra o conteúdo dado numa aula

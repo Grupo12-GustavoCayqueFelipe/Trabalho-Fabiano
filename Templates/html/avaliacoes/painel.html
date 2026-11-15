@@ -31,7 +31,9 @@
 </article>{% empty %}<p>Nenhuma avaliação disponível.</p>{% endfor %}</section>
 <section class="card"><h2>Notas visíveis para seu perfil</h2>
 {% for nota in notas %}<article>{{ nota.matricula.aluno.usuario.nome }} — {{ nota.avaliacao.nome }}: {{ nota.valor }} / {{ nota.avaliacao.nota_maxima }} <p>{{ nota.observacao }}</p></article>
-{% empty %}<p>Nenhuma nota registrada.</p>{% endfor %}</section>
+{% empty %}<p>Nenhuma nota registrada.</p>{% endfor %}
+{% if notas.has_other_pages %}<nav class="paginacao">{% if notas.has_previous %}<a href="?page={{ notas.previous_page_number }}">← Anterior</a>{% endif %} <span>Página {{ notas.number }} de {{ notas.paginator.num_pages }}</span> {% if notas.has_next %}<a href="?page={{ notas.next_page_number }}">Próxima →</a>{% endif %}</nav>{% endif %}
+</section>
 <section class="card"><h2>Boletim consolidado por disciplina</h2>
 {% for item in resumo_disciplinas %}<article>{{ item.aluno.usuario.nome }} — {{ item.disciplina.nome }} — Média: {{ item.media|floatformat:2|default:'—' }}{% if item.percentual_frequencia is not None %} — Frequência: {{ item.percentual_frequencia }}%{% endif %} — Situação: {{ item.situacao }}</article>
 {% empty %}<p>Nenhuma média consolidada disponível.</p>{% endfor %}</section>

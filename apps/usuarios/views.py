@@ -433,12 +433,20 @@ def dashboard_view(request):
     entregas_abertas = Entrega.objects.filter(
       atividade__in=atividades, corrigida_em__isnull=True, nota__isnull=True
     )
+    # Monta a lista de disciplinas do professor por turma em memória usando o prefetch, sem vírgula órfã nem N+1.
+    turmas_professor = list(turmas.prefetch_related('disciplina_set__professores')[:10])
+    for turma_item in turmas_professor:
+      turma_item.disciplinas_do_professor = ', '.join(
+        disc.nome
+        for disc in turma_item.disciplina_set.all()
+        if professor in disc.professores.all()
+      )
     contexto = {
       'total_turmas': turmas.count(),
       'total_disciplinas': disciplinas.count(),
       'total_aulas': Aula.objects.filter(professor=professor).count(),
       'entregas_pendentes': entregas_abertas.count(),
-      'turmas_professor': turmas.prefetch_related('disciplina_set__professores')[:10],
+      'turmas_professor': turmas_professor,
       'entregas_recentes': entregas_abertas.select_related('atividade', 'aluno__usuario').order_by('-entregue_em')[:5],
     }
     return render(request, 'html/painel/painel_prof.html', contexto)

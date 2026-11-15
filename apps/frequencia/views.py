@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
@@ -59,15 +60,17 @@ def frequencia_painel_view(request):
   else:
     registros = registros.none()
 
-  # O histórico acompanha o mesmo filtro de acesso dos registros atuais.
+  # O histórico acompanha o mesmo filtro de acesso dos registros atuais e aplica paginação.
+  registros_ordenados = registros.order_by('-aula__data', '-pk')
   historico = HistoricoFrequencia.objects.filter(registro__in=registros).select_related(
     'registro__aula__disciplina', 'registro__aula__turma', 'registro__matricula__aluno__usuario', 'usuario'
-  )
+  ).order_by('-alterado_em', '-pk')
+  pagina = request.GET.get('page') or request.GET.get('pagina')
   return render(request, 'html/frequencia/painel.html', {
     'aulas': aulas.order_by('-data', '-pk'),
     'matriculas': matriculas.select_related('aluno__usuario', 'turma'),
-    'registros': registros.order_by('-aula__data', '-pk'),
-    'historico_frequencia': historico,
+    'registros': Paginator(registros_ordenados, 50).get_page(pagina),
+    'historico_frequencia': Paginator(historico, 50).get_page(pagina),
   })
 
 

@@ -15,7 +15,9 @@
 {% empty %}<p>Sem aulas cadastradas para chamada.</p>{% endfor %}</section>{% endif %}
 <section class="card"><h2>Histórico de frequência</h2>
 {% for registro in registros %}<article><strong>{{ registro.matricula.aluno.usuario.nome }}</strong> — {{ registro.aula.disciplina.nome }} — {{ registro.aula.data|date:'d/m/Y' }}: {{ registro.get_status_display }}{% if registro.justificativa %}<p>{{ registro.justificativa }}</p>{% endif %}</article>
-{% empty %}<p>Não existem registros de frequência para seu perfil.</p>{% endfor %}</section>
+{% empty %}<p>Não existem registros de frequência para seu perfil.</p>{% endfor %}
+{% if registros.has_other_pages %}<nav class="paginacao">{% if registros.has_previous %}<a href="?page={{ registros.previous_page_number }}">← Anterior</a>{% endif %} <span>Página {{ registros.number }} de {{ registros.paginator.num_pages }}</span> {% if registros.has_next %}<a href="?page={{ registros.next_page_number }}">Próxima →</a>{% endif %}</nav>{% endif %}
+</section>
 <section class="card"><h2>Histórico de alterações</h2>
 {% for item in historico_frequencia %}<article>{{ item.registro.matricula.aluno.usuario.nome }} — {{ item.registro.aula }} — {{ item.status_anterior|default:'Primeiro lançamento' }} → {{ item.status_novo }} — {{ item.alterado_em|date:'d/m/Y H:i' }}</article>{% empty %}<p>Sem alterações registradas.</p>{% endfor %}</section>
 </main></body></html>

@@ -157,13 +157,7 @@
                         {% for turma in turmas_professor %}
                         <tr>
                             <td>{{ turma.nome }}</td>
-                            <td>
-                              {% for disciplina in turma.disciplina_set.all %}
-                                {% if request.user.professor in disciplina.professores.all %}
-                                  {{ disciplina.nome }}{% if not forloop.last %}, {% endif %}
-                                {% endif %}
-                              {% endfor %}
-                            </td>
+                            <td>{{ turma.disciplinas_do_professor }}</td>
                             <td>{{ turma.get_turno_display }}</td>
                             <td><a href="{% url 'registrar_aula_view' %}">Registrar aula</a></td>
                         </tr>
