@@ -149,6 +149,50 @@ class AtividadesSegurancaTest(TestCase):
         self.assertEqual(LogOperacao.objects.filter(evento='ENTREGA_CORRIGIDA').count(), 20)
         cache.clear()
 
+    # Comentário sem nota mantém a entrega aberta para reenvio e pendente no painel docente.
+    def test_consistencia_entre_pode_entregar_e_entregas_pendentes_no_painel(self):
+        cache.clear()
+        self.client.force_login(self.aluno_user)
+        self.client.post(reverse('entrega_salvar', args=[self.atividade.pk]), {'resposta': 'Rascunho inicial'})
+        entrega = Entrega.objects.get()
+
+        # Professor envia apenas comentário de orientação sem atribuir nota.
+        self.client.force_login(self.prof_user)
+        self.client.post(reverse('entrega_corrigir', args=[self.atividade.pk, entrega.pk]), {
+            'nota': '', 'comentario': 'Melhore a conclusão antes da nota final'
+        })
+        entrega.refresh_from_db()
+        self.assertIsNone(entrega.nota)
+        self.assertIsNone(entrega.corrigida_em)
+
+        painel_prof = self.client.get(reverse('dashboard'))
+        self.assertEqual(painel_prof.context['entregas_pendentes'], 1)
+
+        # Aluno ainda consegue atualizar sua entrega porque a nota final não foi atribuída.
+        self.client.force_login(self.aluno_user)
+        detalhe = self.client.get(reverse('atividade_detalhe', args=[self.atividade.pk]))
+        self.assertTrue(detalhe.context['pode_entregar'])
+        self.client.post(reverse('entrega_salvar', args=[self.atividade.pk]), {'resposta': 'Versão revisada'})
+        entrega.refresh_from_db()
+        self.assertEqual(entrega.resposta, 'Versão revisada')
+
+        # Quando o professor atribui a nota final, o painel zera a pendência e bloqueia reenvio.
+        self.client.force_login(self.prof_user)
+        self.client.post(reverse('entrega_corrigir', args=[self.atividade.pk, entrega.pk]), {
+            'nota': '9.50', 'comentario': 'Concluído'
+        })
+        entrega.refresh_from_db()
+        self.assertIsNotNone(entrega.corrigida_em)
+        painel_prof = self.client.get(reverse('dashboard'))
+        self.assertEqual(painel_prof.context['entregas_pendentes'], 0)
+
+        self.client.force_login(self.aluno_user)
+        detalhe = self.client.get(reverse('atividade_detalhe', args=[self.atividade.pk]))
+        self.assertFalse(detalhe.context['pode_entregar'])
+        self.client.post(reverse('entrega_salvar', args=[self.atividade.pk]), {'resposta': 'Tentativa bloqueada'})
+        entrega.refresh_from_db()
+        self.assertEqual(entrega.resposta, 'Versão revisada')
+
 
 # Upload e download precisam passar pelo mesmo RBAC das entregas.
 class ArquivosEntregaSegurancaTest(AtividadesSegurancaTest):

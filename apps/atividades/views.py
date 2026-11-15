@@ -156,7 +156,7 @@ def atividade_detalhe_view(request, atividade_id):
     'atividade': atividade,
     'entregas': entregas,
     'minha_entrega': minha_entrega,
-    'pode_entregar': _aluno_pode_entregar(request.user, atividade) and atividade.ativa and (minha_entrega is None or minha_entrega.corrigida_em is None),
+    'pode_entregar': _aluno_pode_entregar(request.user, atividade) and atividade.ativa and (minha_entrega is None or (minha_entrega.corrigida_em is None and minha_entrega.nota is None)),
   })
 
 
@@ -200,7 +200,7 @@ def entrega_salvar_view(request, atividade_id):
       atividade=atividade, aluno=request.user.aluno,
       defaults={'resposta': resposta, 'atrasada': atrasada}
     )
-    if not criada and entrega.corrigida_em is not None:
+    if not criada and (entrega.corrigida_em is not None or entrega.nota is not None):
       messages.error(request, 'Essa entrega já foi corrigida.')
       return redirect('atividade_detalhe', atividade_id=atividade.pk)
 
@@ -288,7 +288,8 @@ def entrega_corrigir_view(request, atividade_id, entrega_id):
     )
     entrega.nota = nota
     entrega.comentario_professor = comentario
-    entrega.corrigida_em = timezone.now()
+    # Só encerra a entrega para reenvio quando a nota final é atribuída.
+    entrega.corrigida_em = timezone.now() if nota is not None else None
     entrega.save(update_fields=['nota', 'comentario_professor', 'corrigida_em'])
     registrar_operacao(request.user, 'ENTREGA_CORRIGIDA', entrega.pk)
   messages.success(request, 'Correção registrada.')

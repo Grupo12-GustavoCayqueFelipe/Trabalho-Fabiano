@@ -413,7 +413,7 @@ def dashboard_view(request):
       'total_professores': Professor.objects.count(),
       'total_turmas': Turma.objects.count(),
       'total_disciplinas': Disciplina.objects.count(),
-      'atividades_pendentes': Entrega.objects.filter(nota__isnull=True).count(),
+      'atividades_pendentes': Entrega.objects.filter(corrigida_em__isnull=True, nota__isnull=True).count(),
       'avisos_recentes': Aviso.objects.order_by('-criado_em')[:3],
     }
     return render(request, 'html/painel/painel_adm.html', contexto)
@@ -425,13 +425,16 @@ def dashboard_view(request):
     turmas = Turma.objects.filter(disciplina__professores=professor).distinct()
     # Usa somente as atividades criadas pelo próprio professor para os totais.
     atividades = Atividade.objects.filter(professor=professor)
+    entregas_abertas = Entrega.objects.filter(
+      atividade__in=atividades, corrigida_em__isnull=True, nota__isnull=True
+    )
     contexto = {
       'total_turmas': turmas.count(),
       'total_disciplinas': disciplinas.count(),
       'total_aulas': Aula.objects.filter(professor=professor).count(),
-      'entregas_pendentes': Entrega.objects.filter(atividade__in=atividades, nota__isnull=True).count(),
+      'entregas_pendentes': entregas_abertas.count(),
       'turmas_professor': turmas.prefetch_related('disciplina_set__professores')[:10],
-      'entregas_recentes': Entrega.objects.filter(atividade__in=atividades, nota__isnull=True).select_related('atividade', 'aluno__usuario').order_by('-entregue_em')[:5],
+      'entregas_recentes': entregas_abertas.select_related('atividade', 'aluno__usuario').order_by('-entregue_em')[:5],
     }
     return render(request, 'html/painel/painel_prof.html', contexto)
 
