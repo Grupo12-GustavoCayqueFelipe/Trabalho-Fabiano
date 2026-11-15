@@ -215,20 +215,23 @@ def matricular_aluno_view(request):
       registrar_operacao(request.user, 'MATRICULA_SALVA', matricula.pk)
   return _voltar_painel('historico')
 
-# Histórico de matrículas do aluno logado, ou do primeiro aluno vinculado ao responsável logado
+# Histórico de matrículas do aluno logado ou dos alunos vinculados ao responsável logado
 @login_required(login_url='login')
 def historico_matriculas_view(request):
   # Consulta apenas o aluno logado ou os alunos vinculados ao responsável.
   aluno = request.user.aluno if request.user.perfil == 'ALUNO' and hasattr(request.user, 'aluno') else None
+  alunos_vinculados = []
   matriculas = Matricula.objects.none()
   if aluno:
     matriculas = Matricula.objects.filter(aluno=aluno)
   elif request.user.perfil == 'RESP' and hasattr(request.user, 'responsavel'):
-    matriculas = Matricula.objects.filter(aluno__in=request.user.responsavel.alunos_vinculados.all())
+    alunos_vinculados = list(request.user.responsavel.alunos_vinculados.select_related('usuario').order_by('usuario__nome'))
+    matriculas = Matricula.objects.filter(aluno__in=alunos_vinculados)
   matriculas = matriculas.select_related('aluno__usuario', 'turma__professor_regente__usuario').order_by('-data_matricula', '-pk')
 
   return render(request, 'html/academico/acad_aluno_resp.html', {
     'aluno': aluno,
+    'alunos_vinculados': alunos_vinculados,
     'matriculas': matriculas,
   })
 

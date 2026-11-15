@@ -17,5 +17,5 @@
 {% for registro in registros %}<article><strong>{{ registro.matricula.aluno.usuario.nome }}</strong> — {{ registro.aula.disciplina.nome }} — {{ registro.aula.data|date:'d/m/Y' }}: {{ registro.get_status_display }}{% if registro.justificativa %}<p>{{ registro.justificativa }}</p>{% endif %}</article>
 {% empty %}<p>Não existem registros de frequência para seu perfil.</p>{% endfor %}</section>
 <section class="card"><h2>Histórico de alterações</h2>
-{% for item in historico_frequencia %}<article>{{ item.registro.aula }} — {{ item.status_anterior|default:'Primeiro lançamento' }} → {{ item.status_novo }} — {{ item.alterado_em|date:'d/m/Y H:i' }}</article>{% empty %}<p>Sem alterações registradas.</p>{% endfor %}</section>
+{% for item in historico_frequencia %}<article>{{ item.registro.matricula.aluno.usuario.nome }} — {{ item.registro.aula }} — {{ item.status_anterior|default:'Primeiro lançamento' }} → {{ item.status_novo }} — {{ item.alterado_em|date:'d/m/Y H:i' }}</article>{% empty %}<p>Sem alterações registradas.</p>{% endfor %}</section>
 </main></body></html>

@@ -60,7 +60,9 @@ def frequencia_painel_view(request):
     registros = registros.none()
 
   # O histórico acompanha o mesmo filtro de acesso dos registros atuais.
-  historico = HistoricoFrequencia.objects.filter(registro__in=registros).select_related('registro', 'usuario')
+  historico = HistoricoFrequencia.objects.filter(registro__in=registros).select_related(
+    'registro__aula__disciplina', 'registro__aula__turma', 'registro__matricula__aluno__usuario', 'usuario'
+  )
   return render(request, 'html/frequencia/painel.html', {
     'aulas': aulas.order_by('-data', '-pk'),
     'matriculas': matriculas.select_related('aluno__usuario', 'turma'),

@@ -11,7 +11,8 @@
     <header>
         <h2>EduControll</h2>
         <p>Autenticação de dois fatores - {{ user.nome }}</p>
-        <a href="{% url 'dashboard' %}">Voltar ao painel</a>
+        <a href="{% url 'dashboard' %}">Voltar ao painel</a> |
+        <a href="{% url 'meus_dados_view' %}">Meus dados</a>
     </header>
 
     {% if messages %}

@@ -23,14 +23,22 @@
                 <a href="{% url 'meus_dados_view' %}" class="active">
                     👤 Meus dados
                 </a>
-                <a href="{% url 'excluir_dados_view' %}">
-                    🗑 Excluir conta
-                </a>
                 <a href="{% url 'termos_view' %}">
                     🔐 Termos e Privacidade
                 </a>
+                <a href="{% url 'exportar_dados_view' %}">
+                    ⬇ Exportar meus dados
+                </a>
+                <a href="{% url '2fa_configurar' %}">
+                    🛡 Segurança (2FA)
+                </a>
+                {% if usuario.perfil == 'ALUNO' or usuario.perfil == 'RESP' %}
                 <a href="{% url 'historico_matriculas_view' %}">
                     🎓 Matrícula
+                </a>
+                {% endif %}
+                <a href="{% url 'excluir_dados_view' %}">
+                    🗑 Excluir conta
                 </a>
             </nav>
             <div class="sidebar-bottom">
@@ -337,7 +345,10 @@
             </section>
 
             <div class="acoes">
+                <a href="{% url 'termos_view' %}" class="btn-exportar">Termos e Privacidade (LGPD)</a>
                 <a href="{% url 'exportar_dados_view' %}" class="btn-exportar">Exportar meus dados</a>
+                <a href="{% url '2fa_configurar' %}" class="btn-exportar">Configurar 2FA</a>
+                <a href="{% url 'excluir_dados_view' %}" class="btn-exportar">Excluir minha conta</a>
             </div>
         </main>
     </div>

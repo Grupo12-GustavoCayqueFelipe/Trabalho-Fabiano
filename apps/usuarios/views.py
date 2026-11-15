@@ -365,39 +365,44 @@ def dashboard_view(request):
       aluno_id__in=alunos_ids, status='ATIVA'
     ).select_related('aluno__usuario', 'turma')
     turmas_ids = matriculas.values_list('turma_id', flat=True)
-    disciplinas = Disciplina.objects.filter(turmas__in=turmas_ids).distinct()
-    atividades = Atividade.objects.filter(
-      turma_id__in=turmas_ids, ativa=True, prazo__gte=timezone.now()
-    ).select_related('disciplina', 'turma').distinct()
-    notas = Nota.objects.filter(matricula__in=matriculas)
-    frequencias = RegistroFrequencia.objects.filter(matricula__in=matriculas)
-    presencas = frequencias.aggregate(
-      total=Count('pk'), presentes=Count('pk', filter=Q(status='P'))
-    )
-    total = presencas['total'] or 0
+
+    if request.user.perfil == 'ALUNO':
+      disciplinas = Disciplina.objects.filter(turmas__in=turmas_ids).distinct()
+      atividades = Atividade.objects.filter(
+        turma_id__in=turmas_ids, ativa=True, prazo__gte=timezone.now()
+      ).select_related('disciplina', 'turma').distinct()
+      notas = Nota.objects.filter(matricula__in=matriculas)
+      frequencias = RegistroFrequencia.objects.filter(matricula__in=matriculas)
+      presencas = frequencias.aggregate(
+        total=Count('pk'), presentes=Count('pk', filter=Q(status='P'))
+      )
+      total = presencas['total'] or 0
+      pendentes = atividades.exclude(entregas__aluno_id=aluno.pk) if aluno else atividades.none()
+      contexto = {
+        'matriculas_ativas': matriculas,
+        'total_matriculas': matriculas.count(),
+        'total_disciplinas': disciplinas.count(),
+        'disciplinas_recentes': disciplinas.order_by('nome')[:6],
+        'media_notas': _media_avaliacoes_normalizada(notas),
+        'percentual_presenca': round(100 * (presencas['presentes'] or 0) / total) if total else None,
+        'total_registros_frequencia': total,
+        'total_atividades': atividades.count(),
+        'atividades_pendentes_aluno': pendentes.count(),
+        'atividades_recentes': pendentes.order_by('prazo', 'pk')[:6],
+      }
+      return render(request, 'html/alunos/aluno.html', contexto)
+
+    # O painel do responsável carrega apenas as matrículas ativas, avisos e mensagens utilizadas em seu template.
     contexto = {
       'matriculas_ativas': matriculas,
       'total_matriculas': matriculas.count(),
-      'total_disciplinas': disciplinas.count(),
-      'disciplinas_recentes': disciplinas.order_by('nome')[:6],
-      'media_notas': _media_avaliacoes_normalizada(notas),
-      'percentual_presenca': round(100 * (presencas['presentes'] or 0) / total) if total else None,
-      'total_registros_frequencia': total,
-      'total_atividades': atividades.count(),
+      'avisos_recentes': Aviso.objects.filter(ativo=True).filter(
+        Q(turma__isnull=True) | Q(turma_id__in=turmas_ids)
+      ).select_related('turma', 'autor').distinct().order_by('-fixado', '-criado_em')[:5],
+      'mensagens_recebidas': Mensagem.objects.filter(
+        destinatario=request.user
+      ).select_related('remetente').order_by('-enviada_em')[:5],
     }
-
-    if request.user.perfil == 'ALUNO':
-      pendentes = atividades.exclude(entregas__aluno_id=aluno.pk) if aluno else atividades.none()
-      contexto['atividades_pendentes_aluno'] = pendentes.count()
-      contexto['atividades_recentes'] = pendentes.order_by('prazo', 'pk')[:6]
-      return render(request, 'html/alunos/aluno.html', contexto)
-
-    contexto['avisos_recentes'] = Aviso.objects.filter(ativo=True).filter(
-      Q(turma__isnull=True) | Q(turma_id__in=turmas_ids)
-    ).select_related('turma', 'autor').distinct().order_by('-fixado', '-criado_em')[:5]
-    contexto['mensagens_recebidas'] = Mensagem.objects.filter(
-      destinatario=request.user
-    ).select_related('remetente').order_by('-enviada_em')[:5]
     return render(request, 'html/responsaveis/responsaveis.html', contexto)
 
   # Importa os models utilizados apenas nos painéis institucionais.

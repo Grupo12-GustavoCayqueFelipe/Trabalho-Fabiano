@@ -129,7 +129,9 @@ def avaliacoes_painel_view(request):
     notas = notas.none()
 
   # Recupera revisões apenas das notas já autorizadas para este perfil.
-  historico_notas = HistoricoNota.objects.filter(nota__in=notas).select_related('nota__avaliacao', 'usuario')
+  historico_notas = HistoricoNota.objects.filter(nota__in=notas).select_related(
+    'nota__avaliacao', 'nota__matricula__aluno__usuario', 'usuario'
+  )
   # Mostra os lançamentos e a lista de alunos somente aos profissionais autorizados.
   matriculas = Matricula.objects.filter(status='ATIVA', turma__in=turmas).select_related('aluno__usuario', 'turma')
   resumo_disciplinas = _montar_resumo_disciplinas(matriculas_boletim, notas, professor=professor_filtro)

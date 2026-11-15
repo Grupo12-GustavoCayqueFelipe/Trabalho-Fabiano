@@ -17,6 +17,9 @@
         <nav>
             <a href="{% url 'dashboard' %}">⌂ Meu painel</a>
             <a href="{% url 'historico_matriculas_view' %}" class="ativo">Histórico de Matrículas</a>
+            <a href="{% url 'meus_dados_view' %}">👤 Meus Dados</a>
+            <a href="{% url 'termos_view' %}">🔐 Termos e Privacidade</a>
+            <a href="{% url '2fa_configurar' %}">🛡 Segurança (2FA)</a>
         </nav>
         <div class="sidebar-bottom">
             <form action="{% url 'logout' %}" method="POST">
@@ -44,19 +47,35 @@
         </header>
 
         <!-- DADOS DO ALUNO -->
+        {% if aluno %}
         <section class="card">
             <h2>Dados do Aluno</h2>
             <div class="dados-aluno">
                 <div>
                     <span>Nome</span>
-                    <strong>{{ aluno.usuario.nome|default:"" }}</strong>
+                    <strong>{{ aluno.usuario.nome }}</strong>
                 </div>
                 <div>
                     <span>Matrícula</span>
-                    <strong>{{ aluno.matricula|default:"" }}</strong>
+                    <strong>{{ aluno.matricula }}</strong>
                 </div>
             </div>
         </section>
+        {% elif alunos_vinculados %}
+        <section class="card">
+            <h2>Alunos Vinculados</h2>
+            <div class="dados-aluno">
+                {% for al in alunos_vinculados %}
+                <div>
+                    <span>Nome</span>
+                    <strong>{{ al.usuario.nome }}</strong>
+                    <span>Matrícula</span>
+                    <strong>{{ al.matricula }}</strong>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
 
         <!-- HISTÓRICO -->
         <section class="card">

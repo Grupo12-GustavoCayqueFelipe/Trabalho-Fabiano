@@ -22,9 +22,12 @@
             <a href="#historico">📋 Histórico</a>
             <a href="#periodos-letivos">▦ Períodos letivos</a>
         <!-- Novos módulos mantêm o menu existente e respeitam o perfil no servidor. -->
-<a href="{% url 'atividades_lista' %}">Atividades</a>
-<a href="{% url 'comunicacao_painel' %}">Comunicação</a>
-</nav>
+            <a href="{% url 'atividades_lista' %}">Atividades</a>
+            <a href="{% url 'comunicacao_painel' %}">Comunicação</a>
+            <a href="{% url 'meus_dados_view' %}">Meus Dados</a>
+            <a href="{% url 'termos_view' %}">Termos e Privacidade</a>
+            <a href="{% url '2fa_configurar' %}">Segurança (2FA)</a>
+        </nav>
         <div class="sidebar-bottom">
             <form action="{% url 'logout' %}" method="POST">
                 {% csrf_token %}
