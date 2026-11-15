@@ -434,6 +434,61 @@ class SegurancaComplementarTest(BaseUsuarioTest):
         self.assertEqual(self.usuario.nome, 'Conta desidentificada')
         self.assertFalse(self.usuario.has_usable_password())
 
+    # A desidentificação cancela matrículas ativas, limpa vínculos e retira o titular das pautas e contadores.
+    def test_exclusao_cancela_matriculas_e_remove_de_pautas_e_contadores(self):
+        from apps.academico.models import Aula, Disciplina, Matricula, Turma
+        from .models import Aluno, AlunoResponsavel, Professor, Responsavel
+
+        prof_user = Usuario.objects.create_user(
+            email='prof-pauta@t.com', password=SENHA, nome='Prof Pauta', perfil='PROF'
+        )
+        prof = Professor.objects.create(usuario=prof_user, formacao='História')
+        admin_user = Usuario.objects.create_superuser(
+            email='admin-pauta@t.com', password=SENHA, nome='Admin Pauta'
+        )
+        resp_user = Usuario.objects.create_user(
+            email='resp-pauta@t.com', password=SENHA, nome='Resp Pauta', perfil='RESP'
+        )
+        resp = Responsavel.objects.create(usuario=resp_user)
+
+        aluno = Aluno.objects.create(usuario=self.usuario, matricula='MAT-EX-01')
+        AlunoResponsavel.objects.create(aluno=aluno, responsavel=resp, parentesco='Mãe')
+        turma = Turma.objects.create(nome='8A', ano=2026, turno='MANHA', professor_regente=prof)
+        disciplina = Disciplina.objects.create(nome='História')
+        disciplina.turmas.add(turma)
+        disciplina.professores.add(prof)
+        matricula = Matricula.objects.create(aluno=aluno, turma=turma, status='ATIVA')
+        Aula.objects.create(
+            turma=turma, disciplina=disciplina, professor=prof,
+            data='2026-05-10', conteudo='Conteúdo'
+        )
+
+        self.client.force_login(self.usuario)
+        self.client.post(reverse('excluir_dados_view'), {'senha': SENHA, 'confirmar': 'on'})
+
+        matricula.refresh_from_db()
+        self.assertEqual(matricula.status, 'CANCELADA')
+        self.assertFalse(AlunoResponsavel.objects.filter(aluno=aluno).exists())
+
+        # O aluno desidentificado não aparece mais nas pautas ativas de frequência e notas do professor.
+        self.client.force_login(prof_user)
+        pauta_freq = self.client.get(reverse('frequencia_painel'))
+        self.assertEqual(list(pauta_freq.context['matriculas']), [])
+        pauta_av = self.client.get(reverse('avaliacoes_painel'))
+        self.assertEqual(list(pauta_av.context['matriculas']), [])
+
+        # O contador de alunos ativos no painel administrativo zera após o cancelamento da matrícula.
+        self.client.force_login(admin_user)
+        painel_adm = self.client.get(reverse('dashboard'))
+        self.assertEqual(painel_adm.context['total_alunos'], 0)
+
+        # Quando o professor solicita desidentificação, perde regência e vínculo com disciplinas.
+        self.client.force_login(prof_user)
+        self.client.post(reverse('excluir_dados_view'), {'senha': SENHA, 'confirmar': 'on'})
+        turma.refresh_from_db()
+        self.assertIsNone(turma.professor_regente)
+        self.assertFalse(disciplina.professores.filter(pk=prof.pk).exists())
+
 
 class ConsentimentoCriancaTest(BaseUsuarioTest):
     def test_crianca_nao_aceita_sem_responsavel(self):

@@ -714,8 +714,9 @@ def excluir_dados_view(request):
       messages.error(request, 'Senha incorreta. A conta não foi excluída.')
       return render(request, 'html/meus_dados/excluir_conta/excluir.html')
 
-    # Preserva referências acadêmicas obrigatórias, mas remove dados de identificação.
+    # Preserva referências acadêmicas obrigatórias, mas remove dados de identificação e vínculos ativos.
     # A retenção de históricos está sujeita à política institucional e à LGPD.
+    from apps.academico.models import Matricula, Turma
     with transaction.atomic():
       usuario.email = f'conta-{usuario.pk}@example.invalid'
       usuario.nome = 'Conta desidentificada'
@@ -735,17 +736,27 @@ def excluir_dados_view(request):
         aluno.telefone = None
         aluno.endereco = None
         aluno.save()
+        # Cancela matrículas ativas e remove vínculos familiares para retirar a conta de pautas operacionais.
+        Matricula.objects.filter(aluno=aluno, status='ATIVA').update(status='CANCELADA')
+        AlunoResponsavel.objects.filter(aluno=aluno).delete()
       if hasattr(usuario, 'professor'):
         professor = usuario.professor
         professor.telefone = None
         professor.formacao = 'Não informado'
         professor.especialidade = None
         professor.save()
+        # Remove regência, disciplinas e alocações ativas do ex-professor desidentificado.
+        Turma.objects.filter(professor_regente=professor).update(professor_regente=None)
+        professor.disciplinas.clear()
+        if hasattr(professor, 'alocacoes'):
+          professor.alocacoes.all().delete()
       if hasattr(usuario, 'responsavel'):
         responsavel = usuario.responsavel
         responsavel.telefone = None
         responsavel.parentesco_principal = None
         responsavel.save()
+        # Encerra vínculos ativos de representação familiar.
+        AlunoResponsavel.objects.filter(responsavel=responsavel).delete()
       # IP não é necessário nos logs já vinculados à conta desidentificada.
       usuario.logacesso_set.update(ip=None)
       usuario.logrecuperacaosenha_set.update(ip=None)

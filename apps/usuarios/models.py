@@ -151,7 +151,12 @@ class Professor(models.Model):
     
     # Define a representação em string do objeto Professor
     def __str__(self):
-        return f"Professor: {self.usuario.nome} - {self.formacao}"    
+        return f"Professor: {self.usuario.nome} - {self.formacao}"
+
+    # Atalho compatível para acessar o relacionamento reverso de disciplinas do docente.
+    @property
+    def disciplinas(self):
+        return self.disciplina_set
 
 # Classe de responsável, que possui um relacionamento com a tabela de usuários.
 class Responsavel(models.Model):
