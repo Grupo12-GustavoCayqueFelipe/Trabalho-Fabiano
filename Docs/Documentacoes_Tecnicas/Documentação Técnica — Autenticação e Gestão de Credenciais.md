@@ -144,11 +144,11 @@ Na mesma tela, o usuário pode exportar seus dados em formato JSON através de /
 
 ### 9.7 Exclusão
 
-O usuário pode solicitar a exclusão da própria conta em /meus-dados/excluir/, mediante confirmação de senha e de uma checkbox de ciência sobre a irreversibilidade da ação. A rotina atual desativa o Usuario, inutiliza a senha, remove identificadores cadastrais e preserva as referencias academicas sujeitas a retencao. Nao executa exclusao fisica em cascata. Conteudos historicos (mensagens, entregas, PDFs e observacoes) dependem de politica institucional de retencao e expurgo, ainda pendente.
+O usuário pode solicitar a exclusão da própria conta em /meus-dados/excluir/, mediante confirmação de senha e de uma checkbox de ciência sobre a irreversibilidade da ação. A rotina desativa o `Usuario`, inutiliza a senha, remove identificadores cadastrais, cancela matrículas ativas, encerra vínculos operacionais de docência e representação familiar e preserva as referências acadêmicas sujeitas à retenção legal sem executar exclusão física em cascata. Após o prazo de retenção institucional, a anonimização de textos livres (`Mensagem` e `Entrega.resposta`) e a remoção de anexos PDF de contas desidentificadas são executadas de forma controlada e auditada em `LogOperacao` pelo management command `expurgar_dados_retencao` (com modo `--dry-run` padrão e parâmetro `--dias-retencao`).
 
 ### 9.8 Fluxo de atendimento aos direitos
 
-Consulta, exportacao do proprio cadastro, gestao de consentimentos e encerramento com desidentificacao estao disponiveis no portal. A exportacao completa dos dados do aluno representado e o expurgo de conteudos historicos ainda exigem procedimentos institucionais; nao se declara atendimento automatico integral desses casos.
+Consulta, exportação do próprio cadastro, exportação dos dados dos alunos representados pelo responsável (`dados_alunos_representados`) e dos consentimentos assinados por representantes legais (`consentimentos_por_responsaveis`) em `exportar_dados_view` (comprovada pela suíte automatizada `ExportacaoPorRepresentacaoTest`), gestão de consentimentos e encerramento com desidentificação estão disponíveis no portal. O expurgo pós-retenção de conteúdos históricos de contas desidentificadas é realizado mediante execução institucional controlada do comando auditado `expurgar_dados_retencao`.
 
 ## 10. Justificativas Técnicas das Decisões do Projeto
 
