@@ -194,28 +194,42 @@ def entrega_salvar_view(request, atividade_id):
 
   # Mesmo após o prazo, a resposta é armazenada com a marca de atraso.
   atrasada = timezone.now() > atividade.prazo
-  with transaction.atomic():
-    # Não permite modificar uma entrega já corrigida.
-    entrega, criada = Entrega.objects.select_for_update().get_or_create(
-      atividade=atividade, aluno=request.user.aluno,
-      defaults={'resposta': resposta, 'atrasada': atrasada}
-    )
-    if not criada and (entrega.corrigida_em is not None or entrega.nota is not None):
-      messages.error(request, 'Essa entrega já foi corrigida.')
-      return redirect('atividade_detalhe', atividade_id=atividade.pk)
+  novo_arquivo_salvo = None
+  armazenamento_novo = None
+  try:
+    with transaction.atomic():
+      # Não permite modificar uma entrega já corrigida.
+      entrega, criada = Entrega.objects.select_for_update().get_or_create(
+        atividade=atividade, aluno=request.user.aluno,
+        defaults={'resposta': resposta, 'atrasada': atrasada}
+      )
+      if not criada and (entrega.corrigida_em is not None or entrega.nota is not None):
+        messages.error(request, 'Essa entrega já foi corrigida.')
+        return redirect('atividade_detalhe', atividade_id=atividade.pk)
 
-    # Preserva o arquivo atual quando o aluno envia apenas uma nova resposta.
-    antigo = entrega.arquivo.name if entrega.arquivo else None
-    entrega.resposta = resposta
-    entrega.atrasada = atrasada
-    if arquivo:
-      entrega.arquivo = arquivo
-    entrega.save()
-    registrar_operacao(request.user, 'ENTREGA_SALVA', entrega.pk)
-    # Só remove o arquivo anterior depois que o banco confirmar a substituição.
-    if arquivo and antigo:
-      armazenamento = entrega.arquivo.storage
-      transaction.on_commit(lambda: armazenamento.delete(antigo), robust=True)
+      # Preserva o arquivo atual quando o aluno envia apenas uma nova resposta.
+      antigo = entrega.arquivo.name if entrega.arquivo else None
+      entrega.resposta = resposta
+      entrega.atrasada = atrasada
+      if arquivo:
+        entrega.arquivo = arquivo
+      entrega.save()
+      if arquivo and entrega.arquivo:
+        novo_arquivo_salvo = entrega.arquivo.name
+        armazenamento_novo = entrega.arquivo.storage
+      registrar_operacao(request.user, 'ENTREGA_SALVA', entrega.pk)
+      # Só remove o arquivo anterior depois que o banco confirmar a substituição.
+      if arquivo and antigo and antigo != novo_arquivo_salvo:
+        armazenamento = entrega.arquivo.storage
+        transaction.on_commit(lambda: armazenamento.delete(antigo), robust=True)
+  except Exception:
+    # Remove o arquivo recém-gravado se a transação falhar, sem apagar o arquivo antigo.
+    if novo_arquivo_salvo and armazenamento_novo is not None:
+      try:
+        armazenamento_novo.delete(novo_arquivo_salvo)
+      except OSError:
+        pass
+    raise
 
   messages.success(request, 'Resposta enviada com sucesso.')
   return redirect('atividade_detalhe', atividade_id=atividade.pk)

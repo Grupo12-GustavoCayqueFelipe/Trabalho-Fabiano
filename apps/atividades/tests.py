@@ -219,3 +219,38 @@ class ArquivosEntregaSegurancaTest(AtividadesSegurancaTest):
                 self.client.force_login(self.outro_aluno_user)
                 resposta = self.client.get(reverse('entrega_arquivo', args=[entrega.pk]))
                 self.assertEqual(resposta.status_code, 404)
+
+    # Se ocorrer erro na transação após gravar o PDF, o novo arquivo é apagado e o antigo é mantido.
+    def test_rollback_da_transacao_remove_novo_pdf_e_preserva_antigo(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+
+        with TemporaryDirectory() as pasta:
+            with override_settings(MEDIA_ROOT=pasta):
+                self.client.force_login(self.aluno_user)
+                primeiro_pdf = SimpleUploadedFile('primeiro.pdf', b'%PDF-1.7\nprimeiro', content_type='application/pdf')
+                self.client.post(
+                    reverse('entrega_salvar', args=[self.atividade.pk]),
+                    {'resposta': 'Versão 1', 'arquivo': primeiro_pdf},
+                )
+                entrega = Entrega.objects.get()
+                nome_antigo = entrega.arquivo.name
+                self.assertTrue(entrega.arquivo.storage.exists(nome_antigo))
+
+                segundo_pdf = SimpleUploadedFile('segundo.pdf', b'%PDF-1.7\nsegundo', content_type='application/pdf')
+                with patch('apps.atividades.views.registrar_operacao', side_effect=RuntimeError('Falha após save')):
+                    with self.assertRaises(RuntimeError):
+                        self.client.post(
+                            reverse('entrega_salvar', args=[self.atividade.pk]),
+                            {'resposta': 'Versão 2', 'arquivo': segundo_pdf},
+                        )
+
+                entrega.refresh_from_db()
+                self.assertEqual(entrega.resposta, 'Versão 1')
+                self.assertEqual(entrega.arquivo.name, nome_antigo)
+                self.assertTrue(entrega.arquivo.storage.exists(nome_antigo))
+                arquivos_no_disco = [p.name for p in Path(pasta).rglob('*.pdf')]
+                self.assertEqual(len(arquivos_no_disco), 1)
