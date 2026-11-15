@@ -660,3 +660,164 @@ class AdminAuditoriaEValidacaoEnderecoTest(TestCase):
     aluno_invalido = Aluno(usuario=titular, matricula='END-500', endereco='X' * 501)
     with self.assertRaises(ValidationError):
       aluno_invalido.full_clean()
+
+
+class Etapa7NavegabilidadeFeedbackPerformanceTest(TestCase):
+  def setUp(self):
+    cache.clear()
+    self.admin_user = Usuario.objects.create_superuser(
+      email='admin-e7@example.org', nome='Admin E7', password='SenhaFort3!2026'
+    )
+    self.prof_user = Usuario.objects.create_user(
+      email='prof-e7@example.org', nome='Prof E7',
+      password='SenhaFort3!2026', perfil='PROF'
+    )
+    self.prof = Professor.objects.create(usuario=self.prof_user, formacao='Física')
+    self.outro_prof_user = Usuario.objects.create_user(
+      email='outro-prof-e7@example.org', nome='Outro Prof E7',
+      password='SenhaFort3!2026', perfil='PROF'
+    )
+    self.outro_prof = Professor.objects.create(usuario=self.outro_prof_user, formacao='Química')
+
+    self.aluno_user = Usuario.objects.create_user(
+      email='aluno-e7@example.org', nome='Aluno E7 Identificado',
+      password='SenhaFort3!2026', perfil='ALUNO'
+    )
+    self.aluno = Aluno.objects.create(
+      usuario=self.aluno_user, matricula='E7-AL-001',
+      data_nascimento=datetime.date(2007, 4, 10)
+    )
+    self.resp_user = Usuario.objects.create_user(
+      email='resp-e7@example.org', nome='Resp E7',
+      password='SenhaFort3!2026', perfil='RESP'
+    )
+    self.resp = Responsavel.objects.create(usuario=self.resp_user, telefone='11977776666')
+    AlunoResponsavel.objects.create(aluno=self.aluno, responsavel=self.resp, parentesco='Pai')
+
+    self.turma = Turma.objects.create(
+      nome='3A-E7', ano=2026, turno='MANHA', professor_regente=self.prof
+    )
+    self.disc_fisica = Disciplina.objects.create(nome='Física')
+    self.disc_fisica.turmas.add(self.turma)
+    self.disc_fisica.professores.add(self.prof)
+    self.disc_quimica = Disciplina.objects.create(nome='Química')
+    self.disc_quimica.turmas.add(self.turma)
+    self.disc_quimica.professores.add(self.outro_prof)
+
+    self.matricula = Matricula.objects.create(
+      aluno=self.aluno, turma=self.turma, status='ATIVA'
+    )
+
+  def test_navegabilidade_completa_para_meus_dados_termos_e_2fa(self):
+    # Todos os 4 perfis possuem links diretos para /meus-dados/, /meus-dados/termos/ e /2fa/configurar/ no painel.
+    for usuario in (self.admin_user, self.prof_user, self.aluno_user, self.resp_user):
+      self.client.force_login(usuario)
+      painel = self.client.get(reverse('dashboard'))
+      self.assertEqual(painel.status_code, 200)
+      self.assertContains(painel, reverse('meus_dados_view'))
+      self.assertContains(painel, reverse('termos_view'))
+      self.assertContains(painel, reverse('2fa_configurar'))
+      if usuario.perfil in ('ALUNO', 'RESP'):
+        self.assertContains(painel, reverse('historico_matriculas_view'))
+
+    # A tela de Meus Dados possui botões/links diretos para termos, exportação, 2FA e exclusão de conta.
+    self.client.force_login(self.aluno_user)
+    meus_dados = self.client.get(reverse('meus_dados_view'))
+    self.assertContains(meus_dados, reverse('termos_view'))
+    self.assertContains(meus_dados, reverse('exportar_dados_view'))
+    self.assertContains(meus_dados, reverse('2fa_configurar'))
+    self.assertContains(meus_dados, reverse('excluir_dados_view'))
+
+  def test_exibicao_de_mensagens_de_feedback_nos_templates_corrigidos(self):
+    # Atualizar telefone exibe mensagem de sucesso em dados.html.
+    self.client.force_login(self.resp_user)
+    resp_tel = self.client.post(
+      reverse('atualizar_telefone_view'), {'telefone': '11912345678'}, follow=True
+    )
+    self.assertContains(resp_tel, 'Informações atualizadas com sucesso.')
+
+    # Salvar termos exibe mensagem de sucesso em termos.html e não tem botão duplicado fora do form.
+    self.client.force_login(self.aluno_user)
+    resp_termos = self.client.post(
+      reverse('termos_view'), {'USO_IMAGEM': 'on'}, follow=True
+    )
+    self.assertContains(resp_termos, 'Preferências de privacidade salvas com sucesso.')
+    self.assertEqual(resp_termos.content.decode().count('Salvar minhas preferências'), 1)
+
+    # Senha incorreta ao excluir conta exibe mensagem de erro em excluir.html.
+    resp_excluir = self.client.post(
+      reverse('excluir_dados_view'), {'senha': 'errada', 'confirmar': 'on'}, follow=True
+    )
+    self.assertContains(resp_excluir, 'Senha incorreta. A conta não foi excluída.')
+
+  def test_aluno_e_responsavel_enviam_mensagem_ao_professor_da_turma(self):
+    for remetente in (self.aluno_user, self.resp_user):
+      self.client.force_login(remetente)
+      painel_com = self.client.get(reverse('comunicacao_painel'))
+      self.assertContains(painel_com, 'Enviar mensagem')
+      self.assertIn(self.prof_user, list(painel_com.context['destinatarios']))
+
+      self.client.post(reverse('mensagem_enviar'), {
+        'destinatario': self.prof_user.pk,
+        'assunto': f'Dúvida de {remetente.perfil}',
+        'texto': 'Gostaria de tirar uma dúvida sobre a matéria.',
+      })
+      msg = Mensagem.objects.filter(remetente=remetente, destinatario=self.prof_user).order_by('-pk').first()
+      self.assertIsNotNone(msg)
+      self.assertEqual(msg.assunto, f'Dúvida de {remetente.perfil}')
+
+  def test_identificacao_do_aluno_nos_historicos_e_matriculas_do_responsavel(self):
+    av = Avaliacao.objects.create(
+      nome='Prova Física', turma=self.turma, disciplina=self.disc_fisica,
+      data_avaliacao=datetime.date(2026, 6, 1),
+      nota_maxima=Decimal('10.00'), peso=Decimal('1.00')
+    )
+    aula = Aula.objects.create(
+      turma=self.turma, disciplina=self.disc_fisica,
+      professor=self.prof, data=datetime.date(2026, 6, 2),
+      conteudo='Cinemática'
+    )
+    self.client.force_login(self.prof_user)
+    self.client.post(
+      reverse('nota_salvar', args=[av.pk]),
+      {'matricula': self.matricula.pk, 'valor': '8.00'}
+    )
+    self.client.post(
+      reverse('frequencia_salvar', args=[aula.pk]),
+      {'matricula': self.matricula.pk, 'status': 'P'}
+    )
+
+    painel_av = self.client.get(reverse('avaliacoes_painel'))
+    self.assertContains(painel_av, 'Aluno E7 Identificado — Prova Física')
+    painel_freq = self.client.get(reverse('frequencia_painel'))
+    self.assertContains(painel_freq, 'Aluno E7 Identificado — Física')
+
+    # Responsável em /academico/matriculas/ vê a seção Alunos Vinculados preenchida.
+    self.client.force_login(self.resp_user)
+    hist_mat = self.client.get(reverse('historico_matriculas_view'))
+    self.assertContains(hist_mat, 'Alunos Vinculados')
+    self.assertContains(hist_mat, 'Aluno E7 Identificado')
+    self.assertContains(hist_mat, 'E7-AL-001')
+
+  def test_paginacao_nas_listagens_e_ausencia_de_virgula_orfa_no_painel_prof(self):
+    self.client.force_login(self.prof_user)
+    # Em 3A-E7 há Física (do prof) e Química (de outro_prof, última na lista): não pode sobrar vírgula órfã.
+    painel_prof = self.client.get(reverse('dashboard'))
+    self.assertContains(painel_prof, '<td>Física</td>', html=True)
+
+    # Verifica objetos Page nas listagens paginadas.
+    for rota, chave in (
+      ('avaliacoes_painel', 'notas'),
+      ('frequencia_painel', 'registros'),
+      ('comunicacao_painel', 'mensagens_recebidas'),
+      ('atividades_lista', 'atividades'),
+    ):
+      resposta = self.client.get(reverse(rota))
+      self.assertTrue(hasattr(resposta.context[chave], 'paginator'), rota)
+
+    self.client.force_login(self.admin_user)
+    painel_acad = self.client.get(reverse('academico_painel_view'))
+    self.assertTrue(hasattr(painel_acad.context['disciplinas'], 'paginator'))
+    self.assertContains(painel_acad, '1 turmas')
+    self.assertContains(painel_acad, '1 professores')
+
