@@ -513,3 +513,35 @@ class ComprovacaoControlesProducaoTest(TestCase):
     self.assertEqual(settings.SESSION_COOKIE_AGE, 1800)
     self.assertTrue(settings.SESSION_COOKIE_HTTPONLY)
     self.assertTrue(settings.SESSION_EXPIRE_AT_BROWSER_CLOSE)
+
+  def test_conversao_idempotente_de_otp_secret_legado_sem_dupla_cifragem(self):
+    from django.db import connection
+    from encrypted_model_fields.fields import decrypt_str
+    from scripts.verificar_criptografia_legada import verificar
+
+    usuario_legado = Usuario.objects.create_user(
+      email='totp-legado@example.org', nome='TOTP Legado',
+      password='SenhaFort3!2026', perfil='ADMIN'
+    )
+    segredo_puro = 'JBSWY3DPEHPK3PXP'
+    with connection.cursor() as cursor:
+      cursor.execute('UPDATE usuarios SET otp_secret = %s WHERE id = %s', [segredo_puro, usuario_legado.pk])
+
+    # Primeira execução detecta 1 pendente e cifra; segunda execução confirma 0 pendentes sem recifrar.
+    self.assertEqual(verificar(corrigir=False), 1)
+    self.assertEqual(verificar(corrigir=True), 0)
+    with connection.cursor() as cursor:
+      cursor.execute('SELECT otp_secret FROM usuarios WHERE id = %s', [usuario_legado.pk])
+      cifrado_primeira_vez = str(cursor.fetchone()[0])
+
+    self.assertTrue(cifrado_primeira_vez.startswith('gAAAA'))
+    self.assertEqual(decrypt_str(cifrado_primeira_vez), segredo_puro)
+
+    # Execução repetida preserva o mesmo token Fernet e a leitura na ORM.
+    self.assertEqual(verificar(corrigir=True), 0)
+    with connection.cursor() as cursor:
+      cursor.execute('SELECT otp_secret FROM usuarios WHERE id = %s', [usuario_legado.pk])
+      cifrado_segunda_vez = str(cursor.fetchone()[0])
+    self.assertEqual(cifrado_primeira_vez, cifrado_segunda_vez)
+    usuario_legado.refresh_from_db()
+    self.assertEqual(usuario_legado.otp_secret, segredo_puro)
