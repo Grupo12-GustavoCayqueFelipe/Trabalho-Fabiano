@@ -28,15 +28,40 @@ def _turmas_professor(professor):
 
 # Retorna apenas os destinatários permitidos para este usuário.
 def _destinatarios_autorizados(usuario):
-  destinatarios = Usuario.objects.filter(is_active=True, perfil__in=['ALUNO', 'RESP'])
   if usuario.perfil == 'ADMIN':
-    return destinatarios
-  if usuario.perfil != 'PROF' or not hasattr(usuario, 'professor'):
-    return destinatarios.none()
-
-  # Inclui alunos ativos das turmas e responsáveis associados a esses alunos.
-  alunos_ids = Matricula.objects.filter(turma__in=_turmas_professor(usuario.professor), status='ATIVA').values_list('aluno_id', flat=True)
-  return destinatarios.filter(Q(aluno__id__in=alunos_ids) | Q(responsavel__alunos_vinculados__id__in=alunos_ids)).distinct()
+    return Usuario.objects.filter(is_active=True, perfil__in=['ALUNO', 'RESP', 'PROF'])
+  if usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
+    destinatarios = Usuario.objects.filter(is_active=True, perfil__in=['ALUNO', 'RESP'])
+    # Inclui alunos ativos das turmas e responsáveis associados a esses alunos.
+    alunos_ids = Matricula.objects.filter(turma__in=_turmas_professor(usuario.professor), status='ATIVA').values_list('aluno_id', flat=True)
+    return destinatarios.filter(Q(aluno__id__in=alunos_ids) | Q(responsavel__alunos_vinculados__id__in=alunos_ids)).distinct()
+  if usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
+    turmas_ids = set(Matricula.objects.filter(aluno=usuario.aluno, status='ATIVA').values_list('turma_id', flat=True))
+    candidatos = Usuario.objects.filter(
+      is_active=True, perfil='PROF', professor__isnull=False
+    ).filter(
+      Q(professor__disciplina__turmas__in=turmas_ids) | Q(professor__turma__in=turmas_ids)
+    ).select_related('professor').distinct()
+    ids_validos = [
+      u.pk for u in candidatos
+      if _turmas_professor(u.professor).filter(pk__in=turmas_ids).exists()
+    ]
+    return Usuario.objects.filter(pk__in=ids_validos)
+  if usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'):
+    turmas_ids = set(Matricula.objects.filter(
+      aluno__in=usuario.responsavel.alunos_vinculados.all(), status='ATIVA'
+    ).values_list('turma_id', flat=True))
+    candidatos = Usuario.objects.filter(
+      is_active=True, perfil='PROF', professor__isnull=False
+    ).filter(
+      Q(professor__disciplina__turmas__in=turmas_ids) | Q(professor__turma__in=turmas_ids)
+    ).select_related('professor').distinct()
+    ids_validos = [
+      u.pk for u in candidatos
+      if _turmas_professor(u.professor).filter(pk__in=turmas_ids).exists()
+    ]
+    return Usuario.objects.filter(pk__in=ids_validos)
+  return Usuario.objects.none()
 
 
 # Mural e caixa postal: visibilidade limitada por matrícula e vínculo familiar.
@@ -115,7 +140,13 @@ def aviso_criar_view(request):
 @ratelimit(key='user', rate='20/m', block=True, method='POST')
 def mensagem_enviar_view(request):
   usuario = request.user
-  if usuario.perfil != 'ADMIN' and (usuario.perfil != 'PROF' or not hasattr(usuario, 'professor')):
+  perfil_valido = (
+    usuario.perfil == 'ADMIN'
+    or (usuario.perfil == 'PROF' and hasattr(usuario, 'professor'))
+    or (usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'))
+    or (usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'))
+  )
+  if not perfil_valido:
     return redirect('dashboard')
 
   destinatario_id = (request.POST.get('destinatario') or '').strip()

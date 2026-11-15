@@ -56,6 +56,13 @@
     </aside>
 <!-- CONTEÚDO -->
     <main class="conteudo">
+        {% if messages %}
+        <div class="mensagens" role="alert">
+            {% for message in messages %}
+            <p class="mensagem {{ message.tags }}">{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
         <!-- CABEÇALHO -->
         <header class="cabecalho">
             <div>

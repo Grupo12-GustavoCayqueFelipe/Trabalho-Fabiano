@@ -31,6 +31,13 @@
     </aside>
 
     <main class="conteudo">
+        {% if messages %}
+        <div class="mensagens" role="alert">
+            {% for message in messages %}
+            <p class="mensagem {{ message.tags }}">{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
         <header class="cabecalho">
             <div>
                 <h1>Painel do Administrador</h1>

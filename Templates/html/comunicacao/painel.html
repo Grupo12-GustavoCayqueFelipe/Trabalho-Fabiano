@@ -18,6 +18,7 @@
                 <button type="submit">Publicar aviso</button>
             </form>
         </section>
+        {% endif %}
         <section class="card"><h2>Enviar mensagem</h2>
             <form method="POST" action="{% url 'mensagem_enviar' %}">{% csrf_token %}
                 <label>Destinatário <select name="destinatario" required><option value="">Selecione</option>{% for destinatario in destinatarios %}<option value="{{ destinatario.pk }}">{{ destinatario.nome }} ({{ destinatario.get_perfil_display }})</option>{% endfor %}</select></label>
@@ -26,7 +27,6 @@
                 <button type="submit">Enviar</button>
             </form>
         </section>
-        {% endif %}
         <section class="card"><h2>Mural de avisos</h2>
             {% for aviso in avisos %}<article><h3>{% if aviso.fixado %}[Fixado] {% endif %}{{ aviso.titulo }}</h3><p>{{ aviso.turma|default:'Aviso geral' }} • {{ aviso.autor.nome }} • {{ aviso.criado_em|date:'d/m/Y H:i' }}</p><p class="texto">{{ aviso.texto|linebreaksbr }}</p></article>
             {% empty %}<p>Não existem avisos para seu perfil.</p>{% endfor %}
