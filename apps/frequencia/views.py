@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
@@ -95,24 +96,28 @@ def frequencia_salvar_view(request, aula_id):
   if status != 'J':
     justificativa = None
 
-  # Histórico e lançamento são confirmados juntos para não perder correções.
-  with transaction.atomic():
-    registro, criado = RegistroFrequencia.objects.select_for_update().get_or_create(
-      aula=aula, matricula=matricula,
-      defaults={'status': status, 'justificativa': justificativa}
-    )
-    anterior = None if criado else registro.status
-    justificativa_anterior = None if criado else registro.justificativa
-    registro.status = status
-    registro.justificativa = justificativa
-    registro.full_clean()
-    registro.save()
-    HistoricoFrequencia.objects.create(
-      registro=registro, usuario=request.user,
-      status_anterior=anterior, status_novo=status,
-      justificativa_anterior=justificativa_anterior,
-      justificativa_nova=justificativa
-    )
-    registrar_operacao(request.user, 'FREQUENCIA_SALVA', registro.pk)
+  # Histórico e lançamento são confirmados juntos para não perder correções nem expor erro 500.
+  try:
+    with transaction.atomic():
+      registro, criado = RegistroFrequencia.objects.select_for_update().get_or_create(
+        aula=aula, matricula=matricula,
+        defaults={'status': status, 'justificativa': justificativa}
+      )
+      anterior = None if criado else registro.status
+      justificativa_anterior = None if criado else registro.justificativa
+      registro.status = status
+      registro.justificativa = justificativa
+      registro.full_clean()
+      registro.save()
+      HistoricoFrequencia.objects.create(
+        registro=registro, usuario=request.user,
+        status_anterior=anterior, status_novo=status,
+        justificativa_anterior=justificativa_anterior,
+        justificativa_nova=justificativa
+      )
+      registrar_operacao(request.user, 'FREQUENCIA_SALVA', registro.pk)
+  except ValidationError:
+    messages.error(request, 'Aluno, presença ou justificativa inválida.')
+    return redirect('frequencia_painel')
   messages.success(request, 'Frequência registrada com histórico.')
   return redirect('frequencia_painel')

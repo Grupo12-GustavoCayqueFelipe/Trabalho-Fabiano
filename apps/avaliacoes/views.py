@@ -135,12 +135,16 @@ def avaliacao_criar_view(request):
     messages.error(request, 'Dados inválidos ou turma sem autorização.')
     return redirect('avaliacoes_painel')
 
-  # Garante que validação, persistência e log ocorram na mesma transação.
-  with transaction.atomic():
-    avaliacao = Avaliacao(nome=nome, turma=turma, disciplina=disciplina, data_avaliacao=data_avaliacao, nota_maxima=nota_maxima, peso=peso)
-    avaliacao.full_clean()
-    avaliacao.save()
-    registrar_operacao(request.user, 'AVALIACAO_CRIADA', avaliacao.pk)
+  # Garante que validação, persistência e log ocorram na mesma transação sem expor erro 500.
+  try:
+    with transaction.atomic():
+      avaliacao = Avaliacao(nome=nome, turma=turma, disciplina=disciplina, data_avaliacao=data_avaliacao, nota_maxima=nota_maxima, peso=peso)
+      avaliacao.full_clean()
+      avaliacao.save()
+      registrar_operacao(request.user, 'AVALIACAO_CRIADA', avaliacao.pk)
+  except ValidationError:
+    messages.error(request, 'Dados inválidos ou turma sem autorização.')
+    return redirect('avaliacoes_painel')
   messages.success(request, 'Avaliação cadastrada.')
   return redirect('avaliacoes_painel')
 
@@ -168,22 +172,26 @@ def nota_salvar_view(request, avaliacao_id):
     return redirect('avaliacoes_painel')
 
   # select_for_update evita duas correções simultâneas perderem o valor anterior.
-  with transaction.atomic():
-    nota, criada = Nota.objects.select_for_update().get_or_create(
-      avaliacao=avaliacao, matricula=matricula,
-      defaults={'valor': valor, 'observacao': observacao}
-    )
-    anterior = None if criada else nota.valor
-    observacao_anterior = None if criada else nota.observacao
-    nota.valor = valor
-    nota.observacao = observacao
-    nota.full_clean()
-    nota.save()
-    HistoricoNota.objects.create(
-      nota=nota, usuario=request.user, valor_anterior=anterior,
-      valor_novo=valor, observacao_anterior=observacao_anterior,
-      observacao_nova=observacao
-    )
-    registrar_operacao(request.user, 'NOTA_SALVA', nota.pk)
+  try:
+    with transaction.atomic():
+      nota, criada = Nota.objects.select_for_update().get_or_create(
+        avaliacao=avaliacao, matricula=matricula,
+        defaults={'valor': valor, 'observacao': observacao}
+      )
+      anterior = None if criada else nota.valor
+      observacao_anterior = None if criada else nota.observacao
+      nota.valor = valor
+      nota.observacao = observacao
+      nota.full_clean()
+      nota.save()
+      HistoricoNota.objects.create(
+        nota=nota, usuario=request.user, valor_anterior=anterior,
+        valor_novo=valor, observacao_anterior=observacao_anterior,
+        observacao_nova=observacao
+      )
+      registrar_operacao(request.user, 'NOTA_SALVA', nota.pk)
+  except ValidationError:
+    messages.error(request, 'Matrícula, nota ou observação inválida.')
+    return redirect('avaliacoes_painel')
   messages.success(request, 'Nota registrada com histórico.')
   return redirect('avaliacoes_painel')
