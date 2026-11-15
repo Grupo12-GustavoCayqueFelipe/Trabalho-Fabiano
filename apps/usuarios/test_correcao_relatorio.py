@@ -545,3 +545,73 @@ class ComprovacaoControlesProducaoTest(TestCase):
     self.assertEqual(cifrado_primeira_vez, cifrado_segunda_vez)
     usuario_legado.refresh_from_db()
     self.assertEqual(usuario_legado.otp_secret, segredo_puro)
+
+
+class ExpurgoRetencaoLGPDCommandTest(TestCase):
+  def test_comando_expurgar_dados_retencao_dry_run_e_execucao(self):
+    from django.core.management import call_command
+    from apps.usuarios.management.commands.expurgar_dados_retencao import (
+      ASSUNTO_ANONIMIZADO,
+      TEXTO_ANONIMIZADO,
+    )
+
+    prof_user = Usuario.objects.create_user(
+      email='prof-ret@example.org', nome='Prof Ret',
+      password='SenhaFort3!2026', perfil='PROF'
+    )
+    prof = Professor.objects.create(usuario=prof_user, formacao='Letras')
+    aluno_user = Usuario.objects.create_user(
+      email='conta-999@example.invalid', nome='Conta desidentificada',
+      password='SenhaFort3!2026', perfil='ALUNO', is_active=False
+    )
+    aluno = Aluno.objects.create(usuario=aluno_user, matricula='REMOVIDA-999')
+    turma = Turma.objects.create(nome='6A', ano=2025, turno='MANHA', professor_regente=prof)
+    disc = Disciplina.objects.create(nome='Português')
+    disc.turmas.add(turma)
+    disc.professores.add(prof)
+    atividade = Atividade.objects.create(
+      titulo='Redação Antiga', descricao='Texto',
+      turma=turma, disciplina=disc, professor=prof,
+      prazo=timezone.now() - datetime.timedelta(days=400)
+    )
+
+    with TemporaryDirectory() as pasta:
+      with override_settings(MEDIA_ROOT=pasta):
+        entrega = Entrega.objects.create(
+          atividade=atividade,
+          aluno=aluno,
+          resposta='Conteúdo pessoal antigo da entrega',
+          arquivo=SimpleUploadedFile('antigo.pdf', b'%PDF-1.7\nantigo', content_type='application/pdf'),
+        )
+        nome_arquivo = entrega.arquivo.name
+        msg = Mensagem.objects.create(
+          remetente=aluno_user,
+          destinatario=prof_user,
+          assunto='Assunto antigo sensível',
+          texto='Texto antigo com dados pessoais',
+        )
+        data_antiga = timezone.now() - datetime.timedelta(days=400)
+        Entrega.objects.filter(pk=entrega.pk).update(entregue_em=data_antiga)
+        Mensagem.objects.filter(pk=msg.pk).update(enviada_em=data_antiga)
+
+        # Em modo dry-run (padrão), nenhum registro nem arquivo é modificado e nenhum log é gravado.
+        call_command('expurgar_dados_retencao', '--dias-retencao=365')
+        entrega.refresh_from_db()
+        msg.refresh_from_db()
+        self.assertEqual(entrega.resposta, 'Conteúdo pessoal antigo da entrega')
+        self.assertTrue(bool(entrega.arquivo))
+        self.assertEqual(msg.texto, 'Texto antigo com dados pessoais')
+        self.assertFalse(LogOperacao.objects.filter(evento='EXPURGO_RETENCAO_LGPD').exists())
+
+        # Em modo de execução (--executar), anonimiza textos livres, apaga o PDF e audita em LogOperacao.
+        call_command('expurgar_dados_retencao', '--dias-retencao=365', '--executar')
+        entrega.refresh_from_db()
+        msg.refresh_from_db()
+        self.assertEqual(entrega.resposta, TEXTO_ANONIMIZADO)
+        self.assertFalse(bool(entrega.arquivo))
+        self.assertFalse(entrega.arquivo.storage.exists(nome_arquivo))
+        self.assertEqual(msg.assunto, ASSUNTO_ANONIMIZADO)
+        self.assertEqual(msg.texto, TEXTO_ANONIMIZADO)
+        self.assertTrue(
+          LogOperacao.objects.filter(evento='EXPURGO_RETENCAO_LGPD', objeto_id=2).exists()
+        )
