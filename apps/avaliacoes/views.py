@@ -4,14 +4,16 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q, F
+from django.db.models import Count, Q, F
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
 from apps.academico.models import (Disciplina, Matricula, Turma, professor_leciona_na_turma, turmas_lecionadas_pelo_professor)
+from apps.frequencia.models import RegistroFrequencia
 from apps.usuarios.models import registrar_operacao
+from apps.usuarios.views import _media_avaliacoes_normalizada
 from .models import Avaliacao, HistoricoNota, Nota
 
 
@@ -44,6 +46,46 @@ def _professor_autorizado(usuario, avaliacao):
   )
 
 
+# Consolida média ponderada normalizada e situação por matrícula e disciplina no boletim.
+def _montar_resumo_disciplinas(matriculas_consulta, notas_visiveis, professor=None):
+  resumo = []
+  for matricula in matriculas_consulta.select_related('aluno__usuario', 'turma').order_by('aluno__usuario__nome', 'pk'):
+    disciplinas_turma = Disciplina.objects.filter(
+      Q(turmas=matricula.turma) | Q(avaliacoes__notas__matricula=matricula)
+    ).distinct().order_by('nome')
+    for disc in disciplinas_turma:
+      if professor is not None and not professor_leciona_na_turma(professor, disc, matricula.turma):
+        continue
+      notas_disc = notas_visiveis.filter(matricula=matricula, avaliacao__disciplina=disc)
+      media = _media_avaliacoes_normalizada(notas_disc)
+      freq_qs = RegistroFrequencia.objects.filter(matricula=matricula, aula__disciplina=disc)
+      totais_freq = freq_qs.aggregate(
+        total=Count('pk'),
+        presentes=Count('pk', filter=Q(status__in=['P', 'J'])),
+      )
+      total_aulas = totais_freq['total'] or 0
+      percentual_freq = round(100 * (totais_freq['presentes'] or 0) / total_aulas) if total_aulas else None
+      if media is None:
+        situacao = 'Em curso'
+      elif percentual_freq is not None and percentual_freq < 75:
+        situacao = 'Reprovado por frequência'
+      elif media >= Decimal('6.00'):
+        situacao = 'Aprovado'
+      elif media >= Decimal('4.00'):
+        situacao = 'Recuperação'
+      else:
+        situacao = 'Reprovado por nota'
+      resumo.append({
+        'matricula': matricula,
+        'aluno': matricula.aluno,
+        'disciplina': disc,
+        'media': media,
+        'percentual_frequencia': percentual_freq,
+        'situacao': situacao,
+      })
+  return resumo
+
+
 # Lista apenas notas que pertencem ao próprio aluno ou ao responsável vinculado.
 @login_required(login_url='login')
 def avaliacoes_painel_view(request):
@@ -52,12 +94,16 @@ def avaliacoes_painel_view(request):
   notas = Nota.objects.select_related('avaliacao', 'matricula__aluno__usuario')
   turmas = Turma.objects.none()
   disciplinas = Disciplina.objects.none()
+  matriculas_boletim = Matricula.objects.none()
+  professor_filtro = None
 
   # Administradores consultam os dados, mas lançamento exige o professor vinculado.
   if usuario.perfil == 'ADMIN':
     turmas = Turma.objects.all().order_by('nome')
     disciplinas = Disciplina.objects.all().order_by('nome')
+    matriculas_boletim = Matricula.objects.filter(status='ATIVA', turma__in=turmas)
   elif usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
+    professor_filtro = usuario.professor
     disciplinas = Disciplina.objects.filter(professores=usuario.professor).distinct()
     turmas = turmas_lecionadas_pelo_professor(usuario.professor)
     avaliacoes_candidatas = avaliacoes.filter(disciplina__professores=usuario.professor, disciplina__turmas=F('turma'), turma__in=turmas)
@@ -67,14 +113,17 @@ def avaliacoes_painel_view(request):
     ]
     avaliacoes = avaliacoes.filter(pk__in=ids_autorizados)
     notas = notas.filter(avaliacao__in=avaliacoes)
+    matriculas_boletim = Matricula.objects.filter(status='ATIVA', turma__in=turmas)
   elif usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
     matriculas = Matricula.objects.filter(aluno=usuario.aluno)
     avaliacoes = avaliacoes.filter(turma__in=matriculas.values('turma_id'))
     notas = notas.filter(matricula__in=matriculas)
+    matriculas_boletim = matriculas
   elif usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'):
     matriculas = Matricula.objects.filter(aluno__in=usuario.responsavel.alunos_vinculados.all())
     avaliacoes = avaliacoes.filter(turma__in=matriculas.values('turma_id'))
     notas = notas.filter(matricula__in=matriculas)
+    matriculas_boletim = matriculas
   else:
     avaliacoes = avaliacoes.none()
     notas = notas.none()
@@ -83,6 +132,7 @@ def avaliacoes_painel_view(request):
   historico_notas = HistoricoNota.objects.filter(nota__in=notas).select_related('nota__avaliacao', 'usuario')
   # Mostra os lançamentos e a lista de alunos somente aos profissionais autorizados.
   matriculas = Matricula.objects.filter(status='ATIVA', turma__in=turmas).select_related('aluno__usuario', 'turma')
+  resumo_disciplinas = _montar_resumo_disciplinas(matriculas_boletim, notas, professor=professor_filtro)
   return render(request, 'html/avaliacoes/painel.html', {
     'avaliacoes': avaliacoes.distinct(),
     'notas': notas.distinct(),
@@ -90,6 +140,7 @@ def avaliacoes_painel_view(request):
     'disciplinas': disciplinas,
     'matriculas': matriculas,
     'historico_notas': historico_notas,
+    'resumo_disciplinas': resumo_disciplinas,
   })
 
 

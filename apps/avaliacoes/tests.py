@@ -104,3 +104,27 @@ class AvaliacoesSegurancaTest(TestCase):
             )
             self.assertEqual(resposta_clean_nota.status_code, 302)
             self.assertFalse(Nota.objects.filter(avaliacao=self.avaliacao).exists())
+
+    # O boletim consolida a média ponderada normalizada e a situação por disciplina.
+    def test_resumo_consolidado_por_disciplina_no_painel(self):
+        avaliacao_2 = Avaliacao.objects.create(
+            turma=self.turma,
+            disciplina=self.disciplina,
+            nome='Trabalho Prático',
+            data_avaliacao=datetime.date(2026, 10, 22),
+            nota_maxima=Decimal('2.00'),
+            peso=Decimal('3.00'),
+        )
+        Nota.objects.create(avaliacao=self.avaliacao, matricula=self.matricula, valor=Decimal('5.00'))
+        Nota.objects.create(avaliacao=avaliacao_2, matricula=self.matricula, valor=Decimal('2.00'))
+
+        self.client.force_login(self.usuario_aluno)
+        resposta = self.client.get(reverse('avaliacoes_painel'))
+        self.assertEqual(resposta.status_code, 200)
+        resumo = resposta.context['resumo_disciplinas']
+        self.assertEqual(len(resumo), 1)
+        self.assertEqual(resumo[0]['disciplina'], self.disciplina)
+        self.assertEqual(resumo[0]['media'], Decimal('8.75'))
+        self.assertEqual(resumo[0]['situacao'], 'Aprovado')
+        self.assertContains(resposta, 'Matemática')
+        self.assertContains(resposta, 'Aprovado')

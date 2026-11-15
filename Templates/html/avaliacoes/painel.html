@@ -32,6 +32,9 @@
 <section class="card"><h2>Notas visíveis para seu perfil</h2>
 {% for nota in notas %}<article>{{ nota.matricula.aluno.usuario.nome }} — {{ nota.avaliacao.nome }}: {{ nota.valor }} / {{ nota.avaliacao.nota_maxima }} <p>{{ nota.observacao }}</p></article>
 {% empty %}<p>Nenhuma nota registrada.</p>{% endfor %}</section>
+<section class="card"><h2>Boletim consolidado por disciplina</h2>
+{% for item in resumo_disciplinas %}<article>{{ item.aluno.usuario.nome }} — {{ item.disciplina.nome }} — Média: {{ item.media|floatformat:2|default:'—' }}{% if item.percentual_frequencia is not None %} — Frequência: {{ item.percentual_frequencia }}%{% endif %} — Situação: {{ item.situacao }}</article>
+{% empty %}<p>Nenhuma média consolidada disponível.</p>{% endfor %}</section>
 <section class="card"><h2>Histórico de correções</h2>
 {% for item in historico_notas %}<article>{{ item.nota.avaliacao.nome }} — de {{ item.valor_anterior|default_if_none:'Não lançada' }} para {{ item.valor_novo }} — {{ item.alterado_em|date:'d/m/Y H:i' }}</article>{% empty %}<p>Sem alterações registradas.</p>{% endfor %}</section>
 </main></body></html>
