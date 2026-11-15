@@ -615,3 +615,48 @@ class ExpurgoRetencaoLGPDCommandTest(TestCase):
         self.assertTrue(
           LogOperacao.objects.filter(evento='EXPURGO_RETENCAO_LGPD', objeto_id=2).exists()
         )
+
+
+class AdminAuditoriaEValidacaoEnderecoTest(TestCase):
+  def test_historico_nota_e_frequencia_registrados_somente_leitura_no_admin(self):
+    from django.contrib import admin
+    from apps.avaliacoes.models import HistoricoNota
+    from apps.frequencia.models import HistoricoFrequencia
+
+    gestor = Usuario.objects.create_superuser(
+      email='gestor-hist-admin@example.org', nome='Gestor Hist',
+      password='SenhaFort3!2026'
+    )
+    requisicao = RequestFactory().get('/admin/')
+    requisicao.user = gestor
+
+    self.assertIn(HistoricoNota, admin.site._registry)
+    self.assertIn(HistoricoFrequencia, admin.site._registry)
+
+    for modelo in (HistoricoNota, HistoricoFrequencia):
+      admin_obj = admin.site._registry[modelo]
+      self.assertFalse(admin_obj.has_add_permission(requisicao))
+      self.assertFalse(admin_obj.has_change_permission(requisicao))
+      self.assertFalse(admin_obj.has_delete_permission(requisicao))
+
+  def test_busca_consentimento_usuario_admin_por_email_e_validador_endereco(self):
+    from django.contrib import admin
+    from django.core.exceptions import ValidationError
+
+    titular = Usuario.objects.create_user(
+      email='busca-consentimento@example.org', nome='Titular Busca',
+      password='SenhaFort3!2026', perfil='ALUNO'
+    )
+    consentimento = ConsentimentoUsuario.objects.create(
+      usuario=titular, tipo='USO_IMAGEM', aceito=True, ip='192.0.2.10'
+    )
+    requisicao = RequestFactory().get('/admin/usuarios/consentimentousuario/')
+    admin_consentimento = admin.site._registry[ConsentimentoUsuario]
+    qs, _ = admin_consentimento.get_search_results(
+      requisicao, ConsentimentoUsuario.objects.all(), 'busca-consentimento@example.org'
+    )
+    self.assertEqual(list(qs), [consentimento])
+
+    aluno_invalido = Aluno(usuario=titular, matricula='END-500', endereco='X' * 501)
+    with self.assertRaises(ValidationError):
+      aluno_invalido.full_clean()

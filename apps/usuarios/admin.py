@@ -95,11 +95,11 @@ class ConsentimentoUsuarioAdmin(SomenteLeituraAdmin):
     
     list_filter = ('aceito', 'tipo', 'registrado_em')
     
-    # Permite que o admin busque por tipo, aceito e registrado_em
-    search_fields = ('tipo', 'aceito', 'registrado_em')
+    # Permite que o admin busque por nome, e-mail, aluno representado, tipo, versão dos termos e IP
+    search_fields = ('usuario__nome', 'usuario__email', 'aluno_representado__usuario__nome', 'tipo', 'versao_termos', 'ip')
     
     # Não deixa editar os campos do consentimento, apenas visualizar
-    readonly_fields = ('usuario', 'tipo', 'aceito', 'versao_termos', 'registrado_em')
+    readonly_fields = ('usuario', 'aluno_representado', 'tipo', 'aceito', 'versao_termos', 'registrado_em', 'ip')
 
 class LogAcessoAdmin(SomenteLeituraAdmin):
     # Mostra para o admin as colunas nas tabelas

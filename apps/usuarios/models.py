@@ -1,6 +1,7 @@
 import hashlib
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.core.validators import MaxLengthValidator
 from django.utils.translation import gettext_lazy
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedTextField, EncryptedDateField
 
@@ -122,7 +123,7 @@ class Aluno(models.Model):
     matricula = models.CharField(max_length=20, unique=True)
     data_nascimento = EncryptedDateField(null=True, blank=True)
     telefone = EncryptedCharField(max_length=15, blank=True, null=True)
-    endereco = EncryptedTextField(blank=True, null=True)
+    endereco = EncryptedTextField(blank=True, null=True, validators=[MaxLengthValidator(500)])
     
     # Campo de relacionamento com a tabela de responsáveis, usando a tabela AlunoResponsavel.
     responsaveis = models.ManyToManyField('Responsavel', through='AlunoResponsavel', related_name='alunos_vinculados')
