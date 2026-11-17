@@ -52,7 +52,7 @@ jobs:
             --network host \
             --env-file "$RUNNER_TEMP/educontroll-dast.env" \
             educontroll-devsecops:ci \
-            sh -c 'mkdir -p /tmp /app/staticfiles /app/supabase/.temp && python manage.py migrate --noinput && python manage.py collectstatic --noinput && exec python manage.py runserver 127.0.0.1:8000 --noreload'
+            sh -c 'mkdir -p /tmp/staticfiles /tmp/supabase/.temp && python manage.py migrate --noinput && python manage.py collectstatic --noinput --settings=core.settings_ci_dast && exec python manage.py runserver 127.0.0.1:8000 --noreload'
           # Falha imediatamente se a aplicacao nao subir. Nao varre URL externa.
           pronto=0
           for tentativa in $(seq 1 60); do

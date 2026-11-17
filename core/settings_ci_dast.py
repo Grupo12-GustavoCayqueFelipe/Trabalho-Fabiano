@@ -18,13 +18,16 @@ from .settings_test import *  # noqa: F401,F403
 DEBUG = False
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver']
 
-# SQLite em arquivo: migrate e runserver ocorrem em processos distintos.
+# SQLite e arquivos estáticos/mídia em /tmp para compatibilidade com container não-privilegiado (appuser).
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / '.dast-ci.sqlite3',
+        'NAME': Path(os.getenv('SQLITE_PATH', '/tmp/edudast-inicial.sqlite3')),
     },
 }
+
+STATIC_ROOT = Path(os.getenv('STATIC_ROOT', '/tmp/staticfiles'))
+MEDIA_ROOT = Path(os.getenv('MEDIA_ROOT', '/tmp/media'))
 
 # Segredos efêmeros gerados no workflow; nunca são os valores de produção.
 SECRET_KEY = os.environ['SECRET_KEY']
