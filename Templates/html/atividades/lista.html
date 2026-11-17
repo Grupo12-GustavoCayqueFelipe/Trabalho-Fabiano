@@ -34,6 +34,7 @@
                 <p>{{ atividade.turma }} • {{ atividade.disciplina }} • Prazo: {{ atividade.prazo|date:'d/m/Y H:i' }}</p>
             </article>
             {% empty %}<p>Nenhuma atividade disponível para seu perfil.</p>{% endfor %}
+            {% if atividades.has_other_pages %}<nav class="paginacao">{% if atividades.has_previous %}<a href="?page={{ atividades.previous_page_number }}">← Anterior</a>{% endif %} <span>Página {{ atividades.number }} de {{ atividades.paginator.num_pages }}</span> {% if atividades.has_next %}<a href="?page={{ atividades.next_page_number }}">Próxima →</a>{% endif %}</nav>{% endif %}
         </section>
     </main>
 </body>

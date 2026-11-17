@@ -34,7 +34,9 @@ jobs:
             printf 'SECRET_KEY=%s\n' "$(python3 -c 'import secrets; print(secrets.token_urlsafe(48))')"
             printf 'FIELD_ENCRYPTION_KEY=%s\n' "$(python3 -c 'import base64,secrets; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())')"
             printf 'DJANGO_SETTINGS_MODULE=core.settings_ci_dast\n'
+            printf 'CI=true\n'
             printf 'DEBUG=True\n'
+            printf 'SQLITE_PATH=/tmp/edudast-inicial.sqlite3\n'
             printf 'DATABASE_URL=sqlite:////tmp/edudast-inicial.sqlite3\n'
             printf 'ALLOWED_HOSTS=127.0.0.1,localhost\n'
           } > "$RUNNER_TEMP/educontroll-dast.env"
@@ -50,7 +52,7 @@ jobs:
             --network host \
             --env-file "$RUNNER_TEMP/educontroll-dast.env" \
             educontroll-devsecops:ci \
-            sh -c 'python manage.py migrate --noinput && python manage.py collectstatic --noinput && exec python manage.py runserver 127.0.0.1:8000 --noreload'
+            sh -c 'mkdir -p /tmp/staticfiles /tmp/supabase/.temp && python manage.py migrate --noinput && python manage.py collectstatic --noinput --settings=core.settings_ci_dast && exec python manage.py runserver 127.0.0.1:8000 --noreload'
           # Falha imediatamente se a aplicacao nao subir. Nao varre URL externa.
           pronto=0
           for tentativa in $(seq 1 60); do

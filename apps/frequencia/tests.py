@@ -55,3 +55,15 @@ class FrequenciaSegurancaTest(TestCase):
         self.assertEqual(HistoricoFrequencia.objects.filter(registro=registro).count(), 2)
         self.assertEqual(HistoricoFrequencia.objects.filter(registro=registro).first().status_anterior, 'P')
         self.assertEqual(LogOperacao.objects.filter(evento='FREQUENCIA_SALVA').count(), 2)
+
+    # Captura ValidationError em full_clean sem quebrar a view com HTTP 500.
+    def test_validation_error_em_full_clean_retorna_302(self):
+        from unittest.mock import patch
+        self.client.force_login(self.usuario_prof)
+        with patch.object(RegistroFrequencia, 'full_clean', side_effect=ValidationError('Erro de modelo')):
+            resposta = self.client.post(
+                reverse('frequencia_salvar', args=[self.aula.pk]),
+                {'matricula': self.matricula.pk, 'status': 'P'},
+            )
+        self.assertEqual(resposta.status_code, 302)
+        self.assertFalse(RegistroFrequencia.objects.exists())

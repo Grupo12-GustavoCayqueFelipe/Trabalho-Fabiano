@@ -54,6 +54,9 @@ with tempfile.TemporaryDirectory(prefix='educontroll-migracoes-') as pasta:
 
   admin = Usuario.objects.create(email='admin-ensaio@example.test', nome='Adm', perfil='ADMIN')
   pessoa = Usuario.objects.create(email='aluno-ensaio@example.test', nome='Aluno', perfil='ALUNO')
+  # Simula um segredo TOTP legado gravado em texto simples antes da migration 0016.
+  with connection.cursor() as cursor:
+    cursor.execute('UPDATE usuarios SET otp_secret = %s WHERE id = %s', ['JBSWY3DPEHPK3PXP', admin.pk])
   professor = Professor.objects.create(usuario=admin, formacao='Ensino')
   aluno = Aluno.objects.create(usuario=pessoa, matricula='A-00001')
   turma = Turma.objects.create(nome='1A', turno='MANHA', ano=2026, professor_regente=professor)
@@ -71,12 +74,17 @@ with tempfile.TemporaryDirectory(prefix='educontroll-migracoes-') as pasta:
   from apps.avaliacoes.models import Nota as NotaAtual
   from apps.frequencia.models import RegistroFrequencia as RegistroAtual
   from apps.comunicacao.models import Mensagem as MensagemAtual
+  from apps.usuarios.models import Usuario as UsuarioAtual
 
+  assert UsuarioAtual.objects.get(pk=admin.pk).otp_secret == 'JBSWY3DPEHPK3PXP'
   assert NotaAtual.objects.get(pk=nota.pk).observacao == 'Observação pessoal antiga'
   assert RegistroAtual.objects.get(pk=registro.pk).justificativa == 'Justificativa familiar antiga'
   assert MensagemAtual.objects.get(pk=mensagem.pk).assunto == 'Assunto pessoal antigo'
 
   with connection.cursor() as cursor:
+    cursor.execute('SELECT otp_secret FROM usuarios WHERE id = %s', [admin.pk])
+    otp_bruto = str(cursor.fetchone()[0])
+    assert otp_bruto.startswith('gAAAA') and 'JBSWY3DPEHPK3PXP' not in otp_bruto
     cursor.execute('SELECT observacao FROM notas WHERE id = %s', [nota.pk])
     assert 'Observação pessoal antiga' not in str(cursor.fetchone()[0])
     cursor.execute('SELECT justificativa FROM registros_frequencia WHERE id = %s', [registro.pk])

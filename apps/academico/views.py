@@ -6,12 +6,14 @@ from django.contrib import messages
 from django.db.models import Q
 from django.db import transaction, IntegrityError
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from apps.usuarios.models import registrar_operacao
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
-from .models import Turma, Disciplina, Matricula, Aula, PeriodoLetivo, TURNO_CHOICES
+from .models import (Turma, Disciplina, Matricula, Aula, PeriodoLetivo, AlocacaoDocente, TURNO_CHOICES, professor_leciona_na_turma, turmas_lecionadas_pelo_professor)
+
 from apps.usuarios.models import Aluno, Professor
 
 # Confere se o usuário logado é administrador, usado em todas as telas e ações de gestão
@@ -60,12 +62,13 @@ def academico_painel_view(request):
     disciplina_turmas_ids = list(disciplina_editando.turmas.values_list('pk', flat=True))
     disciplina_professores_ids = list(disciplina_editando.professores.values_list('pk', flat=True))
 
+  pagina = request.GET.get('page') or request.GET.get('pagina')
   return render(request, 'html/academico/acad_admin.html', {
     'periodos_letivos': PeriodoLetivo.objects.order_by('-ano', '-semestre'),
-    'turmas': Turma.objects.select_related('professor_regente__usuario').order_by('-ano', 'nome'),
-    'disciplinas': Disciplina.objects.prefetch_related('turmas', 'professores').order_by('nome'),
-    'alunos': Aluno.objects.select_related('usuario').order_by('usuario__nome'),
-    'professores': Professor.objects.select_related('usuario').order_by('usuario__nome'),
+    'turmas': Paginator(Turma.objects.select_related('professor_regente__usuario').order_by('-ano', 'nome'), 50).get_page(pagina),
+    'disciplinas': Paginator(Disciplina.objects.prefetch_related('turmas', 'professores').order_by('nome'), 50).get_page(pagina),
+    'alunos': Paginator(Aluno.objects.select_related('usuario').order_by('usuario__nome'), 50).get_page(pagina),
+    'professores': Paginator(Professor.objects.select_related('usuario').order_by('usuario__nome'), 50).get_page(pagina),
     'matriculas': Matricula.objects.select_related('aluno__usuario', 'turma').order_by('-data_matricula', '-pk')[:10],
     'turma_editando': turma_editando,
     'disciplina_editando': disciplina_editando,
@@ -163,6 +166,20 @@ def salvar_disciplina_view(request):
     # Seleção vazia continua válida; seleção com ID inexistente não altera vínculos.
     disciplina.turmas.set(turmas_validas)
     disciplina.professores.set(professores_validos)
+    # Remove alocações que não pertencem mais às turmas ou professores selecionados.
+    AlocacaoDocente.objects.filter(disciplina=disciplina).exclude(
+      turma__in=turmas_validas, professor__in=professores_validos
+    ).delete()
+    if len(professores_validos) == 1:
+      prof_unico = professores_validos[0]
+      for t in turmas_validas:
+        AlocacaoDocente.objects.get_or_create(professor=prof_unico, disciplina=disciplina, turma=t)
+    else:
+      for t in turmas_validas:
+        if t.professor_regente_id and any(p.pk == t.professor_regente_id for p in professores_validos):
+          AlocacaoDocente.objects.get_or_create(
+            professor_id=t.professor_regente_id, disciplina=disciplina, turma=t
+          )
     registrar_operacao(request.user, 'DISCIPLINA_SALVA', disciplina.pk)
 
   messages.success(request, 'Disciplina salva com sucesso.')
@@ -200,21 +217,25 @@ def matricular_aluno_view(request):
       registrar_operacao(request.user, 'MATRICULA_SALVA', matricula.pk)
   return _voltar_painel('historico')
 
-# Histórico de matrículas do aluno logado, ou do primeiro aluno vinculado ao responsável logado
+# Histórico de matrículas do aluno logado ou dos alunos vinculados ao responsável logado
 @login_required(login_url='login')
 def historico_matriculas_view(request):
   # Consulta apenas o aluno logado ou os alunos vinculados ao responsável.
   aluno = request.user.aluno if request.user.perfil == 'ALUNO' and hasattr(request.user, 'aluno') else None
+  alunos_vinculados = []
   matriculas = Matricula.objects.none()
   if aluno:
     matriculas = Matricula.objects.filter(aluno=aluno)
   elif request.user.perfil == 'RESP' and hasattr(request.user, 'responsavel'):
-    matriculas = Matricula.objects.filter(aluno__in=request.user.responsavel.alunos_vinculados.all())
+    alunos_vinculados = list(request.user.responsavel.alunos_vinculados.select_related('usuario').order_by('usuario__nome'))
+    matriculas = Matricula.objects.filter(aluno__in=alunos_vinculados)
   matriculas = matriculas.select_related('aluno__usuario', 'turma__professor_regente__usuario').order_by('-data_matricula', '-pk')
 
+  pagina = request.GET.get('page') or request.GET.get('pagina')
   return render(request, 'html/academico/acad_aluno_resp.html', {
     'aluno': aluno,
-    'matriculas': matriculas,
+    'alunos_vinculados': alunos_vinculados,
+    'matriculas': Paginator(matriculas, 50).get_page(pagina),
   })
 
 # Professor registra o conteúdo dado numa aula
@@ -229,8 +250,8 @@ def registrar_aula_view(request):
     return redirect('dashboard')
 
   professor = request.user.professor
-  # O professor só enxerga as turmas em que é regente ou em que leciona alguma disciplina
-  turmas = Turma.objects.filter(Q(professor_regente=professor) | Q(disciplina__professores=professor)).distinct().order_by('nome')
+  # O professor só enxerga as turmas em que efetivamente leciona alguma disciplina autorizada
+  turmas = turmas_lecionadas_pelo_professor(professor)
   disciplinas = Disciplina.objects.filter(professores=professor).order_by('nome')
 
   if request.method == 'POST':
@@ -245,8 +266,8 @@ def registrar_aula_view(request):
 
     if turma is None or disciplina is None or data is None or not conteudo:
       messages.error(request, 'Preencha turma, disciplina, data e conteúdo corretamente.')
-    elif not disciplina.turmas.filter(pk=turma.pk).exists():
-      messages.error(request, 'Essa disciplina não é oferecida nessa turma.')
+    elif not professor_leciona_na_turma(professor, disciplina, turma):
+      messages.error(request, 'Essa disciplina não é lecionada por você nessa turma.')
     elif turma.periodo_letivo_id and not (
       turma.periodo_letivo.data_inicio <= data <= turma.periodo_letivo.data_fim
     ):

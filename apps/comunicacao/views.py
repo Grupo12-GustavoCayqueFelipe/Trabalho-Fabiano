@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import redirect, render
@@ -7,7 +8,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
-from apps.academico.models import Matricula, Turma
+from apps.academico.models import Matricula, Turma, turmas_lecionadas_pelo_professor
 from apps.usuarios.models import Usuario, registrar_operacao
 from .models import Aviso, Mensagem
 
@@ -21,22 +22,47 @@ def _pk_seguro(valor):
   return numero if 0 < numero <= 9223372036854775807 else None
 
 
-# Busca as turmas onde o professor leciona ou é regente.
+# Busca apenas as turmas em que o professor está autorizado a atuar.
 def _turmas_professor(professor):
-  return Turma.objects.filter(Q(professor_regente=professor) | Q(disciplina__professores=professor)).distinct()
+  return turmas_lecionadas_pelo_professor(professor, incluir_regencia_sem_disciplina=True)
 
 
 # Retorna apenas os destinatários permitidos para este usuário.
 def _destinatarios_autorizados(usuario):
-  destinatarios = Usuario.objects.filter(is_active=True, perfil__in=['ALUNO', 'RESP'])
   if usuario.perfil == 'ADMIN':
-    return destinatarios
-  if usuario.perfil != 'PROF' or not hasattr(usuario, 'professor'):
-    return destinatarios.none()
-
-  # Inclui alunos ativos das turmas e responsáveis associados a esses alunos.
-  alunos_ids = Matricula.objects.filter(turma__in=_turmas_professor(usuario.professor), status='ATIVA').values_list('aluno_id', flat=True)
-  return destinatarios.filter(Q(aluno__id__in=alunos_ids) | Q(responsavel__alunos_vinculados__id__in=alunos_ids)).distinct()
+    return Usuario.objects.filter(is_active=True, perfil__in=['ALUNO', 'RESP', 'PROF'])
+  if usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
+    destinatarios = Usuario.objects.filter(is_active=True, perfil__in=['ALUNO', 'RESP'])
+    # Inclui alunos ativos das turmas e responsáveis associados a esses alunos.
+    alunos_ids = Matricula.objects.filter(turma__in=_turmas_professor(usuario.professor), status='ATIVA').values_list('aluno_id', flat=True)
+    return destinatarios.filter(Q(aluno__id__in=alunos_ids) | Q(responsavel__alunos_vinculados__id__in=alunos_ids)).distinct()
+  if usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
+    turmas_ids = set(Matricula.objects.filter(aluno=usuario.aluno, status='ATIVA').values_list('turma_id', flat=True))
+    candidatos = Usuario.objects.filter(
+      is_active=True, perfil='PROF', professor__isnull=False
+    ).filter(
+      Q(professor__disciplina__turmas__in=turmas_ids) | Q(professor__turma__in=turmas_ids)
+    ).select_related('professor').distinct()
+    ids_validos = [
+      u.pk for u in candidatos
+      if _turmas_professor(u.professor).filter(pk__in=turmas_ids).exists()
+    ]
+    return Usuario.objects.filter(pk__in=ids_validos)
+  if usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'):
+    turmas_ids = set(Matricula.objects.filter(
+      aluno__in=usuario.responsavel.alunos_vinculados.all(), status='ATIVA'
+    ).values_list('turma_id', flat=True))
+    candidatos = Usuario.objects.filter(
+      is_active=True, perfil='PROF', professor__isnull=False
+    ).filter(
+      Q(professor__disciplina__turmas__in=turmas_ids) | Q(professor__turma__in=turmas_ids)
+    ).select_related('professor').distinct()
+    ids_validos = [
+      u.pk for u in candidatos
+      if _turmas_professor(u.professor).filter(pk__in=turmas_ids).exists()
+    ]
+    return Usuario.objects.filter(pk__in=ids_validos)
+  return Usuario.objects.none()
 
 
 # Mural e caixa postal: visibilidade limitada por matrícula e vínculo familiar.
@@ -60,14 +86,15 @@ def comunicacao_painel_view(request):
   else:
     avisos = avisos.none()
 
-  # Cada usuário só enxerga suas próprias mensagens, nunca a caixa postal alheia.
-  mensagens_recebidas = Mensagem.objects.filter(destinatario=usuario).select_related('remetente')
-  mensagens_enviadas = Mensagem.objects.filter(remetente=usuario).select_related('destinatario')
+  # Cada usuário só enxerga suas próprias mensagens, nunca a caixa postal alheia, com paginação para campos Fernet.
+  pagina = request.GET.get('page') or request.GET.get('pagina')
+  mensagens_recebidas = Mensagem.objects.filter(destinatario=usuario).select_related('remetente').order_by('-enviada_em', '-pk')
+  mensagens_enviadas = Mensagem.objects.filter(remetente=usuario).select_related('destinatario').order_by('-enviada_em', '-pk')
   return render(request, 'html/comunicacao/painel.html', {
-    'avisos': avisos.distinct(),
+    'avisos': Paginator(avisos.distinct().order_by('-fixado', '-criado_em', '-pk'), 50).get_page(pagina),
     'turmas': turmas,
-    'mensagens_recebidas': mensagens_recebidas,
-    'mensagens_enviadas': mensagens_enviadas,
+    'mensagens_recebidas': Paginator(mensagens_recebidas, 50).get_page(pagina),
+    'mensagens_enviadas': Paginator(mensagens_enviadas, 50).get_page(pagina),
     'destinatarios': _destinatarios_autorizados(usuario),
   })
 
@@ -115,7 +142,13 @@ def aviso_criar_view(request):
 @ratelimit(key='user', rate='20/m', block=True, method='POST')
 def mensagem_enviar_view(request):
   usuario = request.user
-  if usuario.perfil != 'ADMIN' and (usuario.perfil != 'PROF' or not hasattr(usuario, 'professor')):
+  perfil_valido = (
+    usuario.perfil == 'ADMIN'
+    or (usuario.perfil == 'PROF' and hasattr(usuario, 'professor'))
+    or (usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'))
+    or (usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'))
+  )
+  if not perfil_valido:
     return redirect('dashboard')
 
   destinatario_id = (request.POST.get('destinatario') or '').strip()

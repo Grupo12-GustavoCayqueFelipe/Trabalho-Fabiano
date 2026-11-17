@@ -11,11 +11,16 @@
         <a href="{% url 'academico_painel_view' %}#matricula">▣ <span>Matrículas</span></a>
         {% elif user.perfil == 'PROF' %}
         <a href="{% url 'registrar_aula_view' %}">▤ <span>Registrar aula</span></a>
+        {% elif user.perfil == 'ALUNO' or user.perfil == 'RESP' %}
+        <a href="{% url 'historico_matriculas_view' %}" {% if request.resolver_match.url_name == 'historico_matriculas_view' %}class="ativo" aria-current="page"{% endif %}>🎓 <span>Matrículas</span></a>
         {% endif %}
         <a href="{% url 'atividades_lista' %}" {% if request.resolver_match.url_name == 'atividades_lista' %}class="ativo" aria-current="page"{% endif %}>☑ <span>Atividades</span></a>
         <a href="{% url 'avaliacoes_painel' %}" {% if request.resolver_match.url_name == 'avaliacoes_painel' %}class="ativo" aria-current="page"{% endif %}>★ <span>Notas e avaliações</span></a>
         <a href="{% url 'frequencia_painel' %}" {% if request.resolver_match.url_name == 'frequencia_painel' %}class="ativo" aria-current="page"{% endif %}>◷ <span>Frequência</span></a>
         <a href="{% url 'comunicacao_painel' %}" {% if request.resolver_match.url_name == 'comunicacao_painel' %}class="ativo" aria-current="page"{% endif %}>✉ <span>Comunicação</span></a>
+        <a href="{% url 'meus_dados_view' %}" {% if request.resolver_match.url_name == 'meus_dados_view' %}class="ativo" aria-current="page"{% endif %}>👤 <span>Meus dados</span></a>
+        <a href="{% url 'termos_view' %}" {% if request.resolver_match.url_name == 'termos_view' %}class="ativo" aria-current="page"{% endif %}>🔐 <span>Termos e Privacidade</span></a>
+        <a href="{% url '2fa_configurar' %}" {% if request.resolver_match.url_name == '2fa_configurar' %}class="ativo" aria-current="page"{% endif %}>🛡 <span>Segurança (2FA)</span></a>
     </nav>
     <form action="{% url 'logout' %}" method="POST" class="modulo-logout">
         {% csrf_token %}<button type="submit">⇥ <span>Sair do sistema</span></button>

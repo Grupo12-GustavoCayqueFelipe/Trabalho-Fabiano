@@ -81,6 +81,16 @@ class LoginTest(BaseUsuarioTest):
             resposta, reverse("dashboard"), fetch_redirect_response=False
         )
 
+    # E-mail com letras maiúsculas e espaços nas bordas autentica normalmente.
+    def test_login_aceita_email_com_maiusculas_e_espacos(self):
+        resposta = self.client.post(
+            reverse("login"), {"email": "  USER@T.COM  ", "senha": SENHA}
+        )
+        self.assertRedirects(
+            resposta, reverse("dashboard"), fetch_redirect_response=False
+        )
+        self.assertTrue(self.logado())
+
 
 class DoisFatoresLoginTest(BaseUsuarioTest):
     def setUp(self):
@@ -156,6 +166,7 @@ class DoisFatoresConfigurarTest(BaseUsuarioTest):
         self.desativar(senha=SENHA, codigo="000000")
         self.usuario.refresh_from_db()
         self.assertTrue(self.usuario.otp_ativado)
+        self.assertIn("2FA_FALHA", self.eventos())
 
     def test_desativar_com_senha_e_codigo_corretos(self):
         self.desativar(senha=SENHA, codigo=pyotp.TOTP(self.usuario.otp_secret).now())
@@ -216,6 +227,29 @@ class RecuperacaoSenhaTest(BaseUsuarioTest):
         self.pedir()
         self.assertEqual(TokenRecuperacaoSenha.objects.count(), 5)
 
+    # Variar maiúsculas ou espaços no e-mail não contorna o rate limit por e-mail.
+    def test_rate_limit_por_email_normaliza_maiusculas_e_espacos(self):
+        variantes = [
+            "user@t.com",
+            "USER@t.com",
+            "  User@T.com ",
+            "uSeR@t.COM",
+            " user@t.com  ",
+        ]
+        for idx, variante in enumerate(variantes):
+            self.client.post(
+                reverse("solicitacao_recuperacao_senha_view"),
+                {"email": variante},
+                REMOTE_ADDR=f"10.0.0.{idx + 1}",
+            )
+        self.assertEqual(TokenRecuperacaoSenha.objects.count(), 5)
+        self.client.post(
+            reverse("solicitacao_recuperacao_senha_view"),
+            {"email": "  USER@T.COM "},
+            REMOTE_ADDR="10.0.0.99",
+        )
+        self.assertEqual(TokenRecuperacaoSenha.objects.count(), 5)
+
     def test_senha_fraca_e_recusada(self):
         self.pedir()
         token = self.token_do_email()
@@ -264,6 +298,38 @@ class RecuperacaoSenhaTest(BaseUsuarioTest):
         self.assertTrue(
             LogRecuperacaoSenha.objects.filter(evento="FALHA_TOKEN_EXPIRADO").exists()
         )
+
+    # Falha no servidor SMTP não estoura HTTP 500 nem perde o registro de auditoria.
+    def test_falha_smtp_nao_expoe_erro_500_e_mantem_auditoria(self):
+        from unittest.mock import patch
+        with patch("apps.usuarios.views.send_mail", side_effect=OSError("SMTP indisponivel")):
+            resposta = self.pedir()
+        self.assertRedirects(resposta, reverse("login"), fetch_redirect_response=False)
+        self.assertEqual(TokenRecuperacaoSenha.objects.count(), 1)
+        self.assertTrue(
+            LogRecuperacaoSenha.objects.filter(
+                usuario=self.usuario, evento="SOLICITACAO"
+            ).exists()
+        )
+
+    # Divergência em confirmar_senha rejeita a alteração sem queimar o token.
+    def test_confirmacao_de_senha_divergente_nao_consome_token(self):
+        self.pedir()
+        token = self.token_do_email()
+        resposta = self.client.post(
+            reverse("redefinir_senha_view", args=[token]),
+            {"nova_senha": "NovaSenha@98765", "confirmar_senha": "OutraSenha@98765"},
+        )
+        self.assertEqual(resposta.status_code, 200)
+        self.usuario.refresh_from_db()
+        self.assertTrue(self.usuario.check_password(SENHA))
+        self.assertIsNone(TokenRecuperacaoSenha.objects.get().usado_em)
+        self.client.post(
+            reverse("redefinir_senha_view", args=[token]),
+            {"nova_senha": "NovaSenha@98765", "confirmar_senha": "NovaSenha@98765"},
+        )
+        self.usuario.refresh_from_db()
+        self.assertTrue(self.usuario.check_password("NovaSenha@98765"))
 
 
 class LogoutTest(BaseUsuarioTest):
@@ -321,16 +387,29 @@ class TermosTest(BaseUsuarioTest):
 
 
 class SegurancaComplementarTest(BaseUsuarioTest):
-    # Testa a ativação que antes ficava em um bloco inalcançável.
+    # Testa a ativação sem gravar otp_secret no banco durante o GET inicial.
     def test_ativacao_do_2fa_funciona(self):
         self.client.force_login(self.usuario)
-        self.client.get(reverse('2fa_configurar'))
+        resposta = self.client.get(reverse('2fa_configurar'))
         self.usuario.refresh_from_db()
-        codigo = pyotp.TOTP(self.usuario.otp_secret).now()
+        self.assertIsNone(self.usuario.otp_secret)
+        segredo = self.client.session.get('pre_ativacao_otp_secret') or resposta.context['otp_secret']
+        codigo = pyotp.TOTP(segredo).now()
         self.client.post(reverse('2fa_configurar'), {'acao': 'ativar', 'codigo': codigo})
         self.usuario.refresh_from_db()
         self.assertTrue(self.usuario.otp_ativado)
+        self.assertEqual(self.usuario.otp_secret, segredo)
         self.assertTrue(LogAcesso.objects.filter(evento='2FA_ATIVADO').exists())
+
+    # Senha incorreta na exclusão de conta registra falha na trilha de auditoria.
+    def test_exclusao_com_senha_incorreta_registra_auditoria(self):
+        from .models import LogOperacao
+        self.client.force_login(self.usuario)
+        self.client.post(reverse('excluir_dados_view'), {'senha': 'errada', 'confirmar': 'on'})
+        self.usuario.refresh_from_db()
+        self.assertTrue(self.usuario.is_active)
+        self.assertTrue(LogAcesso.objects.filter(usuario=self.usuario, evento='LOGIN_FALHA').exists())
+        self.assertTrue(LogOperacao.objects.filter(usuario=self.usuario, evento='FALHA_SENHA_EXCLUSAO_CONTA').exists())
 
     # Staff autenticado somente com senha não pode visualizar o admin.
     def test_admin_exige_2fa_confirmado(self):
@@ -354,6 +433,61 @@ class SegurancaComplementarTest(BaseUsuarioTest):
         self.assertFalse(self.usuario.is_active)
         self.assertEqual(self.usuario.nome, 'Conta desidentificada')
         self.assertFalse(self.usuario.has_usable_password())
+
+    # A desidentificação cancela matrículas ativas, limpa vínculos e retira o titular das pautas e contadores.
+    def test_exclusao_cancela_matriculas_e_remove_de_pautas_e_contadores(self):
+        from apps.academico.models import Aula, Disciplina, Matricula, Turma
+        from .models import Aluno, AlunoResponsavel, Professor, Responsavel
+
+        prof_user = Usuario.objects.create_user(
+            email='prof-pauta@t.com', password=SENHA, nome='Prof Pauta', perfil='PROF'
+        )
+        prof = Professor.objects.create(usuario=prof_user, formacao='História')
+        admin_user = Usuario.objects.create_superuser(
+            email='admin-pauta@t.com', password=SENHA, nome='Admin Pauta'
+        )
+        resp_user = Usuario.objects.create_user(
+            email='resp-pauta@t.com', password=SENHA, nome='Resp Pauta', perfil='RESP'
+        )
+        resp = Responsavel.objects.create(usuario=resp_user)
+
+        aluno = Aluno.objects.create(usuario=self.usuario, matricula='MAT-EX-01')
+        AlunoResponsavel.objects.create(aluno=aluno, responsavel=resp, parentesco='Mãe')
+        turma = Turma.objects.create(nome='8A', ano=2026, turno='MANHA', professor_regente=prof)
+        disciplina = Disciplina.objects.create(nome='História')
+        disciplina.turmas.add(turma)
+        disciplina.professores.add(prof)
+        matricula = Matricula.objects.create(aluno=aluno, turma=turma, status='ATIVA')
+        Aula.objects.create(
+            turma=turma, disciplina=disciplina, professor=prof,
+            data='2026-05-10', conteudo='Conteúdo'
+        )
+
+        self.client.force_login(self.usuario)
+        self.client.post(reverse('excluir_dados_view'), {'senha': SENHA, 'confirmar': 'on'})
+
+        matricula.refresh_from_db()
+        self.assertEqual(matricula.status, 'CANCELADA')
+        self.assertFalse(AlunoResponsavel.objects.filter(aluno=aluno).exists())
+
+        # O aluno desidentificado não aparece mais nas pautas ativas de frequência e notas do professor.
+        self.client.force_login(prof_user)
+        pauta_freq = self.client.get(reverse('frequencia_painel'))
+        self.assertEqual(list(pauta_freq.context['matriculas']), [])
+        pauta_av = self.client.get(reverse('avaliacoes_painel'))
+        self.assertEqual(list(pauta_av.context['matriculas']), [])
+
+        # O contador de alunos ativos no painel administrativo zera após o cancelamento da matrícula.
+        self.client.force_login(admin_user)
+        painel_adm = self.client.get(reverse('dashboard'))
+        self.assertEqual(painel_adm.context['total_alunos'], 0)
+
+        # Quando o professor solicita desidentificação, perde regência e vínculo com disciplinas.
+        self.client.force_login(prof_user)
+        self.client.post(reverse('excluir_dados_view'), {'senha': SENHA, 'confirmar': 'on'})
+        turma.refresh_from_db()
+        self.assertIsNone(turma.professor_regente)
+        self.assertFalse(disciplina.professores.filter(pk=prof.pk).exists())
 
 
 class ConsentimentoCriancaTest(BaseUsuarioTest):
@@ -398,7 +532,7 @@ class ConsentimentoCriancaTest(BaseUsuarioTest):
 
 
 class PortaisSeparadosTest(BaseUsuarioTest):
-    # Mesmo com senha correta, um aluno não pode entrar pelo portal de funcionários.
+    # Mesmo com senha correta, um aluno não pode entrar pelo portal de funcionários e gera log de falha.
     def test_aluno_nao_pode_entrar_no_portal_de_funcionarios(self):
         resposta = self.client.post(
             reverse('login_funcionarios'),
@@ -406,6 +540,7 @@ class PortaisSeparadosTest(BaseUsuarioTest):
         )
         self.assertEqual(resposta.status_code, 200)
         self.assertFalse(self.logado())
+        self.assertEqual(self.eventos(), ['LOGIN_FALHA'])
 
     # O portal de alunos mantém o login e o redirecionamento normal.
     def test_aluno_pode_entrar_no_portal_academico(self):
@@ -468,6 +603,29 @@ class PainelFuncionarioIntegracaoTest(BaseUsuarioTest):
         resposta = self.client.get(reverse('dashboard'))
         self.assertRedirects(resposta, reverse('login'), fetch_redirect_response=False)
         self.assertFalse(self.logado())
+
+    # Uma sessão já autenticada deve ser encerrada se a conta receber bloqueio temporário.
+    def test_sessao_ativa_encerrada_quando_conta_bloqueada(self):
+        self.client.force_login(self.usuario)
+        self.usuario.bloqueado_ate = timezone.now() + datetime.timedelta(minutes=15)
+        self.usuario.save(update_fields=['bloqueado_ate'])
+        resposta = self.client.get(reverse('dashboard'))
+        self.assertRedirects(resposta, reverse('login'), fetch_redirect_response=False)
+        self.assertFalse(self.logado())
+
+    # O segundo fator não pode concluir login se a conta entrou em bloqueio durante o desafio.
+    def test_2fa_verificar_barra_usuario_bloqueado(self):
+        self.usuario.otp_secret = pyotp.random_base32()
+        self.usuario.otp_ativado = True
+        self.usuario.save(update_fields=['otp_secret', 'otp_ativado'])
+        self.client.post(reverse('login'), {'email': self.usuario.email, 'senha': SENHA})
+        self.usuario.bloqueado_ate = timezone.now() + datetime.timedelta(minutes=15)
+        self.usuario.save(update_fields=['bloqueado_ate'])
+        codigo = pyotp.TOTP(self.usuario.otp_secret).now()
+        resposta = self.client.post(reverse('2fa_verificar'), {'codigo': codigo})
+        self.assertRedirects(resposta, reverse('login'), fetch_redirect_response=False)
+        self.assertFalse(self.logado())
+        self.assertNotIn('pre_2fa_user_id', self.client.session)
 
 
 class TelaProfessorIntegracaoTest(BaseUsuarioTest):

@@ -1,6 +1,7 @@
 import hashlib
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.core.validators import MaxLengthValidator
 from django.utils.translation import gettext_lazy
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedTextField, EncryptedDateField
 
@@ -43,7 +44,8 @@ class UsuarioManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError('O endereço de e-mail deve ser fornecido.')
-        email = self.normalize_email(email)
+        # Normaliza todo o endereço em minúsculas e sem espaços nas bordas.
+        email = self.normalize_email(email).strip().lower()
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -121,7 +123,7 @@ class Aluno(models.Model):
     matricula = models.CharField(max_length=20, unique=True)
     data_nascimento = EncryptedDateField(null=True, blank=True)
     telefone = EncryptedCharField(max_length=15, blank=True, null=True)
-    endereco = EncryptedTextField(blank=True, null=True)
+    endereco = EncryptedTextField(blank=True, null=True, validators=[MaxLengthValidator(500)])
     
     # Campo de relacionamento com a tabela de responsáveis, usando a tabela AlunoResponsavel.
     responsaveis = models.ManyToManyField('Responsavel', through='AlunoResponsavel', related_name='alunos_vinculados')
@@ -150,7 +152,12 @@ class Professor(models.Model):
     
     # Define a representação em string do objeto Professor
     def __str__(self):
-        return f"Professor: {self.usuario.nome} - {self.formacao}"    
+        return f"Professor: {self.usuario.nome} - {self.formacao}"
+
+    # Atalho compatível para acessar o relacionamento reverso de disciplinas do docente.
+    @property
+    def disciplinas(self):
+        return self.disciplina_set
 
 # Classe de responsável, que possui um relacionamento com a tabela de usuários.
 class Responsavel(models.Model):

@@ -106,14 +106,22 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# Le a variavel DATABASE_URL do .env
-DATABASES = {
-    'default': dj_database_url.config(
-        default=os.getenv('DATABASE_URL'),
-        conn_max_age=600,
-        ssl_require=True # exigido para conexao segura com o banco de dados.
-    )
-}
+# Verifica se estamos rodando testes ou se explicitamente foi pedido SQLite na CI/CD
+if 'core.settings_test' in os.environ.get('DJANGO_SETTINGS_MODULE', '') or os.getenv('CI') == 'true' or not os.getenv('DATABASE_URL'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+else:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=os.getenv('DATABASE_URL'),
+            conn_max_age=600,
+            ssl_require=True  # exigido para conexao segura com o banco de dados.
+        )
+    }
 
 
 

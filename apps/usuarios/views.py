@@ -8,7 +8,10 @@ import io
 import datetime
 import secrets
 import hashlib
+import logging
 from decimal import Decimal
+
+logger = logging.getLogger('django.request')
 
 
 from .models import Usuario, consentimentos_atuais, registrar_consentimento, registrar_log_recuperacao_senha, TokenRecuperacaoSenha, TIPO_CONSENTIMENTO, registrar_log_acesso, registrar_operacao, ConsentimentoUsuario, Aluno, AlunoResponsavel, LogAcesso, LogOperacao, LogRecuperacaoSenha
@@ -69,11 +72,11 @@ def _processar_login(request, portal=None):
   if request.method == 'POST':
     # Pegando os dados do formulário
     # Apenas campos POST são aceitos; a senha nunca deve ser enviada por GET.
-    email = (request.POST.get('email') or '').strip()
+    email = (request.POST.get('email') or '').strip().lower()
     senha = request.POST.get('senha') or ''
 
     # Confere se já existe um usuario com esse email para poder checar o bloqueio antes de logar
-    usuario_existente = Usuario.objects.filter(email=email).first()
+    usuario_existente = Usuario.objects.filter(email__iexact=email).first() if email else None
     
     # Se o usuário estiver bloqueado e confere o tempo de bloqueio já passou
     if usuario_existente and usuario_existente.bloqueado_ate:
@@ -81,13 +84,18 @@ def _processar_login(request, portal=None):
         messages.error(request, 'Conta temporariamente por excesso de tentativas. Tente novamente mais tarde.')
         return render(request, template, contexto_login)
       else:
-        # Depois que passou o tempo libera e zera o contador
-        usuario_existente.bloqueado_ate = None
-        usuario_existente.tentativas_login = 0
-        usuario_existente.save()
+        # Depois que passou o tempo libera e zera o contador de forma atômica
+        with transaction.atomic():
+          alvo_desbloqueio = Usuario.objects.select_for_update().filter(pk=usuario_existente.pk).first()
+          if alvo_desbloqueio:
+            alvo_desbloqueio.bloqueado_ate = None
+            alvo_desbloqueio.tentativas_login = 0
+            alvo_desbloqueio.save(update_fields=['bloqueado_ate', 'tentativas_login'])
+            usuario_existente = alvo_desbloqueio
         
     # Pega a senha do usuário faz o hash e compara com a senha do banco de dados
-    usuario = authenticate (request, email=email, password=senha)
+    email_autenticacao = usuario_existente.email if usuario_existente else email
+    usuario = authenticate(request, email=email_autenticacao, password=senha)
     
     # O portal restringe o perfil mesmo quando a senha está correta.
     autorizado = (
@@ -97,9 +105,12 @@ def _processar_login(request, portal=None):
     )
     if usuario is not None and autorizado:
       # Zera o contador de tentativas com o login certo
-      usuario.tentativas_login = 0
-      usuario.bloqueado_ate = None
-      usuario.save()
+      with transaction.atomic():
+        alvo_sucesso = Usuario.objects.select_for_update().filter(pk=usuario.pk).first()
+        if alvo_sucesso:
+          alvo_sucesso.tentativas_login = 0
+          alvo_sucesso.bloqueado_ate = None
+          alvo_sucesso.save(update_fields=['tentativas_login', 'bloqueado_ate'])
       
       # Se o usuário tiver o 2FA ligado, não loga e guarda o id na sessão
       if usuario.otp_ativado:
@@ -116,16 +127,23 @@ def _processar_login(request, portal=None):
       return redirect(proximo or 'dashboard')
     else:
       if usuario_existente and usuario is None:
-        usuario_existente.tentativas_login += 1
-        usuario_existente.ultimo_login_falha = timezone.now()
-        
-        # Bateu o limite de tentativas bloqueando a conta pelo tempo definido
-        if usuario_existente.tentativas_login >= TENTATIVAS_MAX:
-          usuario_existente.bloqueado_ate = timezone.now() + datetime.timedelta(minutes=TEMPO_BLOQUEIO_MINUTOS)
-          registrar_log_acesso(usuario_existente, evento='CONTA_BLOQUEADA', ip=request.META.get('REMOTE_ADDR'))
-        else:
-          registrar_log_acesso(usuario_existente, evento='LOGIN_FALHA', ip=request.META.get('REMOTE_ADDR'))
-        usuario_existente.save()
+        # Atualiza o contador sob bloqueio de linha para evitar perda de incremento concorrente.
+        with transaction.atomic():
+          alvo_falha = Usuario.objects.select_for_update().filter(pk=usuario_existente.pk).first()
+          if alvo_falha:
+            alvo_falha.tentativas_login += 1
+            alvo_falha.ultimo_login_falha = timezone.now()
+            
+            # Bateu o limite de tentativas bloqueando a conta pelo tempo definido
+            if alvo_falha.tentativas_login >= TENTATIVAS_MAX:
+              alvo_falha.bloqueado_ate = timezone.now() + datetime.timedelta(minutes=TEMPO_BLOQUEIO_MINUTOS)
+              registrar_log_acesso(alvo_falha, evento='CONTA_BLOQUEADA', ip=request.META.get('REMOTE_ADDR'))
+            else:
+              registrar_log_acesso(alvo_falha, evento='LOGIN_FALHA', ip=request.META.get('REMOTE_ADDR'))
+            alvo_falha.save(update_fields=['tentativas_login', 'ultimo_login_falha', 'bloqueado_ate'])
+      elif usuario is not None and not autorizado:
+        # Registra tentativa de acesso com credencial válida em portal incompatível com o perfil.
+        registrar_log_acesso(usuario, evento='LOGIN_FALHA', ip=request.META.get('REMOTE_ADDR'))
       # Mensagem de erro genérico
       messages.error(request, 'Email ou senha inválidos.')
 
@@ -158,6 +176,11 @@ def login_funcionarios_view(request):
 
 def chave_2fa(group, request):
   return str(request.session.get('pre_2fa_user_id') or 'sem-usuario')
+
+
+# Normaliza o e-mail usado na chave de rate limit para evitar contorno por maiúsculas ou espaços.
+def chave_email_normalizado(group, request):
+  return (request.POST.get('email') or '').strip().lower() or 'sem-email'
 
 # O desafio termina junto com todos os dados temporarios de login.
 def _limpar_desafio_2fa(request):
@@ -204,7 +227,16 @@ def dois_fatores_verificar_view(request):
     _limpar_desafio_2fa(request)
     messages.error(request, 'Verificação expirada. Entre novamente.')
     return redirect('login')
-  usuario = Usuario.objects.filter(pk=usuario_id, is_active=True, otp_ativado=True).first()
+  usuario = Usuario.objects.filter(pk=usuario_id, otp_ativado=True).first()
+  # Impede concluir o 2FA caso a conta tenha sido inativada ou bloqueada temporariamente.
+  if usuario is not None and (
+    not usuario.is_active
+    or (usuario.bloqueado_ate and usuario.bloqueado_ate > timezone.now())
+  ):
+    _limpar_desafio_2fa(request)
+    registrar_log_acesso(usuario, evento='LOGIN_FALHA', ip=request.META.get('REMOTE_ADDR'))
+    messages.error(request, 'Conta temporariamente por excesso de tentativas. Tente novamente mais tarde.')
+    return redirect('login')
   # O perfil ainda precisa corresponder ao portal depois do segundo fator.
   portal = request.session.get('pre_2fa_portal')
   perfil_invalido = (
@@ -250,21 +282,24 @@ def dois_fatores_configurar_view(request):
     messages.error(request, 'Muitas tentativas. Tente novamente mais tarde.')
     return redirect('dashboard')
 
-  # Na primeira visita gera o segredo apenas para uma configuração ainda desativada.
-  if not usuario.otp_secret and not usuario.otp_ativado:
-    usuario.otp_secret = pyotp.random_base32()
-    usuario.save(update_fields=['otp_secret'])
+  # Mantém o segredo provisório na sessão durante o GET sem gravar no banco antes da confirmação.
+  segredo_provisorio = usuario.otp_secret or request.session.get('pre_ativacao_otp_secret')
+  if not segredo_provisorio and not usuario.otp_ativado:
+    segredo_provisorio = pyotp.random_base32()
+    request.session['pre_ativacao_otp_secret'] = segredo_provisorio
 
   if request.method == 'POST':
     acao = request.POST.get('acao', 'ativar')
     codigo = (request.POST.get('codigo') or '').strip()
+    segredo_validacao = usuario.otp_secret if acao == 'desativar' else segredo_provisorio
     codigo_valido = len(codigo) == 6 and codigo.isascii() and codigo.isdecimal()
-    codigo_valido = codigo_valido and bool(usuario.otp_secret) and pyotp.TOTP(usuario.otp_secret).verify(codigo)
+    codigo_valido = codigo_valido and bool(segredo_validacao) and pyotp.TOTP(segredo_validacao).verify(codigo)
 
     # A desativação precisa de senha, além do segundo fator já ativo.
     if acao == 'desativar':
       senha = request.POST.get('senha') or ''
       if not usuario.otp_ativado or not usuario.check_password(senha) or not codigo_valido:
+        registrar_log_acesso(usuario, '2FA_FALHA', request.META.get('REMOTE_ADDR'))
         messages.error(request, 'Senha ou código inválido. O 2FA não foi desativado.')
         return redirect('2fa_configurar')
       with transaction.atomic():
@@ -273,31 +308,35 @@ def dois_fatores_configurar_view(request):
         usuario.save(update_fields=['otp_ativado', 'otp_secret'])
         registrar_log_acesso(usuario, '2FA_DESATIVADO', request.META.get('REMOTE_ADDR'))
       request.session.pop('2fa_verificado', None)
+      request.session.pop('pre_ativacao_otp_secret', None)
       messages.success(request, 'Autenticação de dois fatores desativada.')
       return redirect('2fa_configurar')
 
     # A confirmação deve estar fora do if de desativação para ser alcançável.
     if acao == 'ativar' and not usuario.otp_ativado and codigo_valido:
       with transaction.atomic():
+        usuario.otp_secret = segredo_provisorio
         usuario.otp_ativado = True
-        usuario.save(update_fields=['otp_ativado'])
+        usuario.save(update_fields=['otp_secret', 'otp_ativado'])
         registrar_log_acesso(usuario, '2FA_ATIVADO', request.META.get('REMOTE_ADDR'))
+      request.session.pop('pre_ativacao_otp_secret', None)
       request.session['2fa_verificado'] = usuario.pk
       messages.success(request, 'Autenticação de dois fatores ativada.')
       return redirect('2fa_configurar')
+    registrar_log_acesso(usuario, '2FA_FALHA', request.META.get('REMOTE_ADDR'))
     messages.error(request, 'Código de autenticação inválido ou operação não permitida.')
 
   # Só mostra QR Code na configuração inicial, nunca quando 2FA está ativo.
   qr_base64 = None
   if not usuario.otp_ativado:
-    uri = pyotp.TOTP(usuario.otp_secret).provisioning_uri(name=usuario.email, issuer_name='EduControll')
+    uri = pyotp.TOTP(segredo_provisorio).provisioning_uri(name=usuario.email, issuer_name='EduControll')
     imagem = qrcode.make(uri)
     buffer = io.BytesIO()
-    imagem.save(buffer, format='PNG')
+    imagem.save(buffer)
     qr_base64 = base64.b64encode(buffer.getvalue()).decode()
   return render(request, 'usuarios/2fa_configurar.html', {
     'otp_ativado': usuario.otp_ativado,
-    'otp_secret': usuario.otp_secret if not usuario.otp_ativado else None,
+    'otp_secret': segredo_provisorio if not usuario.otp_ativado else None,
     'qr_base64': qr_base64,
   })
 
@@ -326,39 +365,44 @@ def dashboard_view(request):
       aluno_id__in=alunos_ids, status='ATIVA'
     ).select_related('aluno__usuario', 'turma')
     turmas_ids = matriculas.values_list('turma_id', flat=True)
-    disciplinas = Disciplina.objects.filter(turmas__in=turmas_ids).distinct()
-    atividades = Atividade.objects.filter(
-      turma_id__in=turmas_ids, ativa=True, prazo__gte=timezone.now()
-    ).select_related('disciplina', 'turma').distinct()
-    notas = Nota.objects.filter(matricula__in=matriculas)
-    frequencias = RegistroFrequencia.objects.filter(matricula__in=matriculas)
-    presencas = frequencias.aggregate(
-      total=Count('pk'), presentes=Count('pk', filter=Q(status='P'))
-    )
-    total = presencas['total'] or 0
+
+    if request.user.perfil == 'ALUNO':
+      disciplinas = Disciplina.objects.filter(turmas__in=turmas_ids).distinct()
+      atividades = Atividade.objects.filter(
+        turma_id__in=turmas_ids, ativa=True, prazo__gte=timezone.now()
+      ).select_related('disciplina', 'turma').distinct()
+      notas = Nota.objects.filter(matricula__in=matriculas)
+      frequencias = RegistroFrequencia.objects.filter(matricula__in=matriculas)
+      presencas = frequencias.aggregate(
+        total=Count('pk'), presentes=Count('pk', filter=Q(status='P'))
+      )
+      total = presencas['total'] or 0
+      pendentes = atividades.exclude(entregas__aluno_id=aluno.pk) if aluno else atividades.none()
+      contexto = {
+        'matriculas_ativas': matriculas,
+        'total_matriculas': matriculas.count(),
+        'total_disciplinas': disciplinas.count(),
+        'disciplinas_recentes': disciplinas.order_by('nome')[:6],
+        'media_notas': _media_avaliacoes_normalizada(notas),
+        'percentual_presenca': round(100 * (presencas['presentes'] or 0) / total) if total else None,
+        'total_registros_frequencia': total,
+        'total_atividades': atividades.count(),
+        'atividades_pendentes_aluno': pendentes.count(),
+        'atividades_recentes': pendentes.order_by('prazo', 'pk')[:6],
+      }
+      return render(request, 'html/alunos/aluno.html', contexto)
+
+    # O painel do responsável carrega apenas as matrículas ativas, avisos e mensagens utilizadas em seu template.
     contexto = {
       'matriculas_ativas': matriculas,
       'total_matriculas': matriculas.count(),
-      'total_disciplinas': disciplinas.count(),
-      'disciplinas_recentes': disciplinas.order_by('nome')[:6],
-      'media_notas': _media_avaliacoes_normalizada(notas),
-      'percentual_presenca': round(100 * (presencas['presentes'] or 0) / total) if total else None,
-      'total_registros_frequencia': total,
-      'total_atividades': atividades.count(),
+      'avisos_recentes': Aviso.objects.filter(ativo=True).filter(
+        Q(turma__isnull=True) | Q(turma_id__in=turmas_ids)
+      ).select_related('turma', 'autor').distinct().order_by('-fixado', '-criado_em')[:5],
+      'mensagens_recebidas': Mensagem.objects.filter(
+        destinatario=request.user
+      ).select_related('remetente').order_by('-enviada_em')[:5],
     }
-
-    if request.user.perfil == 'ALUNO':
-      pendentes = atividades.exclude(entregas__aluno_id=aluno.pk) if aluno else atividades.none()
-      contexto['atividades_pendentes_aluno'] = pendentes.count()
-      contexto['atividades_recentes'] = pendentes.order_by('prazo', 'pk')[:6]
-      return render(request, 'html/alunos/aluno.html', contexto)
-
-    contexto['avisos_recentes'] = Aviso.objects.filter(ativo=True).filter(
-      Q(turma__isnull=True) | Q(turma_id__in=turmas_ids)
-    ).select_related('turma', 'autor').distinct().order_by('-fixado', '-criado_em')[:5]
-    contexto['mensagens_recebidas'] = Mensagem.objects.filter(
-      destinatario=request.user
-    ).select_related('remetente').order_by('-enviada_em')[:5]
     return render(request, 'html/responsaveis/responsaveis.html', contexto)
 
   # Importa os models utilizados apenas nos painéis institucionais.
@@ -374,7 +418,7 @@ def dashboard_view(request):
       'total_professores': Professor.objects.count(),
       'total_turmas': Turma.objects.count(),
       'total_disciplinas': Disciplina.objects.count(),
-      'atividades_pendentes': Entrega.objects.filter(nota__isnull=True).count(),
+      'atividades_pendentes': Entrega.objects.filter(corrigida_em__isnull=True, nota__isnull=True).count(),
       'avisos_recentes': Aviso.objects.order_by('-criado_em')[:3],
     }
     return render(request, 'html/painel/painel_adm.html', contexto)
@@ -386,13 +430,24 @@ def dashboard_view(request):
     turmas = Turma.objects.filter(disciplina__professores=professor).distinct()
     # Usa somente as atividades criadas pelo próprio professor para os totais.
     atividades = Atividade.objects.filter(professor=professor)
+    entregas_abertas = Entrega.objects.filter(
+      atividade__in=atividades, corrigida_em__isnull=True, nota__isnull=True
+    )
+    # Monta a lista de disciplinas do professor por turma em memória usando o prefetch, sem vírgula órfã nem N+1.
+    turmas_professor = list(turmas.prefetch_related('disciplina_set__professores')[:10])
+    for turma_item in turmas_professor:
+      turma_item.disciplinas_do_professor = ', '.join(
+        disc.nome
+        for disc in turma_item.disciplina_set.all()
+        if professor in disc.professores.all()
+      )
     contexto = {
       'total_turmas': turmas.count(),
       'total_disciplinas': disciplinas.count(),
       'total_aulas': Aula.objects.filter(professor=professor).count(),
-      'entregas_pendentes': Entrega.objects.filter(atividade__in=atividades, nota__isnull=True).count(),
-      'turmas_professor': turmas.prefetch_related('disciplina_set__professores')[:10],
-      'entregas_recentes': Entrega.objects.filter(atividade__in=atividades, nota__isnull=True).select_related('atividade', 'aluno__usuario').order_by('-entregue_em')[:5],
+      'entregas_pendentes': entregas_abertas.count(),
+      'turmas_professor': turmas_professor,
+      'entregas_recentes': entregas_abertas.select_related('atividade', 'aluno__usuario').order_by('-entregue_em')[:5],
     }
     return render(request, 'html/painel/painel_prof.html', contexto)
 
@@ -403,7 +458,7 @@ def dashboard_view(request):
 
 # Usuário solicita a recuperação de senha, se o email existir, gera um token e envia o email
 @ratelimit(key='ip', rate='5/m', block=False, method='POST')
-@ratelimit(key='post:email', rate='5/m', block=False, method='POST')
+@ratelimit(key=chave_email_normalizado, rate='5/m', block=False, method='POST')
 def solicitacao_recuperacao_senha_view(request):
   # Resposta idêntica a normal, pra não revelar se o email existe nem se o limite foi atingido
   if getattr(request, 'limited', False):
@@ -412,37 +467,42 @@ def solicitacao_recuperacao_senha_view(request):
   
   # Se o usuário estiver logado, redireciona para a página principal
   if request.method == 'POST':
-    # Pega o email do formulário e procura o usuário no banco de dados
-    email = request.POST.get('email')
-    usuario = Usuario.objects.filter(email=email).first()
+    # Pega o email normalizado do formulário e procura o usuário sem diferenciar maiúsculas
+    email = (request.POST.get('email') or '').strip().lower()
+    usuario = Usuario.objects.filter(email__iexact=email).first() if email else None
 
     # Se o usuário existir, gera um token de recuperação de senha e envia o email
     if usuario:
       # Gera um token aleatório e seguro, guarda só o hash dele no banco
       token = secrets.token_urlsafe(32)
       token_hash = hashlib.sha256(token.encode()).hexdigest()
-      
-      # Define o tempo de expiração do token com base na configuração do Django
-      TokenRecuperacaoSenha.objects.create(
-        usuario=usuario,
-        token_hash=token_hash,
-        expira_em=timezone.now() + datetime.timedelta(seconds=settings.PASSWORD_RESET_TIMEOUT),
-        ip=request.META.get('REMOTE_ADDR'),
-      )
+      agora = timezone.now()
+
+      # Invalida tokens antigos pendentes, grava o novo token e audita na mesma transação.
+      with transaction.atomic():
+        TokenRecuperacaoSenha.objects.filter(usuario=usuario, usado_em__isnull=True).update(usado_em=agora)
+        TokenRecuperacaoSenha.objects.create(
+          usuario=usuario,
+          token_hash=token_hash,
+          expira_em=agora + datetime.timedelta(seconds=settings.PASSWORD_RESET_TIMEOUT),
+          ip=request.META.get('REMOTE_ADDR'),
+        )
+        registrar_log_recuperacao_senha(usuario, evento='SOLICITACAO', ip=request.META.get('REMOTE_ADDR'))
 
       # Monta o link de recuperação de senha com o token em texto puro (só existe aqui, nunca é salvo)
       link = request.build_absolute_uri(reverse('redefinir_senha_view', kwargs={'token': token}))
 
-      # Envia o email com o link de recuperação de senha
-      send_mail(
-        'Recuperação de senha - EduControll',
-        f'Clique no link abaixo para redefinir sua senha:\n{link}\n\nSe você não solicitou a recuperação de senha, ignore este email.',
-        settings.DEFAULT_FROM_EMAIL,
-        [usuario.email],
-        fail_silently=False,
-      )
-      # Registra o log de solicitação de recuperação de senha
-      registrar_log_recuperacao_senha(usuario, evento='SOLICITACAO', ip=request.META.get('REMOTE_ADDR'))
+      # Envia o email sem deixar falha de SMTP estourar HTTP 500 ou revelar a conta
+      try:
+        send_mail(
+          'Recuperação de senha - EduControll',
+          f'Clique no link abaixo para redefinir sua senha:\n{link}\n\nSe você não solicitou a recuperação de senha, ignore este email.',
+          settings.DEFAULT_FROM_EMAIL,
+          [usuario.email],
+          fail_silently=False,
+        )
+      except Exception:
+        logger.exception('Falha ao enviar e-mail de recuperação de senha.')
 
     # Mensagem genérica para não revelar se o email existe ou não no sistema
     messages.success(request, 'Se o email existir em nosso sistema, um link de recuperação de senha foi enviado.')
@@ -475,8 +535,7 @@ def redefinir_senha_view(request, token):
       registrar_log_recuperacao_senha(token_recuperacao.usuario, evento=evento, ip=request.META.get('REMOTE_ADDR'), token=token)
     else:
       # Token inexistente tambem entra na auditoria, sem guardar o valor em claro.
-      registrar_log_recuperacao_senha(None, evento='FALHA_TOKEN_INVALIDO',
-                                     ip=request.META.get('REMOTE_ADDR'), token=token)
+      registrar_log_recuperacao_senha(None, evento='FALHA_TOKEN_INVALIDO', ip=request.META.get('REMOTE_ADDR'), token=token)
     messages.error(request, 'Link de recuperação inválido ou expirado.')
     return redirect('login')
   
@@ -486,6 +545,11 @@ def redefinir_senha_view(request, token):
   # Se o usuário enviar o formulário com a nova senha, atualiza a senha do usuário, marca o token como usado e registra o log de sucesso
   if request.method == 'POST':
     nova_senha = request.POST.get('nova_senha')
+    confirmar_senha = request.POST.get('confirmar_senha')
+    # Quando a confirmação de senha é enviada, exige igualdade antes de consumir o token.
+    if confirmar_senha is not None and confirmar_senha != nova_senha:
+      messages.error(request, 'A confirmação de senha não confere com a nova senha.')
+      return render(request, 'html/senha/redefinir_senha.html')
     try:
       # Valida a nova senha com as regras do Django
       validate_password(nova_senha, user=usuario)
@@ -499,8 +563,7 @@ def redefinir_senha_view(request, token):
       token_bloqueado = TokenRecuperacaoSenha.objects.select_for_update().get(pk=token_recuperacao.pk)
       if token_bloqueado.usado_em is not None or token_bloqueado.expira_em <= timezone.now():
         evento = 'FALHA_TOKEN_EXPIRADO' if token_bloqueado.expira_em <= timezone.now() else 'FALHA_TOKEN_INVALIDO'
-        registrar_log_recuperacao_senha(usuario, evento=evento,
-                                       ip=request.META.get('REMOTE_ADDR'), token=token)
+        registrar_log_recuperacao_senha(usuario, evento=evento, ip=request.META.get('REMOTE_ADDR'), token=token)
         messages.error(request, 'Link de recuperação inválido ou expirado.')
         return redirect('login')
       usuario.set_password(nova_senha)
@@ -521,13 +584,13 @@ def meus_dados_view(request):
   # Pega o usuário logado
   usuario = request.user
 
-  # Pega o telefone do usuário, dependendo do perfil (aluno, professor ou responsável)
+  # Pega o telefone do usuário somente quando o objeto corresponde ao perfil atual
   telefone = None
-  if hasattr(usuario, 'aluno'):
+  if usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
     telefone = usuario.aluno.telefone
-  elif hasattr(usuario, 'professor'):
+  elif usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
     telefone = usuario.professor.telefone
-  elif hasattr(usuario, 'responsavel'):
+  elif usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'):
     telefone = usuario.responsavel.telefone
 
   return render(request, 'html/meus_dados/dados.html', {
@@ -658,11 +721,15 @@ def excluir_dados_view(request):
       return render(request, 'html/meus_dados/excluir_conta/excluir.html')
 
     if not usuario.check_password(senha):
+      # Registra na auditoria as tentativas falhas de confirmação de senha em operação crítica.
+      registrar_log_acesso(usuario, evento='LOGIN_FALHA', ip=request.META.get('REMOTE_ADDR'))
+      registrar_operacao(usuario, 'FALHA_SENHA_EXCLUSAO_CONTA', usuario.pk)
       messages.error(request, 'Senha incorreta. A conta não foi excluída.')
       return render(request, 'html/meus_dados/excluir_conta/excluir.html')
 
-    # Preserva referências acadêmicas obrigatórias, mas remove dados de identificação.
+    # Preserva referências acadêmicas obrigatórias, mas remove dados de identificação e vínculos ativos.
     # A retenção de históricos está sujeita à política institucional e à LGPD.
+    from apps.academico.models import Matricula, Turma
     with transaction.atomic():
       usuario.email = f'conta-{usuario.pk}@example.invalid'
       usuario.nome = 'Conta desidentificada'
@@ -682,17 +749,27 @@ def excluir_dados_view(request):
         aluno.telefone = None
         aluno.endereco = None
         aluno.save()
+        # Cancela matrículas ativas e remove vínculos familiares para retirar a conta de pautas operacionais.
+        Matricula.objects.filter(aluno=aluno, status='ATIVA').update(status='CANCELADA')
+        AlunoResponsavel.objects.filter(aluno=aluno).delete()
       if hasattr(usuario, 'professor'):
         professor = usuario.professor
         professor.telefone = None
         professor.formacao = 'Não informado'
         professor.especialidade = None
         professor.save()
+        # Remove regência, disciplinas e alocações ativas do ex-professor desidentificado.
+        Turma.objects.filter(professor_regente=professor).update(professor_regente=None)
+        professor.disciplinas.clear()
+        if hasattr(professor, 'alocacoes'):
+          professor.alocacoes.all().delete()
       if hasattr(usuario, 'responsavel'):
         responsavel = usuario.responsavel
         responsavel.telefone = None
         responsavel.parentesco_principal = None
         responsavel.save()
+        # Encerra vínculos ativos de representação familiar.
+        AlunoResponsavel.objects.filter(responsavel=responsavel).delete()
       # IP não é necessário nos logs já vinculados à conta desidentificada.
       usuario.logacesso_set.update(ip=None)
       usuario.logrecuperacaosenha_set.update(ip=None)
@@ -721,13 +798,13 @@ def atualizar_telefone_view(request):
       return redirect('meus_dados_view')
     novo_telefone = digitos
 
-    # A gravação do telefone e sua evidência de auditoria são atômicas.
+    # A gravação do telefone e sua evidência de auditoria são atômicas e exigem perfil ativo compatível.
     perfil_obj = None
-    if hasattr(usuario, 'aluno'):
+    if usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
       perfil_obj = usuario.aluno
-    elif hasattr(usuario, 'professor'):
+    elif usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
       perfil_obj = usuario.professor
-    elif hasattr(usuario, 'responsavel'):
+    elif usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel'):
       perfil_obj = usuario.responsavel
 
     if perfil_obj is None:
@@ -754,7 +831,7 @@ def termos_view(request):
     representado = None
     aluno_id = request.POST.get('aluno_representado')
     if aluno_id:
-      if not hasattr(usuario, 'responsavel'):
+      if usuario.perfil != 'RESP' or not hasattr(usuario, 'responsavel'):
         messages.error(request, 'Somente responsáveis autorizados podem representar um aluno.')
         return redirect('termos_view')
       id_valido = aluno_id.isascii() and aluno_id.isdecimal() and len(aluno_id) <= 19 and 0 < int(aluno_id) <= 9223372036854775807
@@ -762,7 +839,7 @@ def termos_view(request):
       if representado is None:
         messages.error(request, 'Aluno não vinculado a este responsável.')
         return redirect('termos_view')
-    elif hasattr(usuario, 'aluno'):
+    elif usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
       # Sem data de nascimento não dá para presumir a maioridade.
       nascimento = usuario.aluno.data_nascimento
       idade = 0
@@ -789,7 +866,7 @@ def termos_view(request):
 
   # Pega o status atual dos consentimentos do usuário para exibir na tela
   status_atual = consentimentos_atuais(usuario)
-  alunos_vinculados = usuario.responsavel.alunos_vinculados.all() if hasattr(usuario, 'responsavel') else Aluno.objects.none()
+  alunos_vinculados = usuario.responsavel.alunos_vinculados.all() if usuario.perfil == 'RESP' and hasattr(usuario, 'responsavel') else Aluno.objects.none()
   consentimentos_alunos = []
   for aluno in alunos_vinculados:
     # Cada aluno tem suas próprias autorizações, sem misturar o histórico.

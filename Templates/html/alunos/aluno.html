@@ -46,6 +46,18 @@
             <a href="{% url 'comunicacao_painel' %}" class="menu-item">
                 <span class="icone">✉</span><span>Comunicação</span>
             </a>
+            <a href="{% url 'historico_matriculas_view' %}" class="menu-item">
+                <span class="icone">🎓</span><span>Matrículas</span>
+            </a>
+            <a href="{% url 'meus_dados_view' %}" class="menu-item">
+                <span class="icone">👤</span><span>Meus Dados</span>
+            </a>
+            <a href="{% url 'termos_view' %}" class="menu-item">
+                <span class="icone">🔐</span><span>Termos e Privacidade</span>
+            </a>
+            <a href="{% url '2fa_configurar' %}" class="menu-item">
+                <span class="icone">🛡</span><span>Segurança (2FA)</span>
+            </a>
         </nav>
         <!-- RODAPÉ DO MENU -->
         <div class="menu-sair">
@@ -60,6 +72,13 @@
     </aside>
     <!-- CONTEÚDO PRINCIPAL -->
     <main class="conteudo">
+        {% if messages %}
+        <div class="mensagens" role="alert">
+            {% for message in messages %}
+            <p class="mensagem {{ message.tags }}">{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
         <!-- CABEÇALHO -->
         <header class="cabecalho">
             <div>

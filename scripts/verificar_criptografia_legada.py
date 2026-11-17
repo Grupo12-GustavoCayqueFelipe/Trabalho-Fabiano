@@ -22,11 +22,12 @@ django.setup()
 from cryptography.fernet import InvalidToken
 from django.db import connection, transaction
 from encrypted_model_fields.fields import decrypt_str
-from apps.usuarios.models import Aluno, Professor, Responsavel
+from apps.usuarios.models import Aluno, Professor, Responsavel, Usuario
 
 
-# Somente estas colunas foram convertidas pela migration 0010.
+# Colunas convertidas para Fernet nas migrations de criptografia de dados pessoais e TOTP.
 CAMPOS = [
+  (Usuario, ('otp_secret',)),
   (Aluno, ('data_nascimento', 'telefone', 'endereco')),
   (Professor, ('telefone',)),
   (Responsavel, ('telefone',)),
@@ -88,6 +89,9 @@ def verificar(corrigir=False):
     for Modelo, pk, nome, valor in pendentes:
       campo = Modelo._meta.get_field(nome)
       cifrado = campo.get_db_prep_save(campo.to_python(valor), connection)
+      # Garante que o valor recém-cifrado pode ser decifrado sem perda antes de gravar.
+      if decrypt_str(str(cifrado)) != str(valor):
+        raise RuntimeError(f'Falha na verificação de leitura Fernet para {Modelo.__name__}.{nome}.')
       tabela = connection.ops.quote_name(Modelo._meta.db_table)
       coluna = connection.ops.quote_name(nome)
       with connection.cursor() as cursor:

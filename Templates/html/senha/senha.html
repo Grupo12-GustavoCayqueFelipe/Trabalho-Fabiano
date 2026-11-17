@@ -15,6 +15,13 @@
         </div>
         <section class="recuperacao-box">
             <h2>Esqueceu sua senha?</h2>
+            {% if messages %}
+            <div class="mensagens" role="alert">
+                {% for message in messages %}
+                <p class="mensagem {{ message.tags }}">{{ message }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
             <p class="descricao"> Informe o e-mail cadastrado na sua conta e enviaremos um link para você criar uma nova senha. </p>
             <form method="POST" action="{% url 'solicitacao_recuperacao_senha_view' %}">
                 {% csrf_token %}

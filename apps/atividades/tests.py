@@ -1,4 +1,5 @@
 import datetime
+from django.core.cache import cache
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -116,6 +117,82 @@ class AtividadesSegurancaTest(TestCase):
         self.assertEqual(resposta.status_code, 302)
         self.assertEqual(Atividade.objects.count(), 1)
 
+    # Limita em 20 requisições por minuto a publicação de atividades pelo professor.
+    def test_rate_limit_bloqueia_vigesima_primeira_criacao_de_atividade(self):
+        cache.clear()
+        self.client.force_login(self.prof_user)
+        prazo = (timezone.now() + datetime.timedelta(days=2)).isoformat()
+        for i in range(21):
+            resposta = self.client.post(reverse('atividade_criar'), {
+                'titulo': f'Atividade {i + 1}',
+                'descricao': 'Descrição da atividade',
+                'turma': self.turma.pk,
+                'disciplina': self.disciplina.pk,
+                'prazo': prazo,
+            })
+        self.assertRedirects(resposta, reverse('atividades_lista'), fetch_redirect_response=False)
+        # 1 atividade criada no setUp + 20 criadas antes do bloqueio da 21ª tentativa.
+        self.assertEqual(Atividade.objects.count(), 21)
+        self.assertEqual(LogOperacao.objects.filter(evento='ATIVIDADE_CRIADA').count(), 20)
+        cache.clear()
+
+    # Limita em 20 requisições por minuto a correção de entregas pelo professor.
+    def test_rate_limit_bloqueia_vigesima_primeira_correcao_de_entrega(self):
+        cache.clear()
+        entrega = Entrega.objects.create(atividade=self.atividade, aluno=self.aluno, resposta='Resposta do aluno')
+        self.client.force_login(self.prof_user)
+        rota = reverse('entrega_corrigir', args=[self.atividade.pk, entrega.pk])
+        for i in range(21):
+            resposta = self.client.post(rota, {'nota': '8.00', 'comentario': f'Correção {i + 1}'})
+        self.assertRedirects(resposta, reverse('atividades_lista'), fetch_redirect_response=False)
+        self.assertEqual(HistoricoCorrecao.objects.filter(entrega=entrega).count(), 20)
+        self.assertEqual(LogOperacao.objects.filter(evento='ENTREGA_CORRIGIDA').count(), 20)
+        cache.clear()
+
+    # Comentário sem nota mantém a entrega aberta para reenvio e pendente no painel docente.
+    def test_consistencia_entre_pode_entregar_e_entregas_pendentes_no_painel(self):
+        cache.clear()
+        self.client.force_login(self.aluno_user)
+        self.client.post(reverse('entrega_salvar', args=[self.atividade.pk]), {'resposta': 'Rascunho inicial'})
+        entrega = Entrega.objects.get()
+
+        # Professor envia apenas comentário de orientação sem atribuir nota.
+        self.client.force_login(self.prof_user)
+        self.client.post(reverse('entrega_corrigir', args=[self.atividade.pk, entrega.pk]), {
+            'nota': '', 'comentario': 'Melhore a conclusão antes da nota final'
+        })
+        entrega.refresh_from_db()
+        self.assertIsNone(entrega.nota)
+        self.assertIsNone(entrega.corrigida_em)
+
+        painel_prof = self.client.get(reverse('dashboard'))
+        self.assertEqual(painel_prof.context['entregas_pendentes'], 1)
+
+        # Aluno ainda consegue atualizar sua entrega porque a nota final não foi atribuída.
+        self.client.force_login(self.aluno_user)
+        detalhe = self.client.get(reverse('atividade_detalhe', args=[self.atividade.pk]))
+        self.assertTrue(detalhe.context['pode_entregar'])
+        self.client.post(reverse('entrega_salvar', args=[self.atividade.pk]), {'resposta': 'Versão revisada'})
+        entrega.refresh_from_db()
+        self.assertEqual(entrega.resposta, 'Versão revisada')
+
+        # Quando o professor atribui a nota final, o painel zera a pendência e bloqueia reenvio.
+        self.client.force_login(self.prof_user)
+        self.client.post(reverse('entrega_corrigir', args=[self.atividade.pk, entrega.pk]), {
+            'nota': '9.50', 'comentario': 'Concluído'
+        })
+        entrega.refresh_from_db()
+        self.assertIsNotNone(entrega.corrigida_em)
+        painel_prof = self.client.get(reverse('dashboard'))
+        self.assertEqual(painel_prof.context['entregas_pendentes'], 0)
+
+        self.client.force_login(self.aluno_user)
+        detalhe = self.client.get(reverse('atividade_detalhe', args=[self.atividade.pk]))
+        self.assertFalse(detalhe.context['pode_entregar'])
+        self.client.post(reverse('entrega_salvar', args=[self.atividade.pk]), {'resposta': 'Tentativa bloqueada'})
+        entrega.refresh_from_db()
+        self.assertEqual(entrega.resposta, 'Versão revisada')
+
 
 # Upload e download precisam passar pelo mesmo RBAC das entregas.
 class ArquivosEntregaSegurancaTest(AtividadesSegurancaTest):
@@ -142,3 +219,38 @@ class ArquivosEntregaSegurancaTest(AtividadesSegurancaTest):
                 self.client.force_login(self.outro_aluno_user)
                 resposta = self.client.get(reverse('entrega_arquivo', args=[entrega.pk]))
                 self.assertEqual(resposta.status_code, 404)
+
+    # Se ocorrer erro na transação após gravar o PDF, o novo arquivo é apagado e o antigo é mantido.
+    def test_rollback_da_transacao_remove_novo_pdf_e_preserva_antigo(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+        from unittest.mock import patch
+
+        with TemporaryDirectory() as pasta:
+            with override_settings(MEDIA_ROOT=pasta):
+                self.client.force_login(self.aluno_user)
+                primeiro_pdf = SimpleUploadedFile('primeiro.pdf', b'%PDF-1.7\nprimeiro', content_type='application/pdf')
+                self.client.post(
+                    reverse('entrega_salvar', args=[self.atividade.pk]),
+                    {'resposta': 'Versão 1', 'arquivo': primeiro_pdf},
+                )
+                entrega = Entrega.objects.get()
+                nome_antigo = entrega.arquivo.name
+                self.assertTrue(entrega.arquivo.storage.exists(nome_antigo))
+
+                segundo_pdf = SimpleUploadedFile('segundo.pdf', b'%PDF-1.7\nsegundo', content_type='application/pdf')
+                with patch('apps.atividades.views.registrar_operacao', side_effect=RuntimeError('Falha após save')):
+                    with self.assertRaises(RuntimeError):
+                        self.client.post(
+                            reverse('entrega_salvar', args=[self.atividade.pk]),
+                            {'resposta': 'Versão 2', 'arquivo': segundo_pdf},
+                        )
+
+                entrega.refresh_from_db()
+                self.assertEqual(entrega.resposta, 'Versão 1')
+                self.assertEqual(entrega.arquivo.name, nome_antigo)
+                self.assertTrue(entrega.arquivo.storage.exists(nome_antigo))
+                arquivos_no_disco = [p.name for p in Path(pasta).rglob('*.pdf')]
+                self.assertEqual(len(arquivos_no_disco), 1)

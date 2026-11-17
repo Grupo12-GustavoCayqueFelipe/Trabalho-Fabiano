@@ -9,6 +9,13 @@
 </head>
 <body>
     <main class="exclusao-page">
+        {% if messages %}
+        <div class="mensagens" role="alert">
+            {% for message in messages %}
+            <p class="mensagem {{ message.tags }}">{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
         <a href="{% url 'meus_dados_view' %}" class="voltar-button">← Voltar para meus dados</a>
         <a href="{% url 'dashboard' %}" class="voltar-button">Meu painel</a>
 
@@ -118,8 +125,9 @@
             <div class="acoes">
                 <a href="{% url 'meus_dados_view' %}" class="cancel">Cancelar</a>
                 <button type="submit" class="excluir">Excluir minha conta</button>
-            </div> 
-        </section>
+            </div>
+            </section>
+        </form>
         <div class="versao">
 
             Exclusão de conta - EduControll

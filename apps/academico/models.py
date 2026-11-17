@@ -130,3 +130,72 @@ class Aula(models.Model):
     
     def __str__(self):
         return f"{self.disciplina} - {self.turma} - {self.data}"
+
+
+# Vincula explicitamente qual professor leciona determinada disciplina em uma turma específica.
+class AlocacaoDocente(models.Model):
+    professor = models.ForeignKey('usuarios.Professor', on_delete=models.CASCADE, related_name='alocacoes')
+    disciplina = models.ForeignKey('Disciplina', on_delete=models.CASCADE, related_name='alocacoes')
+    turma = models.ForeignKey('Turma', on_delete=models.CASCADE, related_name='alocacoes')
+
+    class Meta:
+        db_table = 'alocacoes_docentes'
+        unique_together = ('professor', 'disciplina', 'turma')
+
+    def __str__(self):
+        return f"{self.professor} - {self.disciplina} ({self.turma})"
+
+
+# Confere se o professor está autorizado a atuar na combinação específica de disciplina e turma.
+def professor_leciona_na_turma(professor, disciplina, turma):
+    if professor is None or disciplina is None or turma is None:
+        return False
+    if not disciplina.professores.filter(pk=professor.pk).exists():
+        return False
+    if not disciplina.turmas.filter(pk=turma.pk).exists():
+        return False
+    # Quando há alocação ternária explícita para a disciplina, exige o vínculo exato (professor, disciplina, turma).
+    if AlocacaoDocente.objects.filter(
+        models.Q(disciplina=disciplina, turma=turma)
+        | models.Q(disciplina=disciplina, professor=professor)
+    ).exists():
+        return AlocacaoDocente.objects.filter(
+            professor=professor, disciplina=disciplina, turma=turma
+        ).exists()
+    # Quando a disciplina possui múltiplos professores sem alocação explícita, isola cada turma pelo professor responsável ou atuante.
+    if disciplina.professores.count() > 1:
+        if (
+            turma.professor_regente_id is not None
+            and turma.professor_regente_id != professor.pk
+            and disciplina.professores.filter(pk=turma.professor_regente_id).exists()
+        ):
+            return False
+        if (
+            turma.professor_regente_id is None
+            and Turma.objects.filter(disciplina=disciplina, professor_regente=professor).exists()
+        ):
+            return False
+        if (
+            Aula.objects.filter(disciplina=disciplina, turma=turma).exclude(professor=professor).exists()
+            and not Aula.objects.filter(disciplina=disciplina, turma=turma, professor=professor).exists()
+        ):
+            return False
+    return True
+
+
+# Retorna apenas as turmas em que o professor efetivamente leciona alguma disciplina autorizada.
+def turmas_lecionadas_pelo_professor(professor, incluir_regencia_sem_disciplina=False):
+    if professor is None:
+        return Turma.objects.none()
+    turmas_ids = set()
+    disciplinas = Disciplina.objects.filter(professores=professor).prefetch_related('turmas')
+    for disc in disciplinas:
+        for turma in disc.turmas.all():
+            if professor_leciona_na_turma(professor, disc, turma):
+                turmas_ids.add(turma.pk)
+    if incluir_regencia_sem_disciplina:
+        # Regência só habilita comunicação geral na turma quando não há disciplinas de outros professores restringindo a turma.
+        for turma in Turma.objects.filter(professor_regente=professor):
+            if not Disciplina.objects.filter(turmas=turma).exclude(professores=professor).exists():
+                turmas_ids.add(turma.pk)
+    return Turma.objects.filter(pk__in=turmas_ids).order_by('nome')

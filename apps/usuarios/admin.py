@@ -48,6 +48,17 @@ class UsuarioAdmin(AdminComAuditoria, UserAdmin):
   def has_delete_permission(self, request, obj=None):
     return False
 
+  # Ao alterar o perfil de um ex-professor, remove vínculos docentes ativos.
+  def save_model(self, request, obj, form, change):
+    with transaction.atomic():
+      super().save_model(request, obj, form, change)
+      if obj.perfil != 'PROF' and hasattr(obj, 'professor'):
+        from apps.academico.models import Turma
+        Turma.objects.filter(professor_regente=obj.professor).update(professor_regente=None)
+        obj.professor.disciplina_set.clear()
+        if hasattr(obj.professor, 'alocacoes'):
+          obj.professor.alocacoes.all().delete()
+
   add_fieldsets = (
     (None, {
       'classes': ('wide',),
@@ -84,11 +95,11 @@ class ConsentimentoUsuarioAdmin(SomenteLeituraAdmin):
     
     list_filter = ('aceito', 'tipo', 'registrado_em')
     
-    # Permite que o admin busque por tipo, aceito e registrado_em
-    search_fields = ('tipo', 'aceito', 'registrado_em')
+    # Permite que o admin busque por nome, e-mail, aluno representado, tipo, versão dos termos e IP
+    search_fields = ('usuario__nome', 'usuario__email', 'aluno_representado__usuario__nome', 'tipo', 'versao_termos', 'ip')
     
     # Não deixa editar os campos do consentimento, apenas visualizar
-    readonly_fields = ('usuario', 'tipo', 'aceito', 'versao_termos', 'registrado_em')
+    readonly_fields = ('usuario', 'aluno_representado', 'tipo', 'aceito', 'versao_termos', 'registrado_em', 'ip')
 
 class LogAcessoAdmin(SomenteLeituraAdmin):
     # Mostra para o admin as colunas nas tabelas

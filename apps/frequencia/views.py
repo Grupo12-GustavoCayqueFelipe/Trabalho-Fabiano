@@ -1,12 +1,14 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
-from apps.academico.models import Aula, Matricula
+from apps.academico.models import (Aula, Matricula, professor_leciona_na_turma, turmas_lecionadas_pelo_professor)
 from apps.usuarios.models import registrar_operacao
 from .models import HistoricoFrequencia, RegistroFrequencia
 
@@ -26,8 +28,7 @@ def _professor_da_aula(usuario, aula):
     usuario.perfil == 'PROF'
     and hasattr(usuario, 'professor')
     and aula.professor_id == usuario.professor.pk
-    and aula.disciplina.turmas.filter(pk=aula.turma_id).exists()
-    and aula.disciplina.professores.filter(pk=usuario.professor.pk).exists()
+    and professor_leciona_na_turma(usuario.professor, aula.disciplina, aula.turma)
   )
 
 
@@ -43,7 +44,13 @@ def frequencia_painel_view(request):
     aulas = Aula.objects.all().select_related('turma', 'disciplina')
     matriculas = Matricula.objects.filter(status='ATIVA')
   elif usuario.perfil == 'PROF' and hasattr(usuario, 'professor'):
-    aulas = Aula.objects.filter(professor=usuario.professor, disciplina__professores=usuario.professor, disciplina__turmas=F('turma')).distinct()
+    turmas_prof = turmas_lecionadas_pelo_professor(usuario.professor)
+    aulas = Aula.objects.filter(
+      professor=usuario.professor,
+      disciplina__professores=usuario.professor,
+      disciplina__turmas=F('turma'),
+      turma__in=turmas_prof,
+    ).distinct()
     matriculas = Matricula.objects.filter(turma__in=aulas.values('turma_id'), status='ATIVA')
     registros = registros.filter(aula__in=aulas)
   elif usuario.perfil == 'ALUNO' and hasattr(usuario, 'aluno'):
@@ -53,13 +60,17 @@ def frequencia_painel_view(request):
   else:
     registros = registros.none()
 
-  # O histórico acompanha o mesmo filtro de acesso dos registros atuais.
-  historico = HistoricoFrequencia.objects.filter(registro__in=registros).select_related('registro', 'usuario')
+  # O histórico acompanha o mesmo filtro de acesso dos registros atuais e aplica paginação.
+  registros_ordenados = registros.order_by('-aula__data', '-pk')
+  historico = HistoricoFrequencia.objects.filter(registro__in=registros).select_related(
+    'registro__aula__disciplina', 'registro__aula__turma', 'registro__matricula__aluno__usuario', 'usuario'
+  ).order_by('-alterado_em', '-pk')
+  pagina = request.GET.get('page') or request.GET.get('pagina')
   return render(request, 'html/frequencia/painel.html', {
     'aulas': aulas.order_by('-data', '-pk'),
     'matriculas': matriculas.select_related('aluno__usuario', 'turma'),
-    'registros': registros.order_by('-aula__data', '-pk'),
-    'historico_frequencia': historico,
+    'registros': Paginator(registros_ordenados, 50).get_page(pagina),
+    'historico_frequencia': Paginator(historico, 50).get_page(pagina),
   })
 
 
@@ -90,24 +101,28 @@ def frequencia_salvar_view(request, aula_id):
   if status != 'J':
     justificativa = None
 
-  # Histórico e lançamento são confirmados juntos para não perder correções.
-  with transaction.atomic():
-    registro, criado = RegistroFrequencia.objects.select_for_update().get_or_create(
-      aula=aula, matricula=matricula,
-      defaults={'status': status, 'justificativa': justificativa}
-    )
-    anterior = None if criado else registro.status
-    justificativa_anterior = None if criado else registro.justificativa
-    registro.status = status
-    registro.justificativa = justificativa
-    registro.full_clean()
-    registro.save()
-    HistoricoFrequencia.objects.create(
-      registro=registro, usuario=request.user,
-      status_anterior=anterior, status_novo=status,
-      justificativa_anterior=justificativa_anterior,
-      justificativa_nova=justificativa
-    )
-    registrar_operacao(request.user, 'FREQUENCIA_SALVA', registro.pk)
+  # Histórico e lançamento são confirmados juntos para não perder correções nem expor erro 500.
+  try:
+    with transaction.atomic():
+      registro, criado = RegistroFrequencia.objects.select_for_update().get_or_create(
+        aula=aula, matricula=matricula,
+        defaults={'status': status, 'justificativa': justificativa}
+      )
+      anterior = None if criado else registro.status
+      justificativa_anterior = None if criado else registro.justificativa
+      registro.status = status
+      registro.justificativa = justificativa
+      registro.full_clean()
+      registro.save()
+      HistoricoFrequencia.objects.create(
+        registro=registro, usuario=request.user,
+        status_anterior=anterior, status_novo=status,
+        justificativa_anterior=justificativa_anterior,
+        justificativa_nova=justificativa
+      )
+      registrar_operacao(request.user, 'FREQUENCIA_SALVA', registro.pk)
+  except ValidationError:
+    messages.error(request, 'Aluno, presença ou justificativa inválida.')
+    return redirect('frequencia_painel')
   messages.success(request, 'Frequência registrada com histórico.')
   return redirect('frequencia_painel')

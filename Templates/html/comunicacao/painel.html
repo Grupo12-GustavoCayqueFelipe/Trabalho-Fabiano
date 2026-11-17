@@ -18,6 +18,7 @@
                 <button type="submit">Publicar aviso</button>
             </form>
         </section>
+        {% endif %}
         <section class="card"><h2>Enviar mensagem</h2>
             <form method="POST" action="{% url 'mensagem_enviar' %}">{% csrf_token %}
                 <label>Destinatário <select name="destinatario" required><option value="">Selecione</option>{% for destinatario in destinatarios %}<option value="{{ destinatario.pk }}">{{ destinatario.nome }} ({{ destinatario.get_perfil_display }})</option>{% endfor %}</select></label>
@@ -26,7 +27,6 @@
                 <button type="submit">Enviar</button>
             </form>
         </section>
-        {% endif %}
         <section class="card"><h2>Mural de avisos</h2>
             {% for aviso in avisos %}<article><h3>{% if aviso.fixado %}[Fixado] {% endif %}{{ aviso.titulo }}</h3><p>{{ aviso.turma|default:'Aviso geral' }} • {{ aviso.autor.nome }} • {{ aviso.criado_em|date:'d/m/Y H:i' }}</p><p class="texto">{{ aviso.texto|linebreaksbr }}</p></article>
             {% empty %}<p>Não existem avisos para seu perfil.</p>{% endfor %}
@@ -34,6 +34,7 @@
         <section class="card"><h2>Mensagens recebidas</h2>
             {% for item in mensagens_recebidas %}<article><h3>{{ item.assunto }}</h3><p>De: {{ item.remetente.nome }} • {{ item.enviada_em|date:'d/m/Y H:i' }}</p><p class="texto">{{ item.texto|linebreaksbr }}</p></article>
             {% empty %}<p>Nenhuma mensagem recebida.</p>{% endfor %}
+            {% if mensagens_recebidas.has_other_pages %}<nav class="paginacao">{% if mensagens_recebidas.has_previous %}<a href="?page={{ mensagens_recebidas.previous_page_number }}">← Anterior</a>{% endif %} <span>Página {{ mensagens_recebidas.number }} de {{ mensagens_recebidas.paginator.num_pages }}</span> {% if mensagens_recebidas.has_next %}<a href="?page={{ mensagens_recebidas.next_page_number }}">Próxima →</a>{% endif %}</nav>{% endif %}
         </section>
         <section class="card"><h2>Mensagens enviadas</h2>
             {% for item in mensagens_enviadas %}<article><h3>{{ item.assunto }}</h3><p>Para: {{ item.destinatario.nome }}</p><p class="texto">{{ item.texto|linebreaksbr }}</p></article>

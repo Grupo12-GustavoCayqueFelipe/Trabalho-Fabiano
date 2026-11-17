@@ -22,6 +22,9 @@
             <a href="{% url 'frequencia_painel' %}">Frequência</a>
             <a href="{% url 'atividades_lista' %}">Atividades</a>
             <a href="{% url 'comunicacao_painel' %}">Comunicação</a>
+            <a href="{% url 'meus_dados_view' %}">Meus Dados</a>
+            <a href="{% url 'termos_view' %}">Termos e Privacidade</a>
+            <a href="{% url '2fa_configurar' %}">Segurança (2FA)</a>
         </nav>
 
         <form action="{% url 'logout' %}" method="POST">
@@ -31,6 +34,13 @@
     </aside>
 
     <main class="conteudo">
+        {% if messages %}
+        <div class="mensagens" role="alert">
+            {% for message in messages %}
+            <p class="mensagem {{ message.tags }}">{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
         <header class="cabecalho">
             <div>
                 <h1>Painel do Professor</h1>
@@ -147,13 +157,7 @@
                         {% for turma in turmas_professor %}
                         <tr>
                             <td>{{ turma.nome }}</td>
-                            <td>
-                              {% for disciplina in turma.disciplina_set.all %}
-                                {% if request.user.professor in disciplina.professores.all %}
-                                  {{ disciplina.nome }}{% if not forloop.last %}, {% endif %}
-                                {% endif %}
-                              {% endfor %}
-                            </td>
+                            <td>{{ turma.disciplinas_do_professor }}</td>
                             <td>{{ turma.get_turno_display }}</td>
                             <td><a href="{% url 'registrar_aula_view' %}">Registrar aula</a></td>
                         </tr>

@@ -10,6 +10,13 @@
 <body>
 
     <main class="LGPD-page">
+        {% if messages %}
+        <div class="mensagens" role="alert">
+            {% for message in messages %}
+            <p class="mensagem {{ message.tags }}">{{ message }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         <!-- TOPO -->
         <div class="topo">
@@ -143,8 +150,24 @@
             Última atualização: 03/09/2026
         </div>
 
-        <!-- BOTÃO -->
-        <button type="submit" class="salvar">Salvar minhas preferências</button>
+        <!-- Responsável confirma a autorização específica para o aluno vinculado. -->
+        {% if consentimentos_alunos %}
+        <section class="card">
+            <h2>Autorização para aluno vinculado</h2>
+            <p>O responsável pode aceitar ou revogar o uso de imagem e a comunicação por WhatsApp para uma criança vinculada.</p>
+            {% for item in consentimentos_alunos %}
+            <!-- Cada formulário carrega os consentimentos atuais do próprio aluno. -->
+            <form method="POST" action="{% url 'termos_view' %}">
+                {% csrf_token %}
+                <input type="hidden" name="aluno_representado" value="{{ item.aluno.pk }}">
+                <p><strong>{{ item.aluno.usuario.nome }}</strong></p>
+                <label><input type="checkbox" name="USO_IMAGEM" {% if item.imagem_aceito %}checked{% endif %}> Autorizar uso de imagem</label>
+                <label><input type="checkbox" name="COMUNICACAO_WHATSAPP" {% if item.whatsapp_aceito %}checked{% endif %}> Autorizar comunicação por WhatsApp</label>
+                <button type="submit">Salvar preferências</button>
+            </form>
+            {% endfor %}
+        </section>
+        {% endif %}
     </main>
 
     <!-- MODAL DA POLÍTICA -->
@@ -201,25 +224,5 @@
     </div>
 
     <script src="{% static 'js/termos.js' %}"></script>
-
-
-        <!-- Responsável confirma a autorização específica para o aluno vinculado. -->
-        {% if consentimentos_alunos %}
-        <section class="card">
-            <h2>Autorização para aluno vinculado</h2>
-            <p>O responsável pode aceitar ou revogar o uso de imagem e a comunicação por WhatsApp para uma criança vinculada.</p>
-            {% for item in consentimentos_alunos %}
-            <!-- Cada formulário carrega os consentimentos atuais do próprio aluno. -->
-            <form method="POST" action="{% url 'termos_view' %}">
-                {% csrf_token %}
-                <input type="hidden" name="aluno_representado" value="{{ item.aluno.pk }}">
-                <p><strong>{{ item.aluno.usuario.nome }}</strong></p>
-                <label><input type="checkbox" name="USO_IMAGEM" {% if item.imagem_aceito %}checked{% endif %}> Autorizar uso de imagem</label>
-                <label><input type="checkbox" name="COMUNICACAO_WHATSAPP" {% if item.whatsapp_aceito %}checked{% endif %}> Autorizar comunicação por WhatsApp</label>
-                <button type="submit">Salvar preferências</button>
-            </form>
-            {% endfor %}
-        </section>
-        {% endif %}
 </body>
 </html>
