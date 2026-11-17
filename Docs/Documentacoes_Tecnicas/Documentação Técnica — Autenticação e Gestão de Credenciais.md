@@ -320,7 +320,6 @@ DJANGO SOFTWARE FOUNDATION. Django Security Documentation. Disponível em: https
 
 NIST  NATIONAL INSTITUTE OF STANDARDS AND TECHNOLOGY. SP 800-63B: Digital Identity Guidelines  Authentication and Lifecycle Management. Gaithersburg, 2017.
 
-
 ## 20. Atualização de escopo — preparação da versão 1.0.0 (18/10/2026)
 
 Esta seção prevalece sobre descrições históricas de telas e módulos nas seções anteriores.
